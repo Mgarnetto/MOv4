@@ -1,0 +1,31 @@
+﻿@{
+    ViewData["Title"] = "Home";
+    Layout = "_Layout"; // This loads the Persistent Player & Sidebar
+}
+
+<partial name="_HomePartial" />
+
+@section Scripts {
+    <script>
+        // Initial Page Load Logic
+        document.addEventListener("DOMContentLoaded", () => {
+             // If you have home-specific JS (like the Map), trigger it here
+             if(window.initHomeScripts) window.initHomeScripts();
+        });
+    </script>
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,149 @@
+﻿@using MoozicOrb.API.Models
+@model PostDto
+
+<div class="post-card" id="post-@Model.Id">
+
+    <div class="post-header">
+        <div class="d-flex align-items-center">
+            <a href="/creator/@Model.AuthorId" class="post-avatar-link">
+                <img src="@(string.IsNullOrEmpty(Model.AuthorPic) ? "/img/profile_default.jpg" : Model.AuthorPic)"
+                     class="post-avatar-img"
+                     alt="@Model.AuthorName"
+                     onerror="this.src='/img/profile_default.jpg'">
+            </a>
+
+            <div class="post-info-col">
+                <div class="d-flex align-items-center gap-2">
+                    <a href="/creator/@Model.AuthorId" class="post-author-name">@Model.AuthorName</a>
+                </div>
+                <div class="post-meta-line">
+                    <span>@Model.CreatedAgo</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="ms-auto position-relative">
+            <button class="btn btn-link text-muted p-0 btn-post-options" type="button">
+                <i class="fas fa-ellipsis-h"></i>
+            </button>
+            <ul class="post-options-menu">
+                <li><a href="#"><i class="fas fa-flag me-2"></i> Report Post</a></li>
+                <li><a href="#"><i class="fas fa-link me-2"></i> Copy Link</a></li>
+                @if (Model.AuthorId == Model.ViewerId) // You need to implement GetUserId helper in View or Model
+                {
+                    
+                    <li>
+                        <a href="#" class="dropdown-item" onclick="window.FeedService.openEditModal(@Model.Id); return false;">
+                            <i class="fas fa-edit me-2"></i> Edit
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="dropdown-item text-danger" onclick="window.FeedService.deletePost(@Model.Id); return false;">
+                            <i class="fas fa-trash me-2"></i> Delete
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+
+    <div class="post-body">
+        @if (!string.IsNullOrEmpty(Model.Title))
+        {
+            <h5 class="post-title">@Model.Title</h5>
+        }
+        @if (!string.IsNullOrEmpty(Model.Text))
+        {
+            <div class="post-text text-break">@Html.Raw(Model.Text)</div>
+        }
+
+        @if (Model.Attachments != null && Model.Attachments.Count > 0)
+        {
+            <div class="row g-2 mt-3">
+                @foreach (var media in Model.Attachments)
+                {
+                    var colClass = Model.Attachments.Count == 1 ? "col-12" : "col-6";
+                    <div class="@colClass">
+                        @if (media.MediaType == 3) // IMAGE
+                        {
+                            <div class="post-media-container">
+                                <img src="@media.Url" class="img-fluid full-media" loading="lazy">
+                            </div>
+                        }
+                        else if (media.MediaType == 2) // VIDEO (CUSTOM PLAYER)
+                        {
+                            <div class="custom-video-wrapper">
+                                <video src="@media.Url" class="custom-video" preload="metadata"></video>
+
+                                <div class="video-overlay-play">
+                                    <i class="fas fa-play"></i>
+                                </div>
+
+                                <div class="video-controls">
+                                    <button class="v-btn v-play-toggle"><i class="fas fa-play"></i></button>
+
+                                    <div class="v-progress-container">
+                                        <div class="v-progress-fill"></div>
+                                    </div>
+
+                                    <button class="v-btn v-fullscreen-toggle"><i class="fas fa-expand"></i></button>
+                                </div>
+                            </div>
+                        }
+                        else if (media.MediaType == 1) // AUDIO (Track Card)
+                        {
+                            var trackTitle = !string.IsNullOrEmpty(Model.Title) ? Model.Title : "Untitled Track";
+
+                            <div class="track-card">
+                                <button class="btn-track-play"
+                                        onclick="window.AudioPlayer.playTrack('@media.Url', { title: '@trackTitle', artist: '@Model.AuthorName' })">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <div class="track-info">
+                                    <div class="track-title">@trackTitle</div>
+                                    <div class="track-artist">@Model.AuthorName</div>
+                                </div>
+                                <div class="track-wave">
+                                    <span></span><span></span><span></span><span></span><span></span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="post-footer">
+        <button class="btn-post-action btn-like" data-id="@Model.Id">
+            @if (Model.IsLiked)
+            {
+                <i class="fas fa-heart text-danger"></i>
+            }
+            else
+            {
+                <i class="far fa-heart"></i>
+            }
+            Like @(Model.LikesCount > 0 ? $"({Model.LikesCount})" : "")
+        </button>
+        <button class="btn-post-action btn-comment-toggle" data-id="@Model.Id">
+            <i class="far fa-comment"></i> Comment @(Model.CommentsCount > 0 ? $"({Model.CommentsCount})" : "")
+        </button>
+        <button class="btn-post-action"><i class="far fa-share-square"></i> Share</button>
+    </div>
+
+    <div id="comments-@Model.Id" class="d-none border-top border-secondary p-3">
+        <div id="comments-list-@Model.Id" class="mb-3"></div>
+
+        <div class="d-flex align-items-center gap-2">
+            <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+
+            <div class="comment-input-area">
+                <input type="text" id="comment-input-@Model.Id"
+                       placeholder="Write a comment..."
+                       autocomplete="off">
+                <button class="btn-comment-post" onclick="submitReply(@Model.Id, null)">Post</button>
+            </div>
+        </div>
+    </div>
+</div>

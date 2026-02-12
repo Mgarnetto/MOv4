@@ -1,0 +1,482 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MoozicOrb</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/map.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    
+    <style>
+        /* Specific Modal Styles to match site theme */
+        .orb-modal-content {
+            background-color: #111; /* var(--bg-card) */
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .orb-modal-header {
+            border-bottom: 1px solid #222;
+        }
+        .orb-modal-footer {
+            border-top: 1px solid #222;
+        }
+        .orb-input {
+            background-color: #000 !important;
+            border: 1px solid #333 !important;
+            color: #fff !important;
+            border-radius: 10px !important;
+            padding: 12px 15px !important;
+        }
+        .orb-input:focus {
+            border-color: #00AEEF !important; /* var(--accent-secondary) */
+            box-shadow: 0 0 0 2px rgba(0, 174, 239, 0.2) !important;
+        }
+        .search-result-item {
+            padding: 10px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .search-result-item:hover {
+            background-color: #222;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .user-chip {
+            background: #222;
+            border: 1px solid #333;
+            border-radius: 20px;
+            padding: 5px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            animation: fadeIn 0.2s;
+        }
+        .user-chip i {
+            color: #ff0055; /* Remove icon color */
+            cursor: pointer;
+        }
+        .user-chip img {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body class="auth-off">
+    <nav class="navbar">
+        <div class="nav-left">
+            <button class="navbar-toggler" id="sidebarToggle">
+                <span class="bar"></span><span class="bar"></span><span class="bar"></span>
+            </button>
+            <a class="logo-container" href="/">
+                <span class="logo-text">Moozic</span>
+                <div class="eclipse-orb"></div>
+                <span class="logo-text">rb</span>
+            </a>
+        </div>
+        <div class="nav-right">
+            <div id="auth-guest">
+                <button class="btn-login" id="loginToggleBtn">LOGIN</button>
+            </div>
+
+            <div id="auth-user" style="display:none;">
+                <div class="notif-wrapper">
+                    <button class="notif-btn" id="notifToggleBtn">
+                        <i class="fa-solid fa-bell"></i>
+                        <span class="notif-badge" id="nav-notif-badge" style="display:none;">0</span>
+                    </button>
+
+                    <div class="notif-dropdown" id="notifDropdown">
+                        <div class="notif-header">
+                            <h4>Notifications</h4>
+                            <button class="btn-mark-read" id="markAllReadBtn">Mark all read</button>
+                        </div>
+                        <div class="notif-list" id="notification-list">
+                            <div class="notif-empty">No new notifications</div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-login" id="logoutBtn">LOGOUT</button>
+            </div>
+
+            <div class="login-dropdown" id="loginDropdown">
+                <div class="form-wrapper">
+                    <div class="slide-controls">
+                        <input type="radio" name="slider" id="loginRadio" checked>
+                        <input type="radio" name="slider" id="signupRadio">
+                        <label for="loginRadio" class="slide login">Login</label>
+                        <label for="signupRadio" class="slide signup">Signup</label>
+                        <div class="slider-tab"></div>
+                    </div>
+                    <div class="form-inner">
+                        <form id="loginForm" onsubmit="return false;">
+                            <div class="field"><input type="text" id="loginUser" placeholder="Username" required></div>
+                            <div class="field"><input type="password" id="loginPass" placeholder="Password" required></div>
+                            <div class="pass-link"><a href="#">Forgot password?</a></div>
+                            <div class="field btn"><div class="btn-layer"></div><input type="submit" value="Login" id="loginSubmitBtn"></div>
+                            <div class="signup-link">Not a member? <a href="#" id="switchToSignup">Signup now</a></div>
+                            <div id="loginStatus" class="status-msg"></div>
+                        </form>
+                        <form id="signupForm" onsubmit="return false;">
+                            <div class="field"><input type="text" placeholder="Full Name" required></div>
+                            <div class="field"><input type="email" placeholder="Email Address" required></div>
+                            <div class="field"><input type="password" placeholder="Password" required></div>
+                            <div class="field"><input type="password" placeholder="Confirm Password" required></div>
+                            <div class="age-gate"><input type="checkbox" id="ageCheck" required><label for="ageCheck">I am 18 years or older</label></div>
+                            <div class="field btn"><div class="btn-layer"></div><input type="submit" value="Signup"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-profile">
+            <a href="/creator/profile" class="text-decoration-none">
+                <div id="sidebar-img" class="profile-img" style="background-image: url('/img/profile_default.jpg');"></div>
+            </a>
+            <div id="sidebar-name" class="text-white fw-bold" style="font-size: 1.1rem; margin-bottom: 5px;">User</div>
+            <div class="profile-stats">
+                <span id="sidebar-followers"><strong>0</strong> Followers</span>
+                <span id="sidebar-following"><strong>0</strong> Following</span>
+            </div>
+            <div class="mt-2">
+                <a href="/settings/account" class="text-muted small text-decoration-none hover-white"><i class="fas fa-cog"></i> Settings</a>
+            </div>
+        </div>
+        <div class="sidebar-search-group">
+            <input type="text" id="globalSearchInput" placeholder="Search..." onkeydown="handleGlobalSearch(event)">
+            <button type="button" onclick="triggerGlobalSearch()" class="btn-search-go">GO</button>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="/" class="nav-link"><i class="fa fa-home"></i> Home</a></li>
+            <li><a href="/feed" class="nav-link"><i class="fa fa-rss"></i> Social Feed</a></li>
+            <li><a href="#" class="nav-link auth-trigger" id="messages-trigger"><i class="fa fa-envelope"></i> Messages</a></li>
+            <li><a href="/discover/audio" class="spa-route"><i class="fas fa-music"></i><span>Discover</span></a></li>
+            <li><a href="#"><i class="fa fa-list"></i> Playlist</a></li>
+            <li><a href="/radio" class="nav-link"><i class="fa fa-radio"></i> RadioOrb</a></li>
+            <li class="separator"></li>
+            <li><a href="#">About Us</a></li>
+            <li><a href="#">Support</a></li>
+        </ul>
+    </aside>
+
+    <div class="main-wrapper" id="mainContent">
+         @RenderBody()
+    </div>
+
+    <div class="chat-overlay" id="chatOverlay">
+        <div class="chat-app-container">
+            <aside class="chat-sidebar">
+                <header class="chat-header">
+                    <h2>Messages</h2>
+                    <div class="chat-header-actions">
+                        <button class="icon-btn new-chat"><i class="fas fa-plus"></i></button>
+                        <button class="icon-btn close-overlay" id="closeOverlaySidebar"><i class="fas fa-times"></i></button>
+                    </div>
+                </header>
+                <ul class="chat-list" id="chatList"></ul>
+            </aside>
+            <main class="chat-window" id="chatWindow">
+                <header class="chat-window-header">
+                    <div class="header-left">
+                        <button class="icon-btn back-btn" id="chatBackBtn"><i class="fas fa-chevron-left"></i></button>
+                        <img id="chatAvatar" src="" class="avatar-sm" style="display:none;">
+                        <div><h3 id="chatTitle">Select a Chat</h3><span class="status" id="chatStatus"></span></div>
+                    </div>
+                    <div class="header-right">
+                        <button class="icon-btn" id="startVideoCallBtn"><i class="fas fa-video"></i></button>
+                        <button class="icon-btn"><i class="fas fa-ellipsis-v"></i></button>
+                        <button class="icon-btn close-overlay" id="closeOverlayWindow"><i class="fas fa-times"></i></button>
+                    </div>
+                </header>
+                <div class="chat-messages" id="chatMessages"></div>
+                <footer class="chat-input-area">
+                    <button class="icon-btn"><i class="fas fa-microphone"></i></button>
+                    <input type="text" placeholder="Type a message..." id="msgInput">
+                    <button class="send-btn" id="msgSendBtn"><i class="fas fa-paper-plane"></i></button>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <div id="editPostModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header border-bottom border-secondary p-3">
+                    <h5 class="modal-title m-0">Edit Post</h5>
+                    <button type="button" class="btn-close" onclick="closeAllModals()">×</button>
+                </div>
+                <div class="modal-body p-3">
+                    <input type="hidden" id="editPostId">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Title</label>
+                        <input type="text" id="editPostTitle" class="form-control bg-black text-white border-secondary">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Content</label>
+                        <textarea id="editPostText" class="form-control bg-black text-white border-secondary" rows="4"></textarea>
+                    </div>
+                    <div id="editMediaList" class="d-flex flex-wrap gap-2"></div>
+                </div>
+                <div class="modal-footer border-top border-secondary p-3 text-end">
+                    <button type="button" class="btn btn-secondary me-2" onclick="closeAllModals()">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="window.FeedService.submitEdit()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="createGroupModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content orb-modal-content">
+                <div class="modal-header orb-modal-header p-3">
+                    <h5 class="modal-title m-0" style="font-family: 'Permanent Marker', cursive; color: #fff;">Create Squad</h5>
+                    <button type="button" class="btn-close btn-close-white" onclick="closeAllModals()"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-4">
+                        <label class="form-label text-muted small text-uppercase fw-bold mb-2">Group Name</label>
+                        <input type="text" id="newGroupName" class="form-control orb-input" placeholder="e.g. The Band, Studio A...">
+                    </div>
+
+                    <div class="mb-3 position-relative">
+                        <label class="form-label text-muted small text-uppercase fw-bold mb-2">Add Members</label>
+                        <input type="text" id="memberSearchInput" class="form-control orb-input" placeholder="Search by name..." autocomplete="off">
+                        
+                        <div id="searchResultsDropdown" class="position-absolute w-100 mt-1 shadow-lg" style="display:none; background: #1f1f1f; border: 1px solid #333; border-radius: 10px; z-index: 1050; max-height: 200px; overflow-y: auto;">
+                            </div>
+                    </div>
+
+                    <div id="selectedMembersList" class="d-flex flex-wrap gap-2 mt-2" style="min-height: 30px;">
+                        </div>
+                </div>
+                <div class="modal-footer orb-modal-footer p-3">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4 me-2" onclick="closeAllModals()">Cancel</button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4" onclick="submitCreateGroup()" style="background: #00AEEF; border:none; color:white; font-weight:bold;">Create Group</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- IMPROVED SCRIPT FOR GROUP CREATION ---
+        let selectedGroupMembers = []; // Stores objects {id, name, img}
+        let searchDebounceTimer;
+
+        // 1. Setup Event Listener for Search
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('memberSearchInput');
+            if(searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchDebounceTimer);
+                    searchDebounceTimer = setTimeout(() => handleMemberSearch(e.target.value), 300);
+                });
+            }
+        });
+
+        // 2. Perform Search
+        async function handleMemberSearch(query) {
+            const dropdown = document.getElementById('searchResultsDropdown');
+            if(!query || query.length < 2) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            if(!window.AuthState || !window.AuthState.sessionId) return;
+
+            try {
+                // Call the NEW endpoint
+                const res = await fetch(`/api/direct/messages/search?query=${encodeURIComponent(query)}`, {
+                    headers: { 'X-Session-Id': window.AuthState.sessionId }
+                });
+                
+                if(res.ok) {
+                    const users = await res.json();
+                    renderSearchResults(users);
+                }
+            } catch(e) { console.error(e); }
+        }
+
+        // 3. Render Dropdown
+        function renderSearchResults(users) {
+            const dropdown = document.getElementById('searchResultsDropdown');
+            dropdown.innerHTML = '';
+            
+            // Filter out already selected users & current user (optional)
+            const filtered = users.filter(u => !selectedGroupMembers.some(m => m.id === u.id));
+
+            if(filtered.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            filtered.forEach(u => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.innerHTML = `
+                    <img src="${u.img}" class="rounded-circle me-3" width="35" height="35" style="object-fit:cover;">
+                    <div>
+                        <div class="fw-bold text-white" style="font-size:0.95rem;">${u.name}</div>
+                        <div class="text-muted small">@@${u.username}</div>
+                    </div>
+                `;
+                div.onclick = () => selectMember(u);
+                dropdown.appendChild(div);
+            });
+
+            dropdown.style.display = 'block';
+        }
+
+        // 4. Select Member
+        function selectMember(user) {
+            selectedGroupMembers.push(user);
+            renderSelectedChips();
+            
+            // Clear input & dropdown
+            document.getElementById('memberSearchInput').value = '';
+            document.getElementById('searchResultsDropdown').style.display = 'none';
+        }
+
+        // 5. Render Chips
+        function renderSelectedChips() {
+            const container = document.getElementById('selectedMembersList');
+            container.innerHTML = selectedGroupMembers.map(u => `
+                <div class="user-chip">
+                    <img src="${u.img}">
+                    <span>${u.name}</span>
+                    <i class="fas fa-times ms-2" onclick="removeMember(${u.id})"></i>
+                </div>
+            `).join('');
+        }
+
+        function removeMember(id) {
+            selectedGroupMembers = selectedGroupMembers.filter(u => u.id !== id);
+            renderSelectedChips();
+        }
+
+        // 6. Submit Group (Updated)
+        async function submitCreateGroup() {
+            if(!window.GroupService) {
+                alert("GroupService not loaded.");
+                return;
+            }
+            const name = document.getElementById('newGroupName').value;
+            if(!name) return alert("Enter a group name");
+
+            // Map selected objects back to just IDs for the API
+            const memberIds = selectedGroupMembers.map(u => u.id);
+
+            const result = await window.GroupService.createGroup(name, memberIds);
+            
+            if(result) {
+                closeAllModals();
+                
+                // Clear state
+                selectedGroupMembers = [];
+                renderSelectedChips();
+                document.getElementById('newGroupName').value = '';
+
+                if(window.AuthState && window.AuthState.bootstrap) {
+                    await window.AuthState.bootstrap(); 
+                } else {
+                    window.location.reload();
+                    return;
+                }
+
+                // Open the new chat
+                if(window.loadGroupMessages) {
+                    window.loadGroupMessages(result.groupId, result.name);
+                }
+            }
+        }
+    </script>
+
+    <div id="singlePostModal" class="modal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <button type="button" class="btn-close" onclick="closeAllModals()"></button>
+                <div id="singlePostContainer" class="p-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="videoCallModal" class="video-modal">
+        <div class="video-content">
+            <div class="video-grid">
+                <video id="remote-video" autoplay playsinline class="remote-feed"></video>
+                <video id="local-video" autoplay playsinline muted class="local-feed"></video>
+            </div>
+            <div class="call-controls">
+                <button class="v-btn bg-danger" id="hangupBtn"><i class="fas fa-phone-slash"></i></button>
+                <button class="v-btn" onclick="toggleMute()"><i class="fas fa-microphone"></i></button>
+                <button class="v-btn" onclick="toggleCam()"><i class="fas fa-video"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="incomingCallModal" class="incoming-modal">
+        <div class="incoming-content">
+            <div class="incoming-avatar"><i class="fas fa-user"></i></div>
+            <h3 id="incomingCallerName">Unknown Caller</h3><p>Incoming Call...</p>
+            <div class="incoming-actions">
+                <button id="btnRejectCall" class="btn-action reject"><i class="fas fa-phone-slash"></i></button>
+                <button id="btnAcceptCall" class="btn-action accept"><i class="fas fa-phone"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div class="player-bar-centered">
+        <div class="main-controls">
+            <button class="ctrl-btn sm"><i class="fa-solid fa-backward-step"></i></button>
+            <button class="ctrl-btn play-glow" id="playBtn"><i class="fa-solid fa-play"></i></button>
+            <button class="ctrl-btn sm"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+        <div class="scrubber-container">
+            <span class="time">0:00</span>
+            <div class="track-line"><div class="track-fill"></div></div>
+            <span class="time">--:--</span>
+        </div>
+        <div id="status" style="display:none;"></div>
+    </div>
+
+    <script src="~/js/auth-state.js" asp-append-version="true"></script>
+    <script src="~/js/LoginService.js" asp-append-version="true"></script>
+    <script src="~/js/Login-Init.js" asp-append-version="true"></script>
+
+    <script src="~/js/group-service.js" asp-append-version="true"></script>
+
+    <script src="~/js/message.js" asp-append-version="true"></script>
+    <script src="~/js/notification.js" asp-append-version="true"></script>
+
+    <script src="~/js/router.js" asp-append-version="true"></script>
+    <script src="~/js/main.js" asp-append-version="true"></script>
+    <script src="~/js/player.js" asp-append-version="true"></script>
+    <script src="~/js/feed.js" asp-append-version="true"></script>
+    <script src="~/js/sidebar.js" asp-append-version="true"></script>
+    <script src="~/js/settings.js" asp-append-version="true"></script>
+    <script src="~/js/video-player.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

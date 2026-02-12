@@ -1,0 +1,48 @@
+﻿@{
+    // Context is 'global' to trigger the randomizer in PostController
+    var contextType = "global";
+    var contextId = "0";
+}
+
+<input type="hidden" id="page-signalr-context" value="feed_global" />
+
+<div class="container-fluid fade-in" style="max-width: 800px; margin: 0 auto; padding-top: 10px;">
+
+    <div class="audio-header-card">
+
+        <div class="header-left">
+            <h1 class="audio-title-text mb-0">
+                <i class="fa fa-rss"></i> Social Feed
+            </h1>
+        </div>
+
+        <div class="header-right">
+
+            <div class="shuffle-text-group">
+                <span class="shuffle-label">SHUFFLE FEED</span>
+                <i class="fas fa-long-arrow-alt-right text-info shuffle-arrow"></i>
+            </div>
+
+            <div class="disc-wrapper" onclick="window.triggerSocialShuffle()" title="Shuffle Feed">
+                <i id="social-globe-icon" class="fas fa-globe-americas"></i>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="feed-stream-container" class="pb-5">
+        <div class="text-center text-muted p-5 loading-placeholder">
+            <i class="fas fa-satellite-dish fa-spin fa-2x mb-3" style="color: var(--accent-secondary);"></i>
+            <p>Scanning the orb...</p>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // Trigger Initial Load
+    if (window.loadFeedHistory) {
+        window.loadFeedHistory('@contextType', '@contextId');
+    }
+</script>

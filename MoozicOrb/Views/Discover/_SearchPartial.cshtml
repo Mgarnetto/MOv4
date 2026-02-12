@@ -1,0 +1,272 @@
+﻿@{
+    bool hasUsers = Model.Users != null && Model.Users.Count > 0;
+    bool hasPosts = Model.Posts != null && Model.Posts.Count > 0;
+    bool hasNoResults = !hasUsers && !hasPosts;
+}
+
+<style>
+    /* =========================================
+               SEARCH RESULTS STYLES (No Bootstrap)
+               ========================================= */
+
+    /* Container Spacing */
+    .search-results-container {
+        padding-top: 30px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    /* Header */
+    .search-header-box {
+        background: linear-gradient(90deg, #111 0%, transparent 100%);
+        border-left: 5px solid var(--accent-secondary, #00AEEF);
+        padding: 20px 25px;
+        margin-bottom: 40px;
+        border-radius: 0 15px 15px 0;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .search-header-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 1.6rem;
+        color: white;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .search-highlight {
+        color: var(--accent-secondary, #00AEEF);
+        text-shadow: 0 0 15px rgba(0, 174, 239, 0.4);
+    }
+
+    /* Section Divider */
+    .results-divider {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin: 50px 0 30px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #333;
+    }
+
+        .results-divider h4 {
+            color: #fff;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin: 0;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+
+        .results-divider i {
+            color: var(--accent-secondary, #00AEEF);
+        }
+
+    /* --- PEOPLE GRID (Custom CSS Grid) --- */
+    .people-grid {
+        display: grid;
+        /* Responsive Grid: Cards min-width 280px, auto-fill remaining space */
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+        margin-bottom: 50px;
+    }
+
+    .person-card {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 15px;
+        display: flex; /* Flex row for Avatar | Info */
+        align-items: center;
+        gap: 15px;
+        text-decoration: none;
+        transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+        position: relative;
+        overflow: hidden;
+    }
+
+        .person-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-secondary, #00AEEF);
+            background: #222;
+            box-shadow: 0 10px 30px rgba(0, 174, 239, 0.15);
+        }
+
+    .person-avatar {
+        width: 65px;
+        height: 65px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #333;
+        flex-shrink: 0;
+        transition: 0.3s;
+    }
+
+    .person-card:hover .person-avatar {
+        border-color: var(--accent-secondary, #00AEEF);
+        box-shadow: 0 0 15px var(--accent-secondary, #00AEEF);
+    }
+
+    .person-info {
+        flex: 1;
+        min-width: 0; /* Critical for text-overflow to work in Flexbox */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .person-name {
+        color: white;
+        font-weight: 700;
+        font-size: 1.05rem;
+        margin-bottom: 3px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .person-handle {
+        color: #888;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .btn-view {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid #444;
+        color: #ccc;
+        border-radius: 50px;
+        padding: 8px 18px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: 0.2s;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .person-card:hover .btn-view {
+        background: var(--accent-secondary, #00AEEF);
+        border-color: var(--accent-secondary, #00AEEF);
+        color: #000;
+        box-shadow: 0 0 15px rgba(0, 174, 239, 0.5);
+    }
+
+    /* --- POSTS LIST --- */
+    .posts-container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        max-width: 800px;
+        margin: 0; /* Left align */
+    }
+
+    /* --- EMPTY STATE --- */
+    .empty-state-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 80px 20px;
+        text-align: center;
+    }
+
+    .empty-icon-circle {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: #111;
+        border: 1px solid #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        font-size: 2.5rem;
+        color: #555;
+    }
+
+    .empty-title {
+        color: white;
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+
+    .empty-desc {
+        color: #888;
+        font-size: 1rem;
+    }
+</style>
+
+<div class="search-results-container">
+
+    <div class="search-header-box">
+        <h3 class="search-header-title">
+            Search Results <span style="color:#666; margin:0 10px;">|</span>
+            <span class="search-highlight">"@Model.Query"</span>
+        </h3>
+    </div>
+
+    @if (hasNoResults)
+    {
+        <div class="empty-state-box">
+            <div class="empty-icon-circle">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="empty-title">No matches found</div>
+            <div class="empty-desc">We couldn't find any users or posts matching that query.</div>
+        </div>
+    }
+    else
+    {
+        @if (hasUsers)
+        {
+            <div class="results-divider">
+                <i class="fas fa-users"></i>
+                <h4>People</h4>
+            </div>
+
+            <div class="people-grid">
+                @foreach (var user in Model.Users)
+                {
+                    <a href="/creator/@user.UserId" class="person-card">
+                        <img src="@(string.IsNullOrEmpty(user.ProfilePic) ? "/img/profile_default.jpg" : user.ProfilePic)"
+                             class="person-avatar"
+                             onerror="this.src='/img/profile_default.jpg'">
+
+                        <div class="person-info">
+                            <div class="person-name">@user.DisplayName</div>
+                            <div class="person-handle">@("@" + user.UserName)</div>
+                        </div>
+
+                        <div class="btn-view">View</div>
+                    </a>
+                }
+            </div>
+        }
+
+        @if (hasPosts)
+        {
+            <div class="results-divider">
+                <i class="fas fa-stream"></i>
+                <h4>Posts</h4>
+            </div>
+
+            <div class="posts-container">
+                @foreach (var post in Model.Posts)
+                {
+                    /* Note: Assuming _PostCard itself generates standard HTML.
+                    If _PostCard relies on Bootstrap columns, it might need
+                    its own update, but this container isolates it nicely.
+                    */
+                    @await Html.PartialAsync("_PostCard", (object)post)
+                }
+            </div>
+        }
+    }
+</div>

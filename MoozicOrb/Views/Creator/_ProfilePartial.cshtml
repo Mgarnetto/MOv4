@@ -1,0 +1,131 @@
+﻿@model MoozicOrb.Models.CreatorViewModel
+
+@{
+    var contextType = "user";
+    var contextId = Model.UserId.ToString();
+}
+
+<input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
+
+<div class="hero profile-hero mb-4">
+
+    <div class="hero-bg" style="background-image: url('@(string.IsNullOrEmpty(Model.CoverImage) ? "/img/default_cover.jpg" : Model.CoverImage)');">
+        <div class="hero-overlay-gradient"></div>
+    </div>
+
+    <div class="profile-hero-content container">
+        <div class="hero-flex-wrapper">
+
+            <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)"
+                 class="profile-avatar"
+                 alt="@Model.DisplayName"
+                 onerror="this.src='/img/profile_default.jpg'">
+
+            <div class="hero-text-block">
+                <h1 class="profile-name">@Model.DisplayName</h1>
+                <p class="profile-username">@@@Model.UserName</p>
+                <p class="profile-bio">@Model.Bio</p>
+
+                <div class="action-buttons-container">
+                    @if (Model.IsCurrentUser)
+                    {
+                        <a href="/settings/account" class="btn btn-sidebar-fill text-decoration-none d-inline-flex align-items-center">
+                            <i class="fas fa-cog me-2"></i>Edit Profile
+                        </a>
+                    }
+                    else
+                    {
+                        <button class="btn-login me-2" data-id="@Model.UserId">Follow</button>
+                        <button class="btn-sidebar-outline" onclick="startChat(@Model.UserId)">
+                            <i class="fas fa-comment-alt me-2"></i>Message
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="page-grid-layout">
+    <div class="main-column">
+        @if (Model.LayoutOrder == null || Model.LayoutOrder.Count == 0)
+        {
+            <div class="mb-5">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h4 class="section-heading mb-0">Updates</h4>
+                </div>
+                @await Component.InvokeAsync("PostFeed", new
+                {
+                    contextType = "user",
+                        contextId = Model.UserId.ToString(),
+                        allowPosting = Model.IsCurrentUser,
+                        inputType = "standard"
+                        })
+        </div>
+                }
+        else
+        {
+            foreach (var layoutItem in Model.LayoutOrder)
+            {
+                <div class="mb-5" id="section-@layoutItem">
+                    @if (layoutItem == "posts")
+                    {
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h4 class="section-heading mb-0">Updates</h4>
+                        </div>
+                        @await Component.InvokeAsync("PostFeed", new
+                        {
+                            contextType = "user",
+                        contextId = Model.UserId.ToString(),
+                        allowPosting = Model.IsCurrentUser,
+                        inputType = "standard"
+                        })
+                        }
+                    else if (layoutItem == "music")
+                    {
+                        <div class="d-flex align-items-center justify-content-between mb-3">
+                            <h4 class="section-heading mb-0">Discography</h4>
+                        </div>
+                        @await Component.InvokeAsync("Discography", new
+                        {
+                            userId = Model.UserId,
+                        isCurrentUser = Model.IsCurrentUser
+                        })
+            <br />
+                        }
+                </div>
+            }
+        }
+    </div>
+
+    <aside class="side-column">
+        <div class="widget-card">
+            <h5 class="widget-title">About</h5>
+            <p class="widget-text text-muted">
+                @(string.IsNullOrEmpty(Model.Bio) ? "No bio information provided." : Model.Bio)
+            </p>
+            <div class="separator my-3" style="background: #333;"></div>
+            <div class="text-muted small">
+                <i class="far fa-calendar-alt me-2 text-accent"></i> Joined Jan 2026
+            </div>
+        </div>
+
+        <div class="widget-card">
+            <h5 class="widget-title mb-3">Network</h5>
+            <div class="d-flex justify-content-between text-center mb-3">
+                <div>
+                    <strong class="d-block text-white fs-5">0</strong>
+                    <span class="text-muted small">Followers</span>
+                </div>
+                <div>
+                    <strong class="d-block text-white fs-5">0</strong>
+                    <span class="text-muted small">Following</span>
+                </div>
+                <div>
+                    <strong class="d-block text-white fs-5">0</strong>
+                    <span class="text-muted small">Tracks</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+</div>

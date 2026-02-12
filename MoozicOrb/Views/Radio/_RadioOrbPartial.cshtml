@@ -1,0 +1,61 @@
+﻿@* @model RadioViewModel *@
+
+<input type="hidden" id="page-signalr-context" value="page_radio" />
+
+<div class="orb-radio-banner">
+
+    <div class="orb-banner-glow"></div>
+
+    <div class="giant-eclipse-orb pulsing"></div>
+
+    <h2 class="now-playing-title">
+        LIVE ON <span style="color: var(--accent-secondary);">ORB FM</span>
+    </h2>
+
+    <div class="radio-subtitle">
+        <i class="fas fa-wave-square me-2"></i>Select a frequency to tune in
+    </div>
+
+</div>
+
+<div class="section">
+    <div class="radio-tuner-grid">
+
+        <div class="station-card active" onclick="window.AudioPlayer.startLive()">
+            <div class="station-status">● LIVE</div>
+            <i class="fas fa-broadcast-tower station-icon"></i>
+            <div class="station-info">
+                <h3>Global Hits</h3>
+                <p>Top 40 & Viral Tracks</p>
+            </div>
+            <div class="visualizer-bars">
+                <span></span><span></span><span></span><span></span>
+            </div>
+        </div>
+
+        <div class="station-card disabled">
+            <div class="station-status offline">OFFLINE</div>
+            <i class="fas fa-guitar station-icon"></i>
+            <div class="station-info">
+                <h3>Rock Central</h3>
+                <p>Classic & Alt Rock</p>
+            </div>
+        </div>
+
+        <div class="station-card disabled">
+            <div class="station-status offline">OFFLINE</div>
+            <i class="fas fa-drum station-icon"></i>
+            <div class="station-info">
+                <h3>Bass Basement</h3>
+                <p>DnB, Jungle & Dub</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="section mt-5">
+    <h3 class="section-heading">Live Requests</h3>
+    <div id="feed_page_radio" class="chat-style-feed p-3 rounded" style="background: var(--bg-card); min-height: 200px; border: 1px solid #333;">
+    </div>
+</div>
