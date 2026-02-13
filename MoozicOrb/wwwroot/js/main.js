@@ -306,3 +306,94 @@ window.handleGlobalSearch = function (e) {
         window.triggerGlobalSearch();
     }
 };
+
+/* =========================================
+   SCROLL SYNC MANAGER
+   Hides player when scrolling, reveals after delay.
+   ========================================= */
+const ScrollSync = {
+    elements: ['#globalPlayerBar'], // Add other IDs here if you want them to hide too
+    scrollTimer: null,
+    isScrolling: false,
+
+    init() {
+        // Passive listener for better performance
+        window.addEventListener('scroll', () => this.handleScroll(), { passive: true });
+    },
+
+    handleScroll() {
+        // 1. If we weren't scrolling before, HIDE immediately
+        if (!this.isScrolling) {
+            this.toggleElements(true); // true = hide
+            this.isScrolling = true;
+        }
+
+        // 2. Clear the timer (reset the countdown)
+        clearTimeout(this.scrollTimer);
+
+        // 3. Set timer for 0.8s (800ms) AFTER scroll stops
+        this.scrollTimer = setTimeout(() => {
+            this.toggleElements(false); // false = show
+            this.isScrolling = false;
+        }, 800);
+    },
+
+    toggleElements(shouldHide) {
+        this.elements.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                if (shouldHide) el.classList.add('player-hidden');
+                else el.classList.remove('player-hidden');
+            }
+        });
+    }
+};
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', () => {
+    ScrollSync.init();
+});
+
+/* =========================================
+SOCIAL FEED AUTO-RETRACTOR (SPA SAFE)
+========================================= */
+document.addEventListener('DOMContentLoaded', () => {
+
+    // 1. Define the logic once
+    const queueBannerRetraction = () => {
+        const banner = document.getElementById('social-feed-banner');
+
+        // Only run if:
+        // a) The banner exists
+        // b) It isn't already retracted
+        // c) We haven't already queued the timer (checked via a custom data attribute)
+        if (banner && !banner.classList.contains('retracted') && !banner.dataset.retractQueued) {
+
+            // Mark it so we don't start 100 timers
+            banner.dataset.retractQueued = "true";
+
+            setTimeout(() => {
+                banner.classList.add('retracted');
+            }, 2000);
+        }
+    };
+
+    // 2. Check immediately (For Ctrl+F5 / Hard Refresh)
+    queueBannerRetraction();
+
+    // 3. Create a "MutationObserver" (For SPA Navigation)
+    // This watches the document for any new elements being added
+    const observer = new MutationObserver((mutations) => {
+        // Optimization: We only care if nodes were added
+        const nodesAdded = mutations.some(m => m.addedNodes.length > 0);
+        if (nodesAdded) {
+            queueBannerRetraction();
+        }
+    });
+
+    // Start watching the body (or your specific '#main-wrapper' if you prefer)
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+});

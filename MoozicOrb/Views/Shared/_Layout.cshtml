@@ -445,18 +445,33 @@
         </div>
     </div>
 
-    <div class="player-bar-centered">
-        <div class="main-controls">
-            <button class="ctrl-btn sm"><i class="fa-solid fa-backward-step"></i></button>
-            <button class="ctrl-btn play-glow" id="playBtn"><i class="fa-solid fa-play"></i></button>
-            <button class="ctrl-btn sm"><i class="fa-solid fa-forward-step"></i></button>
+    <div class="player-bar-centered" id="globalPlayerBar">
+        <div class="player-info-section d-none d-md-flex">
+            <div class="track-info-block">
+                <div id="player-track-title" class="fw-bold text-white text-truncate" style="max-width: 180px;">Station Live</div>
+                <div id="player-track-artist" class="small text-muted text-truncate" style="max-width: 180px;">MoozicOrb Network</div>
+            </div>
         </div>
-        <div class="scrubber-container">
-            <span class="time">0:00</span>
-            <div class="track-line"><div class="track-fill"></div></div>
-            <span class="time">--:--</span>
+
+        <div class="player-center-section">
+            <div class="main-controls">
+                <button class="ctrl-btn sm"><i class="fa-solid fa-backward-step"></i></button>
+                <button class="ctrl-btn play-glow" id="playBtn"><i class="fa-solid fa-play"></i></button>
+                <button class="ctrl-btn sm"><i class="fa-solid fa-forward-step"></i></button>
+            </div>
+
+            <div class="scrubber-container">
+                <span class="time">0:00</span>
+                <div class="track-line"><div class="track-fill"></div></div>
+                <span class="time">--:--</span>
+            </div>
+
+            <div id="status" style="display:none;"></div>
         </div>
-        <div id="status" style="display:none;"></div>
+
+        <div class="player-actions-section d-none d-md-flex">
+            <button class="ctrl-btn sm"><i class="fa-solid fa-list"></i></button>
+        </div>
     </div>
 
     <script src="~/js/auth-state.js" asp-append-version="true"></script>

@@ -1,5 +1,4 @@
 ﻿@{
-    // Context is 'global' to trigger the randomizer in PostController
     var contextType = "global";
     var contextId = "0";
 }
@@ -8,7 +7,7 @@
 
 <div class="container-fluid fade-in" style="max-width: 800px; margin: 0 auto; padding-top: 10px;">
 
-    <div class="audio-header-card">
+    <div class="audio-header-card" id="social-feed-banner">
 
         <div class="header-left">
             <h1 class="audio-title-text mb-0">
@@ -41,7 +40,6 @@
 </div>
 
 <script>
-    // Trigger Initial Load
     if (window.loadFeedHistory) {
         window.loadFeedHistory('@contextType', '@contextId');
     }
