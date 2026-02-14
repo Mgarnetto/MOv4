@@ -56,6 +56,12 @@ body {
         background: var(--accent-secondary);
     }
 
+body.no-scroll {
+    overflow: hidden !important;
+    /* Optional: prevents layout shift if scrollbar disappears */
+    padding-right: 8px;
+}
+
 /* =========================================
    2. NAVBAR & LOGIN
    ========================================= */
@@ -876,7 +882,7 @@ input[type="radio"] {
     bottom: 0;
     background: rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(5px);
-    z-index: 5000;
+    z-index: 9000 !important;
     display: none;
     align-items: center;
     justify-content: center;
@@ -1223,7 +1229,7 @@ input[type="radio"] {
     border: 1px solid #333;
     border-radius: 20px;
     padding: 0 25px;
-    z-index: 2500;
+    z-index: 1000 !important;
     /* Layout */
     display: flex;
     align-items: center;
@@ -1382,7 +1388,7 @@ input[type="radio"] {
     width: 100%;
     height: 100%;
     background: rgba(0,0,0,0.85);
-    z-index: 10000;
+    z-index: 10050 !important;
     display: none;
     align-items: center;
     justify-content: center;
@@ -3160,7 +3166,7 @@ textarea.form-control {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.85);
-    z-index: 5000; /* High enough to sit on top */
+    z-index: 10050 !important; /* Raised */
     display: none; /* HIDDEN BY DEFAULT */
     align-items: center;
     justify-content: center;
@@ -3446,7 +3452,7 @@ textarea.form-control {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.9); /* Dark overlay */
-    z-index: 5000; /* High z-index to sit over Navbar */
+    z-index: 10050 !important; /* Raised */
     display: none; /* Hidden by default */
     align-items: center;
     justify-content: center;
@@ -3655,7 +3661,7 @@ textarea.form-control {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.85);
-    z-index: 6000; /* Higher than everything */
+    z-index: 10050 !important; /* Raised */
     display: none; /* Hidden by default */
     align-items: center;
     justify-content: center;
@@ -3877,12 +3883,27 @@ textarea.form-control {
 }
 
 .member-row {
+    position: relative !important; /* FIXED: Anchor for absolute menu */
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 10px;
     border-bottom: 1px solid #222;
 }
+
+    /* Position the vertical dots within the row */
+    .member-row .msg-options-btn {
+        position: static !important; /* Remove fixed top/right pinning */
+        margin-left: 10px;
+    }
+
+    /* Position the dropdown menu relative to the row, not the modal */
+    .member-row .msg-context-menu {
+        position: absolute;
+        right: 40px; /* Adjust based on dot button width */
+        top: 10px; /* Align with the row content */
+        z-index: 100;
+    }
 
     .member-row:last-child {
         border-bottom: none;
@@ -3934,7 +3955,7 @@ textarea.form-control {
 
 /* --- Z-INDEX FIXES --- */
 #chatOverlay {
-    z-index: 2000 !important;
+    z-index: 9000 !important; /* MATCHED .chat-overlay */
 }
 
 .modal-backdrop {

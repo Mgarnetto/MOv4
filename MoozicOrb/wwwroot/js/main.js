@@ -397,3 +397,65 @@ document.addEventListener('DOMContentLoaded', () => {
         subtree: true
     });
 });
+
+/* =========================================
+MODAL SCROLL LOCK MANAGER
+Prevents background scrolling when modals are open
+========================================= */
+const ModalScrollManager = {
+    // IDs of all the modals you want to lock scrolling for
+    modalIds: [
+        'chatOverlay',        // The main chat window
+        'groupInfoModal',     // Group settings/management
+        'createGroupModal',   // Create group
+        'editPostModal',      // Edit post
+        'singlePostModal',    // View single post
+        'videoCallModal',     // Video call
+        'incomingCallModal'   // Incoming call
+    ],
+
+    init() {
+        const body = document.body;
+
+        // Function to check if ANY of the modals are currently open
+        const checkModals = () => {
+            let isAnyOpen = false;
+
+            this.modalIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    // Check if it has the 'active' class OR inline display style (not none)
+                    const isActiveClass = el.classList.contains('active');
+                    const isVisibleStyle = el.style.display && el.style.display !== 'none';
+
+                    if (isActiveClass || isVisibleStyle) {
+                        isAnyOpen = true;
+                    }
+                }
+            });
+
+            // Toggle the body class based on result
+            if (isAnyOpen) {
+                body.classList.add('no-scroll');
+            } else {
+                body.classList.remove('no-scroll');
+            }
+        };
+
+        // Create an observer that watches for attribute changes (class or style)
+        const observer = new MutationObserver(checkModals);
+
+        // Attach observer to each modal
+        this.modalIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                observer.observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+            }
+        });
+    }
+};
+
+// Initialize it when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    ModalScrollManager.init();
+});

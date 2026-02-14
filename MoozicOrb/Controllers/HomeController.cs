@@ -80,7 +80,7 @@ namespace MoozicOrb.Controllers
             {
                 return PartialView("_SocialFeedPartial");
             }
-            return View();
+            return RedirectToAction("Index", "Home");
         }
 
         public IActionResult Privacy()
