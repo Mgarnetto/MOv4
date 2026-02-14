@@ -390,7 +390,8 @@ function renderNewPost(post) {
     postEl.classList.add('feed-interactive');
 
     postEl.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
+        // GUARD CLAUSE: Ignore buttons, inputs, AND now the comment section
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card, [id^="comments-"]')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
@@ -972,7 +973,8 @@ function appendHistoricalPost(post, container) {
     postEl.classList.add('feed-interactive');
 
     postEl.addEventListener('click', (e) => {
-        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
+        // GUARD CLAUSE: Ignore buttons, inputs, AND now the comment section
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card, [id^="comments-"]')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
@@ -1102,9 +1104,10 @@ window.triggerSocialShuffle = async function () {
 };
 
 // ============================================
-// 11. VIDEO HELPERS
+// 11. VIDEO HELPERS (Added)
 // ============================================
 
+// Helper: Extract Thumbnail & Metadata from Video File Client-Side
 window.processVideoUpload = function (file) {
     return new Promise((resolve, reject) => {
         const video = document.createElement('video');
@@ -1113,19 +1116,25 @@ window.processVideoUpload = function (file) {
         video.muted = true;
         video.playsInline = true;
 
+        // 1. Wait for metadata
         video.onloadedmetadata = () => {
+            // Seek to 1s to capture a frame (avoid black screen at 0s)
             let seekTime = 1.0;
             if (video.duration < 2) seekTime = 0.0;
             video.currentTime = seekTime;
         };
 
+        // 2. Wait for seek to complete
         video.onseeked = () => {
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
+
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                // Convert to Blob (JPEG)
                 canvas.toBlob((blob) => {
                     const metadata = {
                         thumbnailBlob: blob,
@@ -1133,6 +1142,7 @@ window.processVideoUpload = function (file) {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
+
                     URL.revokeObjectURL(video.src);
                     resolve(metadata);
                 }, 'image/jpeg', 0.85);
