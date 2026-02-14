@@ -3772,49 +3772,44 @@ textarea.form-control {
 
 /* --- Comment & Message Dropdowns --- */
 .msg-options-btn {
-    opacity: 0;
-    transition: opacity 0.2s;
+    /* VISIBILITY: Always show (opacity 1) */
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
     background: transparent;
     border: none;
-    color: #888; /* Default grey for comments/white backgrounds */
-    padding: 4px 8px; /* Larger hit area */
+    color: #888;
+    padding: 4px 8px;
     cursor: pointer;
     font-size: 1rem;
-    /* FIX: Pin tightly to top right edge */
+    /* POSITIONING: Pin strictly to top right */
     position: absolute !important;
     top: 2px !important;
-    right: 2px !important;
-    z-index: 20; /* Ensure on top of text */
-    display: block !important;
+    right: 5px !important;
+    z-index: 20;
 }
 
-/* FIX: Better contrast for "Me" messages (Blue Background) */
+/* Better contrast for "Me" messages (Blue Background) */
 .message-row.me .msg-options-btn {
     color: rgba(255, 255, 255, 0.9) !important;
 }
 
-/* FIX: Prevent Name overlap in "Me" bubbles */
+/* Prevent text from overlapping the dots in Chat */
 .message-row.me .msg-bubble small {
-    margin-right: 20px; /* Reserve space for the dots */
+    margin-right: 25px;
     display: block;
 }
 
-/* Ensure the container accepts the absolute child */
+/* Prevent text from overlapping the dots in Comments */
+.comment-display-box,
+.msg-content-display {
+    padding-right: 35px !important;
+}
+
+/* Ensure containers support absolute positioning */
 .comment-item .position-relative,
 .msg-bubble.position-relative {
     position: relative !important;
-}
-
-/* Add padding so text doesn't overlap the dots in comments */
-.comment-display-box,
-.msg-content-display {
-    padding-right: 30px;
-}
-
-/* Show dots on hover */
-.comment-item:hover .msg-options-btn,
-.message-row:hover .msg-options-btn {
-    opacity: 1;
 }
 
 /* The Dropdown Menu */
@@ -3937,29 +3932,24 @@ textarea.form-control {
         background: rgba(255,255,255,0.05);
     }
 
-/* --- Z-INDEX FIXES (CRITICAL) --- */
-
-/* 1. Chat Overlay (High) */
+/* --- Z-INDEX FIXES --- */
 #chatOverlay {
     z-index: 2000 !important;
 }
 
-/* 2. Modal Backdrop (Higher than Overlay) */
 .modal-backdrop {
     z-index: 10040 !important;
 }
 
-/* 3. The Modal Itself (Highest) */
 .modal {
     z-index: 10050 !important;
 }
 
-/* 4. FIX: Force flex display on active Group Modal */
 #groupInfoModal.active {
     display: flex !important;
 }
 
-/* 5. Group Info Modal Structure */
+/* Group Modal Structure */
 #groupInfoModal {
     position: fixed;
     top: 0;

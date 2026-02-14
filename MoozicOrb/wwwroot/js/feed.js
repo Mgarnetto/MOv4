@@ -34,7 +34,7 @@ feedConnection.on("ReceivePost", function (message) {
 // --- EXISTING SIGNALR LISTENERS ---
 
 feedConnection.on("UpdatePost", function (msg) {
-    // UPDATED: Handle potential duplicates (modal + feed)
+    // Handle potential duplicates (modal + feed)
     const cards = document.querySelectorAll(`#post-${msg.postId}`);
     cards.forEach(card => {
         const titleEl = card.querySelector('.post-title');
@@ -60,14 +60,13 @@ feedConnection.on("RemovePost", function (msg) {
 // --- NEW: COMMENT SIGNALR LISTENERS ---
 
 feedConnection.on("OnCommentUpdated", function (msg) {
-    // msg = { postId, commentId, text }
-    const commentEl = document.getElementById(`comment-${msg.commentId}`);
-    if (commentEl) {
-        // 1. Update the text display
+    // Update ALL instances (Modal + Feed)
+    const comments = document.querySelectorAll(`#comment-${msg.commentId}`);
+    comments.forEach(commentEl => {
         const textEl = commentEl.querySelector('.comment-text');
         if (textEl) textEl.innerText = msg.text;
 
-        // 2. Ensure edit mode is closed
+        // Ensure edit mode is closed
         const displayBox = commentEl.querySelector('.comment-display-box');
         const editBox = commentEl.querySelector('.comment-edit-box');
         if (displayBox && editBox) {
@@ -75,24 +74,27 @@ feedConnection.on("OnCommentUpdated", function (msg) {
             editBox.classList.add('d-none');
         }
 
-        // 3. Flash effect
+        // Sync the textarea value for next time
+        const ta = commentEl.querySelector('textarea');
+        if (ta) ta.value = msg.text;
+
+        // Flash effect
         commentEl.style.transition = "background-color 0.5s";
         commentEl.style.backgroundColor = "#222";
         setTimeout(() => commentEl.style.backgroundColor = "", 500);
-    }
+    });
 });
 
 feedConnection.on("OnCommentDeleted", function (msg) {
-    // msg = { postId, commentId }
-    const commentEl = document.getElementById(`comment-${msg.commentId}`);
-    if (commentEl) {
+    const comments = document.querySelectorAll(`#comment-${msg.commentId}`);
+    comments.forEach(commentEl => {
         commentEl.style.transition = "opacity 0.3s";
         commentEl.style.opacity = '0';
         setTimeout(() => commentEl.remove(), 300);
-    }
+    });
 });
 
-// --- SERVICE METHODS (POSTS) ---
+// --- SERVICE METHODS ---
 
 window.FeedService.deletePost = async (id) => {
     if (!confirm("Are you sure you want to delete this post?")) return;
@@ -103,61 +105,74 @@ window.FeedService.deletePost = async (id) => {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
         if (!res.ok) alert("Failed to delete post.");
+        // SignalR will handle the removal from UI
     } catch (err) { console.error(err); }
 };
 
-// --- NEW: COMMENT SERVICE METHODS ---
+// --- UPDATED COMMENT SERVICE METHODS (With Manual UI Sync) ---
 
-window.FeedService.deleteComment = async (postId, commentId) => {
+window.FeedService.deleteComment = async (postId, commentId, btnElement) => {
     if (!confirm("Delete this comment?")) return;
-    // Close menu
-    document.querySelectorAll('.msg-context-menu').forEach(el => el.classList.remove('active'));
+
+    // Close menu immediately
+    if (btnElement) {
+        const menu = btnElement.closest('.msg-context-menu');
+        if (menu) menu.classList.remove('active');
+    }
 
     try {
         const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
             method: 'DELETE',
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
-        if (!res.ok) alert("Failed to delete comment.");
+
+        if (res.ok) {
+            // MANUAL UPDATE: Remove all instances immediately
+            const allInstances = document.querySelectorAll(`#comment-${commentId}`);
+            allInstances.forEach(el => el.remove());
+        } else {
+            alert("Failed to delete comment.");
+        }
     } catch (err) { console.error(err); }
 };
 
-window.FeedService.editComment = (commentId) => {
-    const el = document.getElementById(`comment-${commentId}`);
-    if (!el) return;
+window.FeedService.editComment = (commentId, btnElement) => {
+    // Only open edit mode for the specific row clicked
+    const row = btnElement.closest('.comment-item');
+    if (!row) return;
 
     // Close menu
-    el.querySelector('.msg-context-menu')?.classList.remove('active');
+    row.querySelector('.msg-context-menu')?.classList.remove('active');
 
     // Toggle UI
-    el.querySelector('.comment-display-box').classList.add('d-none');
-    const editBox = el.querySelector('.comment-edit-box');
+    row.querySelector('.comment-display-box').classList.add('d-none');
+    const editBox = row.querySelector('.comment-edit-box');
     editBox.classList.remove('d-none');
 
-    // Focus textarea and set cursor to end
     const textarea = editBox.querySelector('textarea');
     textarea.focus();
-    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    // Move cursor to end
+    const len = textarea.value.length;
+    textarea.setSelectionRange(len, len);
 };
 
-window.FeedService.cancelEditComment = (commentId) => {
-    const el = document.getElementById(`comment-${commentId}`);
-    if (!el) return;
+window.FeedService.cancelEditComment = (commentId, btnElement) => {
+    const row = btnElement.closest('.comment-item');
+    if (!row) return;
 
-    // Revert UI
-    el.querySelector('.comment-display-box').classList.remove('d-none');
-    el.querySelector('.comment-edit-box').classList.add('d-none');
+    row.querySelector('.comment-display-box').classList.remove('d-none');
+    row.querySelector('.comment-edit-box').classList.add('d-none');
 
-    // Reset textarea to current actual text
-    const currentText = el.querySelector('.comment-text').innerText;
-    el.querySelector('textarea').value = currentText;
+    // Reset textarea to original text
+    const currentText = row.querySelector('.comment-text').innerText;
+    row.querySelector('textarea').value = currentText;
 };
 
-window.FeedService.saveComment = async (postId, commentId) => {
-    const el = document.getElementById(`comment-${commentId}`);
-    if (!el) return;
+window.FeedService.saveComment = async (postId, commentId, btnElement) => {
+    const row = btnElement.closest('.comment-item');
+    if (!row) return;
 
-    const textarea = el.querySelector('textarea');
+    const textarea = row.querySelector('textarea');
     const newText = textarea.value.trim();
     if (!newText) return;
 
@@ -170,7 +185,28 @@ window.FeedService.saveComment = async (postId, commentId) => {
             },
             body: JSON.stringify({ text: newText })
         });
-        if (!res.ok) alert("Failed to edit comment.");
+
+        if (res.ok) {
+            // MANUAL UPDATE: Sync ALL instances (Modal + Feed)
+            const allInstances = document.querySelectorAll(`#comment-${commentId}`);
+            allInstances.forEach(el => {
+                const textEl = el.querySelector('.comment-text');
+                if (textEl) textEl.innerText = newText;
+
+                // Update hidden textarea too
+                const ta = el.querySelector('textarea');
+                if (ta) ta.value = newText;
+
+                const displayBox = el.querySelector('.comment-display-box');
+                const editBox = el.querySelector('.comment-edit-box');
+                if (displayBox && editBox) {
+                    displayBox.classList.remove('d-none');
+                    editBox.classList.add('d-none');
+                }
+            });
+        } else {
+            alert("Failed to edit comment.");
+        }
     } catch (err) { console.error(err); }
 };
 
@@ -179,10 +215,7 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
     const modalEl = document.getElementById('singlePostModal');
     const container = document.getElementById('singlePostContainer');
 
-    if (!modalEl || !container) {
-        console.error("Modal elements not found in Layout");
-        return;
-    }
+    if (!modalEl || !container) return;
 
     modalEl.classList.add('active');
     container.innerHTML = '<div class="text-center p-5"><i class="fas fa-spinner fa-spin fa-2x text-white"></i></div>';
@@ -199,18 +232,17 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 
         if (autoComment) {
             setTimeout(() => {
-                // Scoped query selector ensures we click the button inside the modal
                 const commentBtn = container.querySelector('.btn-comment-toggle');
                 if (commentBtn) commentBtn.click();
             }, 300);
         }
     } catch (err) {
         console.error(err);
-        container.innerHTML = '<div class="text-center p-4 text-danger">Failed to load post. It may have been deleted.</div>';
+        container.innerHTML = '<div class="text-center p-4 text-danger">Failed to load post.</div>';
     }
 };
 
-// --- EDIT MODAL LOGIC ---
+// --- EDIT MODAL LOGIC (POSTS) ---
 
 window.FeedService.openEditModal = async (id) => {
     try {
@@ -294,6 +326,7 @@ document.addEventListener('click', function (e) {
     if (e.target.classList.contains('modal') && e.target.classList.contains('active')) {
         closeAllModals();
     }
+
     // Close Context Menus if clicking elsewhere
     if (!e.target.closest('.msg-options-btn') && !e.target.closest('.msg-context-menu')) {
         document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
@@ -390,8 +423,7 @@ function renderNewPost(post) {
     postEl.classList.add('feed-interactive');
 
     postEl.addEventListener('click', (e) => {
-        // GUARD CLAUSE: Ignore buttons, inputs, AND now the comment section
-        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card, [id^="comments-"]')) {
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
@@ -770,8 +802,8 @@ function createCommentElement(c) {
                 <div class="comment-edit-box d-none mt-1 mb-2">
                     <textarea class="edit-mode-textarea">${c.content}</textarea>
                     <div class="d-flex justify-content-end gap-2 mt-1">
-                         <button class="btn btn-sm btn-secondary" onclick="window.FeedService.cancelEditComment('${c.commentId}')">Cancel</button>
-                         <button class="btn btn-sm btn-primary" onclick="window.FeedService.saveComment('${c.postId}', '${c.commentId}')">Save</button>
+                         <button class="btn btn-sm btn-secondary" onclick="window.FeedService.cancelEditComment('${c.commentId}', this)">Cancel</button>
+                         <button class="btn btn-sm btn-primary" onclick="window.FeedService.saveComment('${c.postId}', '${c.commentId}', this)">Save</button>
                     </div>
                 </div>
 
@@ -793,8 +825,8 @@ function createCommentElement(c) {
                 <i class="fas fa-ellipsis-v"></i>
             </button>
             <div class="msg-context-menu">
-                <button onclick="window.FeedService.editComment('${c.commentId}')">Edit</button>
-                <button class="text-danger" onclick="window.FeedService.deleteComment('${c.postId}', '${c.commentId}')">Delete</button>
+                <button onclick="window.FeedService.editComment('${c.commentId}', this)">Edit</button>
+                <button class="text-danger" onclick="window.FeedService.deleteComment('${c.postId}', '${c.commentId}', this)">Delete</button>
             </div>
             ` : ''}
         </div>`;
@@ -973,8 +1005,7 @@ function appendHistoricalPost(post, container) {
     postEl.classList.add('feed-interactive');
 
     postEl.addEventListener('click', (e) => {
-        // GUARD CLAUSE: Ignore buttons, inputs, AND now the comment section
-        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card, [id^="comments-"]')) {
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
@@ -1104,10 +1135,9 @@ window.triggerSocialShuffle = async function () {
 };
 
 // ============================================
-// 11. VIDEO HELPERS (Added)
+// 11. VIDEO HELPERS
 // ============================================
 
-// Helper: Extract Thumbnail & Metadata from Video File Client-Side
 window.processVideoUpload = function (file) {
     return new Promise((resolve, reject) => {
         const video = document.createElement('video');
@@ -1116,25 +1146,19 @@ window.processVideoUpload = function (file) {
         video.muted = true;
         video.playsInline = true;
 
-        // 1. Wait for metadata
         video.onloadedmetadata = () => {
-            // Seek to 1s to capture a frame (avoid black screen at 0s)
             let seekTime = 1.0;
             if (video.duration < 2) seekTime = 0.0;
             video.currentTime = seekTime;
         };
 
-        // 2. Wait for seek to complete
         video.onseeked = () => {
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Convert to Blob (JPEG)
                 canvas.toBlob((blob) => {
                     const metadata = {
                         thumbnailBlob: blob,
@@ -1142,7 +1166,6 @@ window.processVideoUpload = function (file) {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
-
                     URL.revokeObjectURL(video.src);
                     resolve(metadata);
                 }, 'image/jpeg', 0.85);
