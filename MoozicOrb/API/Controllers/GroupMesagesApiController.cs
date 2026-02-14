@@ -93,6 +93,63 @@ public class GroupMessagesController : ControllerBase
 
         return Ok(new { messageId });
     }
+
+    // =========================================
+    // PUT: Edit Message
+    // =========================================
+    [HttpPut("{messageId}")]
+    public async Task<IActionResult> EditMessage(long groupId, long messageId, [FromBody] JsonElement body)
+    {
+        try
+        {
+            if (!body.TryGetProperty("text", out var t)) return BadRequest("Text required");
+            string newText = t.GetString();
+            if (string.IsNullOrWhiteSpace(newText)) return BadRequest("Text cannot be empty");
+
+            int userId = GetUserId();
+
+            bool success = _service.EditGroupMessage(groupId, userId, messageId, newText);
+            if (!success) return BadRequest("Could not edit message (Access Denied or Not Found)");
+
+            // Notify Group (Real-time update)
+            await _hub.Clients.Group($"group-{groupId}").SendAsync("OnGroupMessageUpdated", new
+            {
+                groupId,
+                messageId,
+                text = newText
+            });
+
+            return Ok(new { success = true });
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
+
+    // =========================================
+    // DELETE: Delete Message
+    // =========================================
+    [HttpDelete("{messageId}")]
+    public async Task<IActionResult> DeleteMessage(long groupId, long messageId)
+    {
+        try
+        {
+            int userId = GetUserId();
+
+            bool success = _service.DeleteGroupMessage(groupId, userId, messageId);
+            if (!success) return BadRequest("Could not delete message (Access Denied)");
+
+            // Notify Group
+            await _hub.Clients.Group($"group-{groupId}").SendAsync("OnGroupMessageDeleted", new
+            {
+                groupId,
+                messageId
+            });
+
+            return Ok(new { success = true });
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
 }
 
 

@@ -434,6 +434,39 @@
         }
     </script>
 
+    <div id="groupInfoModal" class="modal" tabindex="-1" style="display: none;">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content" style="background: #1a1a1a; border: 1px solid #333;">
+
+                <div class="modal-header border-bottom border-secondary d-flex justify-content-between align-items-center p-3">
+                    <input type="text" id="groupNameInput" class="group-name-edit" value="Group Name" readonly>
+                    <button type="button" class="btn-close btn-close-white" onclick="document.getElementById('groupInfoModal').classList.remove('active')"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="p-3 border-bottom border-secondary" id="groupAddMemberArea">
+                        <div class="d-flex gap-2">
+                            <input type="text" id="groupAddMemberInput" class="form-control" placeholder="Search user to add...">
+                            <div id="groupAddMemberResults" class="dropdown-menu" style="background:#222; width: 100%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="group-member-list" id="groupMemberList">
+                    </div>
+                </div>
+
+                <div class="modal-footer border-top border-secondary justify-content-between p-3">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btnLeaveGroup">
+                        <i class="fas fa-sign-out-alt me-2"></i> Leave Group
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm d-none" id="btnDeleteGroup">
+                        <i class="fas fa-trash me-2"></i> Delete Group
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="singlePostModal" class="modal">
         <div class="modal-dialog">
             <div class="modal-content">

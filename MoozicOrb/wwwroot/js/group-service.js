@@ -87,6 +87,42 @@
                 });
                 return res.ok;
             } catch (err) { return false; }
+        },
+
+        // 6. RENAME GROUP (Admin/Owner)
+        async renameGroup(groupId, newName) {
+            try {
+                const res = await fetch(`/api/groups/${groupId}`, {
+                    method: 'PUT',
+                    headers: this._getHeaders(),
+                    body: JSON.stringify({ name: newName })
+                });
+                return res.ok;
+            } catch (err) { return false; }
+        },
+
+        // 7. SET MEMBER ROLE (Promote/Demote)
+        async setMemberRole(groupId, userId, role) {
+            // Role: 0 = Member, 2 = Admin
+            try {
+                const res = await fetch(`/api/groups/${groupId}/members/${userId}/role`, {
+                    method: 'PATCH',
+                    headers: this._getHeaders(),
+                    body: JSON.stringify({ role: parseInt(role) })
+                });
+                return res.ok;
+            } catch (err) { return false; }
+        },
+
+        // 8. DELETE GROUP (Owner Only)
+        async deleteGroup(groupId) {
+            try {
+                const res = await fetch(`/api/groups/${groupId}`, {
+                    method: 'DELETE',
+                    headers: this._getHeaders()
+                });
+                return res.ok;
+            } catch (err) { return false; }
         }
     };
 

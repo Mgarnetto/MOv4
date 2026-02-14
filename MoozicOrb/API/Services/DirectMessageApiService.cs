@@ -64,6 +64,15 @@ namespace MoozicOrb.API.Services
                     g => g.OrderBy(m => m.Timestamp).ToList()
                 );
         }
+        public bool EditDirectMessage(int userId, long messageId, string newText)
+        {
+            return new UpdateDirectMessage().Execute(userId, messageId, newText);
+        }
+
+        public bool DeleteDirectMessage(int userId, long messageId)
+        {
+            return new DeleteDirectMessage().Execute(userId, messageId);
+        }
     }
 }
 

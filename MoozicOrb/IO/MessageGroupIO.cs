@@ -179,5 +179,102 @@ namespace MoozicOrb.IO
             }
             return list;
         }
+
+        // ... (Existing Create, AddMember, RemoveMember methods) ...
+
+        // 4. UPDATE GROUP NAME (Owner/Admin only - Verified by Controller)
+        public bool UpdateGroup(long groupId, string newName)
+        {
+            using (var conn = new MySqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "UPDATE message_group SET group_name = @name WHERE group_id = @gid";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@name", newName);
+                    cmd.Parameters.AddWithValue("@gid", groupId);
+                    int rows = cmd.ExecuteNonQuery();
+                    return rows > 0;
+                }
+            }
+        }
+
+        // 5. DELETE GROUP (Owner Only)
+        // Transaction: Remove Members -> Remove Messages -> Delete Group -> Update CSVs
+        public void DeleteGroup(long groupId)
+        {
+            using (var conn = new MySqlConnection(_connString))
+            {
+                conn.Open();
+                using (var trans = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        // A. Get Member IDs to update their CSVs later
+                        var memberIds = new List<int>();
+                        using (var cmd = new MySqlCommand("SELECT user_id FROM message_group_members WHERE group_id = @gid FOR UPDATE", conn, trans))
+                        {
+                            cmd.Parameters.AddWithValue("@gid", groupId);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read()) memberIds.Add(r.GetInt32(0));
+                            }
+                        }
+
+                        // B. Delete Members & Messages
+                        new MySqlCommand($"DELETE FROM message_group_members WHERE group_id = {groupId}", conn, trans).ExecuteNonQuery();
+                        new MySqlCommand($"DELETE FROM group_messages WHERE group_id = {groupId}", conn, trans).ExecuteNonQuery();
+
+                        // C. Delete Group
+                        new MySqlCommand($"DELETE FROM message_group WHERE group_id = {groupId}", conn, trans).ExecuteNonQuery();
+
+                        // D. Update User CSVs (Remove this GroupID)
+                        foreach (var uid in memberIds)
+                        {
+                            UpdateUserGroupCsv(conn, trans, uid, groupId, false); // false = remove
+                        }
+
+                        trans.Commit();
+                    }
+                    catch { trans.Rollback(); throw; }
+                }
+            }
+        }
+
+        // 6. UPDATE MEMBER ROLE
+        public bool UpdateMemberRole(long groupId, int targetUserId, int newRole)
+        {
+            using (var conn = new MySqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "UPDATE message_group_members SET role = @role WHERE group_id = @gid AND user_id = @uid";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@role", newRole);
+                    cmd.Parameters.AddWithValue("@gid", groupId);
+                    cmd.Parameters.AddWithValue("@uid", targetUserId);
+                    int rows = cmd.ExecuteNonQuery();
+                    return rows > 0;
+                }
+            }
+        }
+
+        // Helper to check role (for Controller validation)
+        public int GetUserRole(long groupId, int userId)
+        {
+            using (var conn = new MySqlConnection(_connString))
+            {
+                conn.Open();
+                string sql = "SELECT role FROM message_group_members WHERE group_id = @gid AND user_id = @uid";
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@gid", groupId);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    object result = cmd.ExecuteScalar();
+                    if (result != null && result != DBNull.Value) return Convert.ToInt32(result);
+                    return -1; // Not a member
+                }
+            }
+        }
     }
 }

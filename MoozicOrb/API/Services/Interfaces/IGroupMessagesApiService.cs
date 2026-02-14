@@ -10,6 +10,9 @@ namespace MoozicOrb.API.Services.Interfaces
         IEnumerable<GroupMessageDto> GetGroupMessages(long groupId);
 
         GroupMessageDto GetGroupMessage(long groupId, long messageId);
+
+        bool EditGroupMessage(long groupId, int userId, long messageId, string newText);
+        bool DeleteGroupMessage(long groupId, int userId, long messageId);
     }
 }
 

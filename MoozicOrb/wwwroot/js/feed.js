@@ -57,7 +57,42 @@ feedConnection.on("RemovePost", function (msg) {
     });
 });
 
-// --- SERVICE METHODS ---
+// --- NEW: COMMENT SIGNALR LISTENERS ---
+
+feedConnection.on("OnCommentUpdated", function (msg) {
+    // msg = { postId, commentId, text }
+    const commentEl = document.getElementById(`comment-${msg.commentId}`);
+    if (commentEl) {
+        // 1. Update the text display
+        const textEl = commentEl.querySelector('.comment-text');
+        if (textEl) textEl.innerText = msg.text;
+
+        // 2. Ensure edit mode is closed
+        const displayBox = commentEl.querySelector('.comment-display-box');
+        const editBox = commentEl.querySelector('.comment-edit-box');
+        if (displayBox && editBox) {
+            displayBox.classList.remove('d-none');
+            editBox.classList.add('d-none');
+        }
+
+        // 3. Flash effect
+        commentEl.style.transition = "background-color 0.5s";
+        commentEl.style.backgroundColor = "#222";
+        setTimeout(() => commentEl.style.backgroundColor = "", 500);
+    }
+});
+
+feedConnection.on("OnCommentDeleted", function (msg) {
+    // msg = { postId, commentId }
+    const commentEl = document.getElementById(`comment-${msg.commentId}`);
+    if (commentEl) {
+        commentEl.style.transition = "opacity 0.3s";
+        commentEl.style.opacity = '0';
+        setTimeout(() => commentEl.remove(), 300);
+    }
+});
+
+// --- SERVICE METHODS (POSTS) ---
 
 window.FeedService.deletePost = async (id) => {
     if (!confirm("Are you sure you want to delete this post?")) return;
@@ -68,6 +103,74 @@ window.FeedService.deletePost = async (id) => {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
         if (!res.ok) alert("Failed to delete post.");
+    } catch (err) { console.error(err); }
+};
+
+// --- NEW: COMMENT SERVICE METHODS ---
+
+window.FeedService.deleteComment = async (postId, commentId) => {
+    if (!confirm("Delete this comment?")) return;
+    // Close menu
+    document.querySelectorAll('.msg-context-menu').forEach(el => el.classList.remove('active'));
+
+    try {
+        const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+        if (!res.ok) alert("Failed to delete comment.");
+    } catch (err) { console.error(err); }
+};
+
+window.FeedService.editComment = (commentId) => {
+    const el = document.getElementById(`comment-${commentId}`);
+    if (!el) return;
+
+    // Close menu
+    el.querySelector('.msg-context-menu')?.classList.remove('active');
+
+    // Toggle UI
+    el.querySelector('.comment-display-box').classList.add('d-none');
+    const editBox = el.querySelector('.comment-edit-box');
+    editBox.classList.remove('d-none');
+
+    // Focus textarea and set cursor to end
+    const textarea = editBox.querySelector('textarea');
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+};
+
+window.FeedService.cancelEditComment = (commentId) => {
+    const el = document.getElementById(`comment-${commentId}`);
+    if (!el) return;
+
+    // Revert UI
+    el.querySelector('.comment-display-box').classList.remove('d-none');
+    el.querySelector('.comment-edit-box').classList.add('d-none');
+
+    // Reset textarea to current actual text
+    const currentText = el.querySelector('.comment-text').innerText;
+    el.querySelector('textarea').value = currentText;
+};
+
+window.FeedService.saveComment = async (postId, commentId) => {
+    const el = document.getElementById(`comment-${commentId}`);
+    if (!el) return;
+
+    const textarea = el.querySelector('textarea');
+    const newText = textarea.value.trim();
+    if (!newText) return;
+
+    try {
+        const res = await fetch(`/api/posts/${postId}/comments/${commentId}`, {
+            method: 'PUT',
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-Id": window.AuthState?.sessionId || ""
+            },
+            body: JSON.stringify({ text: newText })
+        });
+        if (!res.ok) alert("Failed to edit comment.");
     } catch (err) { console.error(err); }
 };
 
@@ -190,6 +293,10 @@ document.addEventListener('click', function (e) {
     }
     if (e.target.classList.contains('modal') && e.target.classList.contains('active')) {
         closeAllModals();
+    }
+    // Close Context Menus if clicking elsewhere
+    if (!e.target.closest('.msg-options-btn') && !e.target.closest('.msg-context-menu')) {
+        document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
     }
 });
 
@@ -647,18 +754,31 @@ function createCommentElement(c) {
     wrapper.id = `comment-${c.commentId}`;
     const picUrl = c.authorPic && c.authorPic !== "null" ? c.authorPic : "/img/profile_default.jpg";
 
+    // UPDATED: Check Ownership
+    const isOwner = window.AuthState && String(window.AuthState.userId) === String(c.userId);
+
     let html = `
-        <div class="d-flex align-items-start">
+        <div class="d-flex align-items-start position-relative">
             <img src="${picUrl}" class="comment-avatar" onerror="this.src='/img/profile_default.jpg'">
             <div class="flex-grow-1">
-                <div class="comment-content-box">
+                <div class="comment-display-box">
                     <span class="comment-author">${c.authorName || 'User'}</span>
                     <span class="comment-text">${c.content}</span>
                 </div>
+
+                <div class="comment-edit-box d-none mt-1 mb-2">
+                    <textarea class="edit-mode-textarea">${c.content}</textarea>
+                    <div class="d-flex justify-content-end gap-2 mt-1">
+                         <button class="btn btn-sm btn-secondary" onclick="window.FeedService.cancelEditComment('${c.commentId}')">Cancel</button>
+                         <button class="btn btn-sm btn-primary" onclick="window.FeedService.saveComment('${c.postId}', '${c.commentId}')">Save</button>
+                    </div>
+                </div>
+
                 <div class="comment-meta-line">
                     <span class="comment-time">${c.createdAgo}</span>
                     <button class="btn-reply-toggle" onclick="toggleReplyBox('${c.commentId}')">Reply</button>
                 </div>
+                
                 <div id="reply-box-${c.commentId}" class="reply-input-wrapper d-none">
                      <div class="comment-input-area">
                         <input type="text" id="reply-input-${c.commentId}" placeholder="Reply to ${c.authorName}..." autocomplete="off">
@@ -666,6 +786,16 @@ function createCommentElement(c) {
                     </div>
                 </div>
             </div>
+
+            ${isOwner ? `
+            <button class="msg-options-btn" onclick="this.nextElementSibling.classList.toggle('active')">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="msg-context-menu">
+                <button onclick="window.FeedService.editComment('${c.commentId}')">Edit</button>
+                <button class="text-danger" onclick="window.FeedService.deleteComment('${c.postId}', '${c.commentId}')">Delete</button>
+            </div>
+            ` : ''}
         </div>`;
 
     const repliesContainer = document.createElement('div');

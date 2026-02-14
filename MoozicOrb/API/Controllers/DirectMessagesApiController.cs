@@ -166,6 +166,91 @@ public class DirectMessagesController : ControllerBase
             messages = conversations
         });
     }
+
+    // =========================================
+    // PUT: Edit Message
+    // =========================================
+    [HttpPut("{messageId}")]
+    public async Task<IActionResult> EditMessage(long messageId, [FromBody] JsonElement body)
+    {
+        try
+        {
+            if (!body.TryGetProperty("text", out var t)) return BadRequest("Text required");
+            string newText = t.GetString();
+            if (string.IsNullOrWhiteSpace(newText)) return BadRequest("Text cannot be empty");
+
+            int userId = GetUserId();
+
+            // 1. Perform Edit
+            bool success = _service.EditDirectMessage(userId, messageId, newText);
+            if (!success) return BadRequest("Could not edit message (Access Denied or Not Found)");
+
+            // 2. Fetch Message to Identify Recipient
+            var msg = _service.GetDirectMessage(messageId);
+            if (msg != null)
+            {
+                // 3. Notify Recipient (SignalR)
+                foreach (var conn in _connections.GetConnections(msg.ReceiverId))
+                {
+                    await _hub.Clients.Client(conn).SendAsync("OnDirectMessageUpdated", new
+                    {
+                        messageId,
+                        text = newText
+                    });
+                }
+
+                // 4. Notify Sender (Sync other tabs)
+                foreach (var conn in _connections.GetConnections(userId))
+                {
+                    await _hub.Clients.Client(conn).SendAsync("OnDirectMessageUpdated", new
+                    {
+                        messageId,
+                        text = newText
+                    });
+                }
+            }
+
+            return Ok(new { success = true });
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
+
+    // =========================================
+    // DELETE: Delete Message
+    // =========================================
+    [HttpDelete("{messageId}")]
+    public async Task<IActionResult> DeleteMessage(long messageId)
+    {
+        try
+        {
+            int userId = GetUserId();
+
+            // 1. Fetch Message BEFORE deletion (to know who to notify)
+            var msg = _service.GetDirectMessage(messageId);
+            if (msg == null) return NotFound();
+
+            // 2. Perform Delete
+            bool success = _service.DeleteDirectMessage(userId, messageId);
+            if (!success) return BadRequest("Could not delete message (Access Denied)");
+
+            // 3. Notify Recipient (SignalR)
+            foreach (var conn in _connections.GetConnections(msg.ReceiverId))
+            {
+                await _hub.Clients.Client(conn).SendAsync("OnDirectMessageDeleted", new { messageId });
+            }
+
+            // 4. Notify Sender (Sync other tabs)
+            foreach (var conn in _connections.GetConnections(userId))
+            {
+                await _hub.Clients.Client(conn).SendAsync("OnDirectMessageDeleted", new { messageId });
+            }
+
+            return Ok(new { success = true });
+        }
+        catch (UnauthorizedAccessException) { return Unauthorized(); }
+        catch (Exception ex) { return BadRequest(ex.Message); }
+    }
 }
 
 

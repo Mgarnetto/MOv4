@@ -45,6 +45,16 @@ namespace MoozicOrb.API.Services
 
             return messages[0] as GroupMessageDto;
         }
+
+        public bool EditGroupMessage(long groupId, int userId, long messageId, string newText)
+        {
+            return new UpdateGroupMessage().Execute(groupId, userId, messageId, newText);
+        }
+
+        public bool DeleteGroupMessage(long groupId, int userId, long messageId)
+        {
+            return new DeleteGroupMessage().Execute(groupId, userId, messageId);
+        }
     }
 }
 

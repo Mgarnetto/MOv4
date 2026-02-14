@@ -8,6 +8,7 @@ using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace MoozicOrb.API.Controllers
@@ -348,6 +349,79 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
                 var io = new DeletePostMedia();
                 io.Execute(userId, id, mediaId);
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        // =========================================
+        // PUT: Edit Comment
+        // =========================================
+        [HttpPut("{id}/comments/{commentId}")]
+        public async Task<IActionResult> EditComment(long id, long commentId, [FromBody] JsonElement body)
+        {
+            try
+            {
+                if (!body.TryGetProperty("text", out var t)) return BadRequest("Text required");
+                string newText = t.GetString();
+                if (string.IsNullOrWhiteSpace(newText)) return BadRequest("Text cannot be empty");
+
+                int userId = GetUserId();
+                var io = new UpdateComment();
+                bool success = io.Execute(userId, commentId, newText);
+
+                if (!success) return BadRequest("Could not edit comment (Access Denied or Not Found)");
+
+                // Get Post to find the correct SignalR group
+                var post = new GetPost().Execute(id, userId);
+                if (post != null)
+                {
+                    string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);
+
+                    // Broadcast Update
+                    await _hub.Clients.Group(targetGroup).SendAsync("OnCommentUpdated", new
+                    {
+                        postId = id,
+                        commentId = commentId,
+                        text = newText
+                    });
+                }
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        // =========================================
+        // DELETE: Remove Comment
+        // =========================================
+        [HttpDelete("{id}/comments/{commentId}")]
+        public async Task<IActionResult> DeleteComment(long id, long commentId)
+        {
+            try
+            {
+                int userId = GetUserId();
+                var io = new DeleteComment();
+                bool success = io.Execute(userId, commentId);
+
+                if (!success) return BadRequest("Could not delete comment (Access Denied or Not Found)");
+
+                // Get Post to find the correct SignalR group
+                var post = new GetPost().Execute(id, userId);
+                if (post != null)
+                {
+                    string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);
+
+                    // Broadcast Delete
+                    await _hub.Clients.Group(targetGroup).SendAsync("OnCommentDeleted", new
+                    {
+                        postId = id,
+                        commentId = commentId
+                    });
+                }
+
                 return Ok(new { success = true });
             }
             catch (UnauthorizedAccessException) { return Unauthorized(); }

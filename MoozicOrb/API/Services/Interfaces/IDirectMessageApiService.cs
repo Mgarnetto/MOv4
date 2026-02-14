@@ -16,6 +16,9 @@ namespace MoozicOrb.API.Services.Interfaces
 
         // Grouped by other user (bootstrap)
         Dictionary<int, List<DirectMessageDto>> GetAllDirectMessages(int userId);
+
+        bool EditDirectMessage(int userId, long messageId, string newText);
+        bool DeleteDirectMessage(int userId, long messageId);
     }
 }
 

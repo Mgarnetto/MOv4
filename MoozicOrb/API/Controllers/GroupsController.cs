@@ -5,6 +5,7 @@ using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace MoozicOrb.API.Controllers
@@ -138,6 +139,99 @@ namespace MoozicOrb.API.Controllers
                 return Ok();
             }
             catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        // ... (Existing code) ...
+
+        // =========================================
+        // PUT: Rename Group
+        // =========================================
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateGroup(long id, [FromBody] JsonElement body)
+        {
+            int uid = GetUserId();
+            if (uid == 0) return Unauthorized();
+
+            if (!body.TryGetProperty("name", out var n)) return BadRequest("Name required");
+            string newName = n.GetString();
+
+            var io = new MessageGroupIO();
+            int myRole = io.GetUserRole(id, uid);
+
+            // Only Owner (1) or Admin (2) can rename
+            if (myRole < 1) return Forbid("Only Admins can rename groups.");
+
+            if (io.UpdateGroup(id, newName))
+            {
+                // Optional: Notify group via SignalR if you have Hub injected here
+                return Ok(new { success = true, name = newName });
+            }
+            return BadRequest("Update failed.");
+        }
+
+        // =========================================
+        // DELETE: Delete Group
+        // =========================================
+        [HttpDelete("{id}")]
+        public IActionResult DeleteGroup(long id)
+        {
+            int uid = GetUserId();
+            if (uid == 0) return Unauthorized();
+
+            var io = new MessageGroupIO();
+            int myRole = io.GetUserRole(id, uid);
+
+            // Only Owner (1) can delete
+            if (myRole != 1) return Forbid("Only the Group Creator can delete the group.");
+
+            try
+            {
+                io.DeleteGroup(id);
+                return Ok(new { success = true });
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        // =========================================
+        // PATCH: Update Member Role
+        // =========================================
+        [HttpPatch("{id}/members/{targetUserId}/role")]
+        public async Task<IActionResult> SetMemberRole(long id, int targetUserId, [FromBody] JsonElement body)
+        {
+            int uid = GetUserId();
+            if (uid == 0) return Unauthorized();
+
+            if (!body.TryGetProperty("role", out var r)) return BadRequest("Role required");
+            int newRole = r.GetInt32(); // 0 = Member, 2 = Admin
+
+            if (newRole != 0 && newRole != 2) return BadRequest("Invalid Role");
+
+            var io = new MessageGroupIO();
+            int myRole = io.GetUserRole(id, uid);
+            int targetCurrentRole = io.GetUserRole(id, targetUserId);
+
+            // Security Logic:
+            // 1. Only Creator (1) can promote/demote Admins (2).
+            // 2. Admins (2) cannot change other Admins or Creator.
+
+            if (myRole == 1)
+            {
+                // Creator can do anything to anyone (except demote themselves here)
+                if (targetUserId == uid) return BadRequest("Cannot change your own role here.");
+            }
+            else
+            {
+                return Forbid("Only the Group Creator can manage Admin roles.");
+            }
+
+            if (io.UpdateMemberRole(id, targetUserId, newRole))
+            {
+                await _notifier.NotifyUser(targetUserId, uid, "group_role", id,
+                   newRole == 2 ? "promoted you to Admin" : "removed your Admin status");
+                return Ok(new { success = true });
+            }
+
+            return BadRequest("Role update failed.");
         }
     }
 }
