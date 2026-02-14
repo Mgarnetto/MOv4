@@ -51,6 +51,25 @@
         });
     }
 
+    const logoutTrigger = document.getElementById("logoutMenuTrigger");
+    const logoutMenu = document.getElementById("logoutConfirmMenu");
+
+    if (logoutTrigger && logoutMenu) {
+        // Toggle menu on click
+        logoutTrigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isHidden = logoutMenu.style.display === "none";
+            logoutMenu.style.display = isHidden ? "block" : "none";
+        });
+
+        // Close menu when clicking anywhere else
+        document.addEventListener("click", (e) => {
+            if (logoutMenu.style.display === "block" && !logoutMenu.contains(e.target)) {
+                logoutMenu.style.display = "none";
+            }
+        });
+    }
+
     // LOGOUT LOGIC
     if (logoutBtn) {
         logoutBtn.addEventListener("click", async () => {

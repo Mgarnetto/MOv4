@@ -1868,6 +1868,37 @@ textarea.form-control {
         background: rgba(255, 0, 85, 0.1);
     }
 
+/* --- NEW: Interactive Feed Posts --- */
+.post-card.feed-interactive {
+    cursor: pointer;
+}
+
+    /* Hover effect to encourage clicking */
+    .post-card.feed-interactive:hover {
+        border-color: var(--accent-secondary);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Restore default cursor for interactive elements inside the card */
+    .post-card.feed-interactive a,
+    .post-card.feed-interactive button,
+    .post-card.feed-interactive input,
+    .post-card.feed-interactive textarea,
+    .post-card.feed-interactive .custom-video-wrapper,
+    .post-card.feed-interactive .track-card {
+        cursor: default; /* or pointer where appropriate */
+        position: relative;
+        z-index: 2; /* Ensure they sit above the card click area */
+    }
+
+/* --- NEW: Fix for Post Card inside Modal --- */
+/* Removes the bottom margin so it fits perfectly in the popup */
+#singlePostModal .post-card {
+    margin-bottom: 0;
+    border: none;
+    box-shadow: none;
+}
+
 /* =========================================
    10. INTERACTION & COMMENTS (MODERNIZED)
    ========================================= */

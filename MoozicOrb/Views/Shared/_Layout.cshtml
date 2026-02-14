@@ -114,7 +114,30 @@
                     </div>
                 </div>
 
-                <button class="btn-login" id="logoutBtn">LOGOUT</button>
+                <div class="position-relative d-inline-block">
+                    <button class="btn-login" id="logoutMenuTrigger">LOGOUT</button>
+
+                    <div id="logoutConfirmMenu"
+                         style="display:none;
+                position:absolute;
+                top:calc(100% + 12px);
+                right:0;
+                background:#111;
+                border:1px solid #333;
+                padding:12px;
+                border-radius:12px;
+                z-index:1000;
+                min-width:120px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+                animation: fadeIn 0.2s ease-out;
+                text-align: center;">
+                        <button id="logoutBtn"
+                                class="btn btn-danger btn-sm fw-bold d-inline-flex align-items-center justify-content-center"
+                                style="font-family: 'Outfit', sans-serif; border-radius: 20px; padding: 6px 20px;">
+                            Confirm
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="login-dropdown" id="loginDropdown">

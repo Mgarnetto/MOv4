@@ -34,8 +34,9 @@ feedConnection.on("ReceivePost", function (message) {
 // --- EXISTING SIGNALR LISTENERS ---
 
 feedConnection.on("UpdatePost", function (msg) {
-    const card = document.getElementById(`post-${msg.postId}`);
-    if (card) {
+    // UPDATED: Handle potential duplicates (modal + feed)
+    const cards = document.querySelectorAll(`#post-${msg.postId}`);
+    cards.forEach(card => {
         const titleEl = card.querySelector('.post-title');
         const textEl = card.querySelector('.post-text');
 
@@ -45,15 +46,15 @@ feedConnection.on("UpdatePost", function (msg) {
         card.style.transition = "background-color 0.5s";
         card.style.backgroundColor = "#2a2a2a";
         setTimeout(() => card.style.backgroundColor = "", 500);
-    }
+    });
 });
 
 feedConnection.on("RemovePost", function (msg) {
-    const card = document.getElementById(`post-${msg.postId}`);
-    if (card) {
+    const cards = document.querySelectorAll(`#post-${msg.postId}`);
+    cards.forEach(card => {
         card.style.opacity = '0';
         setTimeout(() => card.remove(), 300);
-    }
+    });
 });
 
 // --- SERVICE METHODS ---
@@ -95,6 +96,7 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 
         if (autoComment) {
             setTimeout(() => {
+                // Scoped query selector ensures we click the button inside the modal
                 const commentBtn = container.querySelector('.btn-comment-toggle');
                 if (commentBtn) commentBtn.click();
             }, 300);
@@ -277,11 +279,26 @@ function renderNewPost(post) {
             </div>
         </div>`;
 
-    container.insertBefore(div.firstElementChild, container.firstChild);
+    const postEl = div.firstElementChild;
+    postEl.classList.add('feed-interactive');
+
+    postEl.addEventListener('click', (e) => {
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
+            return;
+        }
+        if (window.getSelection().toString().length > 0) return;
+
+        e.preventDefault();
+        if (window.FeedService && window.FeedService.openPostModal) {
+            window.FeedService.openPostModal(post.id);
+        }
+    });
+
+    container.insertBefore(postEl, container.firstChild);
 }
 
 // -------------------------------------------------------------
-// THIS IS THE CRITICAL FIX: LAZY LOADING LOGIC
+// HELPER: RENDER ATTACHMENTS
 // -------------------------------------------------------------
 function renderAttachments(attachments) {
     if (!attachments || attachments.length === 0) return '';
@@ -300,34 +317,23 @@ function renderAttachments(attachments) {
         }
         else if (media.mediaType === 2) {
             // VIDEO
-
-            // 1. Check if thumb exists
             const hasThumb = media.snippetPath && media.snippetPath !== "null";
             const thumbClass = hasThumb ? "thumb-mode" : "";
-            // Ensure slashes are correct for CSS
             const thumbStyle = hasThumb ? `style="background-image: url('${media.snippetPath.replace(/\\/g, '/')}')"` : "";
-
-            // 2. Logic: If thumb exists, we HIDE the video (d-none) and use data-src.
-            //    This allows the background image to show.
-            //    If no thumb, we show the video immediately.
             const srcAttr = hasThumb ? `data-src="${media.url}"` : `src="${media.url}"`;
             const videoClass = hasThumb ? "custom-video d-none" : "custom-video";
 
             html += `
             <div class="custom-video-wrapper ${thumbClass}" ${thumbStyle} id="video-container-${media.mediaId}">
                 <video ${srcAttr} class="${videoClass}" preload="metadata"></video>
-                
                 <div class="video-overlay-play">
                     <i class="fas fa-play"></i>
                 </div>
-
                 <div class="video-controls">
                     <button class="v-btn v-play-toggle"><i class="fas fa-play"></i></button>
-                    
                     <div class="v-progress-container">
                         <div class="v-progress-fill"></div>
                     </div>
-                    
                     <button class="v-btn v-fullscreen-toggle"><i class="fas fa-expand"></i></button>
                 </div>
             </div>`;
@@ -424,7 +430,7 @@ window.clearAttachment = function () {
     document.getElementById('postTitle').value = '';
 };
 
-// SUBMIT HANDLER - UPDATED FOR SPLIT ROUTES & CLIENT-SIDE VIDEO PROCESSING
+// SUBMIT HANDLER
 document.addEventListener('submit', async function (e) {
     if (e.target && e.target.id === 'createPostForm') {
         e.preventDefault();
@@ -463,18 +469,13 @@ document.addEventListener('submit', async function (e) {
                 const file = activeFileInput.files[0];
                 uploadData.append("file", file);
 
-                let uploadEndpoint = "/api/upload/image"; // Default
+                let uploadEndpoint = "/api/upload/image";
 
-                // 1. ROUTING LOGIC
                 if (activeMediaType === 'video') {
                     submitBtn.innerText = "Processing Video...";
                     uploadEndpoint = "/api/upload/video";
-
-                    // Client-Side processing
                     try {
                         const meta = await window.processVideoUpload(file);
-
-                        // Append Metadata
                         if (meta.thumbnailBlob) {
                             uploadData.append("thumbnail", meta.thumbnailBlob, "thumbnail.jpg");
                         }
@@ -483,9 +484,7 @@ document.addEventListener('submit', async function (e) {
                         uploadData.append("height", meta.height);
                     } catch (videoErr) {
                         console.warn("Video Client Processing Failed", videoErr);
-                        // We proceed with the upload, but without metadata (server handles fallback or defaults)
                     }
-
                     submitBtn.innerText = "Uploading Video...";
                 }
                 else if (activeMediaType === 'audio') {
@@ -497,7 +496,6 @@ document.addEventListener('submit', async function (e) {
                     uploadEndpoint = "/api/upload/image";
                 }
 
-                // 2. PERFORM UPLOAD
                 const uploadRes = await fetch(uploadEndpoint, {
                     method: 'POST',
                     headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
@@ -517,7 +515,6 @@ document.addEventListener('submit', async function (e) {
                 }
             }
 
-            // 3. CREATE POST
             submitBtn.innerText = "Posting...";
             const payload = {
                 ContextType: cType,
@@ -583,36 +580,52 @@ document.addEventListener('click', async (e) => {
             const res = await fetch(`/api/posts/${postId}/like`, { method: "POST", headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
             if (res.ok) {
                 const data = await res.json();
-                const icon = likeBtn.querySelector('i');
-                if (data.liked) {
-                    icon.classList.remove('far'); icon.classList.add('fas', 'text-danger');
-                } else {
-                    icon.classList.remove('fas', 'text-danger'); icon.classList.add('far');
-                }
+                // UPDATED: Handle duplicate buttons (modal + feed)
+                const buttons = document.querySelectorAll(`.btn-like[data-id="${postId}"]`);
+                buttons.forEach(btn => {
+                    const icon = btn.querySelector('i');
+                    if (data.liked) {
+                        icon.classList.remove('far'); icon.classList.add('fas', 'text-danger');
+                    } else {
+                        icon.classList.remove('fas', 'text-danger'); icon.classList.add('far');
+                    }
+                });
             }
         } catch (err) { console.error(err); }
     }
 
-    // C. COMMENT TOGGLE
+    // C. COMMENT TOGGLE (UPDATED FOR MODAL CONTEXT)
     const commentBtn = e.target.closest('.btn-comment-toggle');
     if (commentBtn) {
         const postId = commentBtn.dataset.id;
-        const section = document.getElementById(`comments-${postId}`);
+
+        // 1. Find the closest Card to ensure we toggle the correct section
+        const card = commentBtn.closest('.post-card');
+        if (!card) return;
+
+        // 2. Find the comment section WITHIN this card
+        const section = card.querySelector(`#comments-${postId}`);
+
         if (section) {
             section.classList.toggle('d-none');
             if (!section.classList.contains('d-none')) {
-                loadComments(postId);
+                // 3. Find the container WITHIN this card to load into
+                const listContainer = card.querySelector(`#comments-list-${postId}`);
+                loadComments(postId, listContainer);
             }
         }
     }
 });
 
 // ============================================
-// 7. COMMENT SYSTEM
+// 7. COMMENT SYSTEM (UPDATED)
 // ============================================
 
-async function loadComments(postId) {
-    const container = document.getElementById(`comments-list-${postId}`);
+async function loadComments(postId, targetContainer = null) {
+    // UPDATED: Use provided container, or fallback to default query (may find background one)
+    const container = targetContainer || document.getElementById(`comments-list-${postId}`);
+    if (!container) return;
+
     container.innerHTML = '<div class="text-muted small ps-2">Loading comments...</div>';
     try {
         const res = await fetch(`/api/posts/${postId}/comments`);
@@ -667,20 +680,38 @@ function createCommentElement(c) {
     return wrapper;
 }
 
+// UPDATED: Toggle box based on visibility context
 window.toggleReplyBox = function (id) {
-    const box = document.getElementById(`reply-box-${id}`);
+    const boxes = document.querySelectorAll(`#reply-box-${id}`);
+    let box = null;
+
+    // 1. Prioritize visible one (e.g., in modal)
+    box = [...boxes].find(b => b.offsetParent !== null);
+    // 2. Fallback to any
+    if (!box && boxes.length > 0) box = boxes[0];
+
     if (box) {
         box.classList.toggle('d-none');
         if (!box.classList.contains('d-none')) {
-            const input = document.getElementById(`reply-input-${id}`);
+            const input = box.querySelector('input');
             if (input) input.focus();
         }
     }
 };
 
+// UPDATED: Find active input (modal vs feed)
 window.submitReply = async function (postId, parentId) {
     const inputId = parentId ? `reply-input-${parentId}` : `comment-input-${postId}`;
-    const input = document.getElementById(inputId);
+    const inputs = document.querySelectorAll(`#${inputId}`);
+    let input = null;
+
+    // 1. Find the input that has user text
+    input = [...inputs].find(el => el.value && el.value.trim().length > 0);
+    // 2. Or the visible one
+    if (!input) input = [...inputs].find(el => el.offsetParent !== null);
+
+    if (!input) return;
+
     const content = input.value;
     if (!content) return;
 
@@ -692,11 +723,18 @@ window.submitReply = async function (postId, parentId) {
         });
         if (res.ok) {
             input.value = '';
+
+            // Hide reply box if it was a reply
             if (parentId) {
-                const box = document.getElementById(`reply-box-${parentId}`);
+                // Find parent wrapper relative to input
+                const box = input.closest('.reply-input-wrapper');
                 if (box) box.classList.add('d-none');
             }
-            loadComments(postId);
+
+            // Reload comments in the correct container
+            const card = input.closest('.post-card');
+            const listContainer = card ? card.querySelector(`#comments-list-${postId}`) : null;
+            loadComments(postId, listContainer);
         }
     } catch (err) { console.error(err); }
 };
@@ -800,7 +838,22 @@ function appendHistoricalPost(post, container) {
             </div>
         </div>`;
 
-    container.appendChild(div.firstElementChild);
+    const postEl = div.firstElementChild;
+    postEl.classList.add('feed-interactive');
+
+    postEl.addEventListener('click', (e) => {
+        if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
+            return;
+        }
+        if (window.getSelection().toString().length > 0) return;
+
+        e.preventDefault();
+        if (window.FeedService && window.FeedService.openPostModal) {
+            window.FeedService.openPostModal(post.id);
+        }
+    });
+
+    container.appendChild(postEl);
 }
 
 // ============================================
@@ -919,10 +972,9 @@ window.triggerSocialShuffle = async function () {
 };
 
 // ============================================
-// 11. VIDEO HELPERS (Added)
+// 11. VIDEO HELPERS
 // ============================================
 
-// Helper: Extract Thumbnail & Metadata from Video File Client-Side
 window.processVideoUpload = function (file) {
     return new Promise((resolve, reject) => {
         const video = document.createElement('video');
@@ -931,25 +983,19 @@ window.processVideoUpload = function (file) {
         video.muted = true;
         video.playsInline = true;
 
-        // 1. Wait for metadata
         video.onloadedmetadata = () => {
-            // Seek to 1s to capture a frame (avoid black screen at 0s)
             let seekTime = 1.0;
             if (video.duration < 2) seekTime = 0.0;
             video.currentTime = seekTime;
         };
 
-        // 2. Wait for seek to complete
         video.onseeked = () => {
             try {
                 const canvas = document.createElement('canvas');
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
-
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // Convert to Blob (JPEG)
                 canvas.toBlob((blob) => {
                     const metadata = {
                         thumbnailBlob: blob,
@@ -957,7 +1003,6 @@ window.processVideoUpload = function (file) {
                         width: video.videoWidth,
                         height: video.videoHeight
                     };
-
                     URL.revokeObjectURL(video.src);
                     resolve(metadata);
                 }, 'image/jpeg', 0.85);
