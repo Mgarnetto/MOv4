@@ -6,55 +6,50 @@ namespace MoozicOrb.Models
 {
     public class User
     {
-        // --- RESTORED ORIGINAL IDENTIFIERS ---
         public int UserId { get; set; }
-
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
         public string LastName { get; set; }
-
-        // --- NEW FIELDS (Additives) ---
         public string Email { get; set; }
-        public string UserName { get; set; }     // Kept for URL/Login legacy
-        public string DisplayName { get; set; }  // "Stage Name" (Optional)
-
+        public string UserName { get; set; }
+        public string DisplayName { get; set; }
         public string ProfilePic { get; set; }
         public string CoverImageUrl { get; set; }
         public string Bio { get; set; }
-
-        public bool IsCreator { get; set; }      // Toggles "Studio Mode"
-        public bool IsArtist { get; set; }       // Kept for legacy compatibility
+        public bool IsCreator { get; set; }
         public string UserGroups { get; set; } = "9";
-
         public string ProfileLayoutJson { get; set; }
 
-        // --- NEW DB COLUMNS (Added Feb 2026) ---
-        public DateTime? Dob { get; set; }       // Nullable Date of Birth
-        public int? LocationId { get; set; }     // Links to Location Table (Nullable)
+        // --- NEW INTEGER COLUMNS ---
+        public DateTime? Dob { get; set; }
+        public int? LocationId { get; set; }
 
-        public int AccountTypePrimary { get; set; }   // e.g. "Producer"
-        public int AccountTypeSecondary { get; set; } // e.g. "Engineer"
+        // Account Types (ID for logic, Name for display)
+        public int? AccountTypePrimary { get; set; }
+        public string AccountTypePrimaryName { get; set; } // e.g. "Producer"
 
-        public int GenrePrimary { get; set; }         // e.g. "Jazz"
-        public int GenreSecondary { get; set; }       // e.g. "Rock"
+        public int? AccountTypeSecondary { get; set; }
+        public string AccountTypeSecondaryName { get; set; }
 
-        public int VisibilityId { get; set; } = 0;       // 0=Public, 1=Connections, 2=Private
+        // Genres (ID for logic, Name for display)
+        public int? GenrePrimary { get; set; }
+        public string GenrePrimaryName { get; set; } // e.g. "Jazz"
 
+        public int? GenreSecondary { get; set; }
+        public string GenreSecondaryName { get; set; }
+
+        public int VisibilityId { get; set; } = 0;
         public string BookingEmail { get; set; }
         public string PhoneMain { get; set; }
         public string PhoneBooking { get; set; }
 
-        // Helper: Use DisplayName if set, otherwise fallback to First/Last (Safe Display)
-        public string PublicName => !string.IsNullOrEmpty(DisplayName)
-            ? DisplayName
-            : $"{FirstName} {LastName}".Trim();
+        public string PublicName => !string.IsNullOrEmpty(DisplayName) ? DisplayName : $"{FirstName} {LastName}".Trim();
 
         public List<string> LayoutOrder
         {
             get
             {
-                if (string.IsNullOrEmpty(ProfileLayoutJson))
-                    return new List<string> { "posts", "music", "store" };
+                if (string.IsNullOrEmpty(ProfileLayoutJson)) return new List<string> { "posts", "music", "store" };
                 try { return JsonSerializer.Deserialize<List<string>>(ProfileLayoutJson); }
                 catch { return new List<string> { "posts", "music", "store" }; }
             }

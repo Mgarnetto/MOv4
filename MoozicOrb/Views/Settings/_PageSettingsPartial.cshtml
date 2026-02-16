@@ -1,4 +1,6 @@
 ﻿@model MoozicOrb.Models.PageSettingsViewModel
+@using MoozicOrb.Models
+@using System.Collections.Generic
 
 <div class="settings-grid-layout">
     <aside class="settings-sidebar">
@@ -46,26 +48,58 @@
                 <div class="row mb-4">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Primary Role</label>
-                        <input type="text" id="inputAcctPrimary" class="form-control" value="@Model.AccountTypePrimary" placeholder="e.g. Producer" 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <select id="inputAcctPrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                            <option value="">-- None --</option>
+                            @if (ViewBag.AccountTypes != null)
+                            {
+                                foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
+                                {
+                                    <option value="@type.Id" selected="@(Model.AccountTypePrimary == type.Id)">@type.Name</option>
+                                }
+                            }
+                        </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Secondary Role</label>
-                        <input type="text" id="inputAcctSecondary" class="form-control" value="@Model.AccountTypeSecondary" placeholder="e.g. DJ" 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <select id="inputAcctSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                            <option value="">-- None --</option>
+                            @if (ViewBag.AccountTypes != null)
+                            {
+                                foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
+                                {
+                                    <option value="@type.Id" selected="@(Model.AccountTypeSecondary == type.Id)">@type.Name</option>
+                                }
+                            }
+                        </select>
                     </div>
                 </div>
 
                 <div class="row mb-5">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Primary Genre</label>
-                        <input type="text" id="inputGenrePrimary" class="form-control" value="@Model.GenrePrimary" placeholder="e.g. Hip Hop" 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <select id="inputGenrePrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                            <option value="">-- None --</option>
+                            @if (ViewBag.Genres != null)
+                            {
+                                foreach (var g in (List<Genre>)ViewBag.Genres)
+                                {
+                                    <option value="@g.Id" selected="@(Model.GenrePrimary == g.Id)">@g.Name</option>
+                                }
+                            }
+                        </select>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Secondary Genre</label>
-                        <input type="text" id="inputGenreSecondary" class="form-control" value="@Model.GenreSecondary" placeholder="e.g. Jazz" 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <select id="inputGenreSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                            <option value="">-- None --</option>
+                            @if (ViewBag.Genres != null)
+                            {
+                                foreach (var g in (List<Genre>)ViewBag.Genres)
+                                {
+                                    <option value="@g.Id" selected="@(Model.GenreSecondary == g.Id)">@g.Name</option>
+                                }
+                            }
+                        </select>
                     </div>
                 </div>
 
@@ -76,7 +110,7 @@
                 <div class="row mb-5">
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Booking Email</label>
-                        <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail " placeholder="booking@@..." 
+                        <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail" placeholder="booking@@..." 
                                style="background: #000; color: white; border: 1px solid #333; height: 45px;">
                         <small class="text-muted d-block mt-1">Publicly visible on your page.</small>
                     </div>

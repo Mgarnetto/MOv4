@@ -6,6 +6,7 @@ using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using System.Collections.Generic; // Added for List<>
 
 namespace MoozicOrb.Controllers
 {
@@ -39,6 +40,10 @@ namespace MoozicOrb.Controllers
 
             var user = _userQuery.GetUserById(userId);
             if (user == null) return NotFound();
+
+            // --- CRITICAL ADDITION: Populate Dropdowns ---
+            ViewBag.AccountTypes = _userQuery.GetAccountTypes();
+            ViewBag.Genres = _userQuery.GetGenres();
 
             var model = new PageSettingsViewModel
             {

@@ -64,6 +64,8 @@ namespace MoozicOrb.Models
     // 3. SETTINGS MODELS
     // ==========================================
 
+    // Inside MoozicOrb/Models/ViewModels.cs
+
     public class PageSettingsViewModel
     {
         public string Bio { get; set; }
@@ -71,12 +73,13 @@ namespace MoozicOrb.Models
         public string BookingEmail { get; set; }
         public System.Collections.Generic.List<string> LayoutOrder { get; set; } = new List<string>();
 
-        // --- ADDITIONS ---
         public string PhoneBooking { get; set; }
-        public int AccountTypePrimary { get; set; }
-        public int AccountTypeSecondary { get; set; }
-        public int GenrePrimary { get; set; }
-        public int GenreSecondary { get; set; }
+
+        // CHANGED: int -> int? (Nullable)
+        public int? AccountTypePrimary { get; set; }
+        public int? AccountTypeSecondary { get; set; }
+        public int? GenrePrimary { get; set; }
+        public int? GenreSecondary { get; set; }
     }
 
     public class AccountSettingsViewModel

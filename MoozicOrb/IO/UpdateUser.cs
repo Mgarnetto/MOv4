@@ -66,9 +66,9 @@ namespace MoozicOrb.IO
 
         // --- SPECIFIC SECTION UPDATES ---
 
-        // 1. Updated PAGE Settings (Added genres, account types, booking phone)
+        // 1. Updated PAGE Settings (Updated to accept Nullable Ints for Roles/Genres)
         public bool UpdatePageSettings(int userId, string bio, string coverImage, string bookingEmail, string layoutJson,
-                                       string phoneBooking, string acctPrimary, string acctSecondary, string genrePrimary, string genreSecondary)
+                                       string phoneBooking, int? acctPrimary, int? acctSecondary, int? genrePrimary, int? genreSecondary)
         {
             string sql = @"
                 UPDATE `user` 
@@ -93,12 +93,14 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@book_email", bookingEmail ?? "");
                     cmd.Parameters.AddWithValue("@layout", string.IsNullOrEmpty(layoutJson) ? "[\"posts\",\"music\",\"store\"]" : layoutJson);
 
-                    // Additions
+                    // Additions (Handle Nullable types)
                     cmd.Parameters.AddWithValue("@phone_book", phoneBooking ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@acct1", acctPrimary ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@acct2", acctSecondary ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@gen1", genrePrimary ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@gen2", genreSecondary ?? (object)DBNull.Value);
+
+                    cmd.Parameters.AddWithValue("@acct1", (object)acctPrimary ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@acct2", (object)acctSecondary ?? DBNull.Value);
+
+                    cmd.Parameters.AddWithValue("@gen1", (object)genrePrimary ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@gen2", (object)genreSecondary ?? DBNull.Value);
 
                     cmd.Parameters.AddWithValue("@uid", userId);
 
@@ -152,7 +154,7 @@ namespace MoozicOrb.IO
             }
         }
 
-        // Update Display Name (Legacy helper, mostly covered by UpdateAccountSettings now)
+        // Update Display Name (Legacy helper)
         public bool UpdateDisplayName(int userId, string displayName)
         {
             string sql = "UPDATE `user` SET display_name = @name WHERE user_id = @uid";

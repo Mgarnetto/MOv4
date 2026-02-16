@@ -63,19 +63,25 @@
                 const coverPreview = document.getElementById('coverPreview');
                 const currentCover = coverPreview ? coverPreview.getAttribute('data-current') : "";
 
-                // --- FIX: INCLUDE ALL NEW FIELDS TO PREVENT WIPING DATA ---
+                // Helper: Convert empty strings to NULL for C# Integer compatibility
+                const getInt = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el || el.value === "") return null;
+                    return parseInt(el.value);
+                };
+
                 const payload = {
                     Bio: document.getElementById('inputBio')?.value || "",
                     BookingEmail: document.getElementById('inputEmail')?.value || "",
                     CoverImage: window.newCoverUrl || currentCover,
                     LayoutOrder: layoutOrder,
 
-                    // New Fields (Ensure these IDs exist in your HTML View!)
+                    // New Fields using getInt to prevent 400 Bad Request on empty selections
                     PhoneBooking: document.getElementById('inputPhoneBooking')?.value || null,
-                    AccountTypePrimary: document.getElementById('inputAccountTypePrimary')?.value || null,
-                    AccountTypeSecondary: document.getElementById('inputAccountTypeSecondary')?.value || null,
-                    GenrePrimary: document.getElementById('inputGenrePrimary')?.value || null,
-                    GenreSecondary: document.getElementById('inputGenreSecondary')?.value || null
+                    AccountTypePrimary: getInt('inputAccountTypePrimary'),
+                    AccountTypeSecondary: getInt('inputAccountTypeSecondary'),
+                    GenrePrimary: getInt('inputGenrePrimary'),
+                    GenreSecondary: getInt('inputGenreSecondary')
                 };
 
                 await this.submitJson('/settings/update-page', payload);
@@ -155,21 +161,23 @@
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
 
-                // --- FIX: INCLUDE ALL NEW FIELDS TO PREVENT WIPING DATA ---
+                const getInt = (id) => {
+                    const el = document.getElementById(id);
+                    if (!el || el.value === "") return null;
+                    return parseInt(el.value);
+                };
+
                 const payload = {
                     DisplayName: document.getElementById('inputDisplayName')?.value || "",
-                    // Note: The Controller does NOT update Email in UpdateAccountSettings, 
-                    // so sending it is harmless but unused by the backend for updates.
                     Email: document.getElementById('inputEmailDisplay')?.value || "",
 
-                    // New Fields (Ensure these IDs exist in your HTML View!)
+                    // New Fields
                     Dob: document.getElementById('inputDob')?.value || null,
-                    LocationId: document.getElementById('inputLocationId')?.value || null, // Ensure this is an Integer in value
-                    PhoneMain: document.getElementById('inputPhoneMain')?.value || null,
 
-                    // Handling Visibility (Checkbox or Select)
-                    // Assuming a <select id="inputVisibility"> or similar
-                    VisibilityId: document.getElementById('inputVisibility')?.value || 0
+                    // Use getInt for IDs to ensure safety
+                    LocationId: getInt('inputLocationId'),
+                    PhoneMain: document.getElementById('inputPhoneMain')?.value || null,
+                    VisibilityId: getInt('inputVisibility') || 0
                 };
 
                 await this.submitJson('/settings/update-account', payload);

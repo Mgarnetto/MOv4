@@ -28,23 +28,50 @@ namespace MoozicOrb.IO
             return _genreIo.GetAllGenres();
         }
 
-        // --- EXISTING CODE PRESERVED BELOW ---
+        // --- MAIN QUERIES (Updated with JOINS) ---
 
         public User GetUserById(int userId)
         {
-            return FetchUser("SELECT * FROM `user` WHERE user_id = @val", "@val", userId);
+            // Join account_types and genres to get the names for display
+            string sql = @"
+                SELECT u.*, 
+                       at1.name as at1_name, 
+                       at2.name as at2_name,
+                       g1.name as g1_name, 
+                       g2.name as g2_name
+                FROM `user` u
+                LEFT JOIN account_types at1 ON u.account_type_primary = at1.id
+                LEFT JOIN account_types at2 ON u.account_type_secondary = at2.id
+                LEFT JOIN genres g1 ON u.genre_primary = g1.id
+                LEFT JOIN genres g2 ON u.genre_secondary = g2.id
+                WHERE u.user_id = @val";
+
+            return FetchUser(sql, "@val", userId);
         }
 
         public User GetUserByEmail(string email)
         {
-            return FetchUser("SELECT * FROM `user` WHERE email = @val", "@val", email);
+            string sql = @"
+                SELECT u.*, 
+                       at1.name as at1_name, 
+                       at2.name as at2_name,
+                       g1.name as g1_name, 
+                       g2.name as g2_name
+                FROM `user` u
+                LEFT JOIN account_types at1 ON u.account_type_primary = at1.id
+                LEFT JOIN account_types at2 ON u.account_type_secondary = at2.id
+                LEFT JOIN genres g1 ON u.genre_primary = g1.id
+                LEFT JOIN genres g2 ON u.genre_secondary = g2.id
+                WHERE u.email = @val";
+
+            return FetchUser(sql, "@val", email);
         }
 
         // Search Users (Updated to search by Display Name or Stage Name as well)
         public List<User> SearchUsers(string term)
         {
             var users = new List<User>();
-            // You might want to add 'OR account_type_primary LIKE @term' here later
+            // Note: Search results might not need the full JOINs unless you display roles in the search dropdown
             string sql = @"
                 SELECT * FROM `user` 
                 WHERE username LIKE @term 
@@ -115,19 +142,33 @@ namespace MoozicOrb.IO
             if (HasColumn(rdr, "location_id") && rdr["location_id"] != DBNull.Value)
                 user.LocationId = Convert.ToInt32(rdr["location_id"]);
 
-            // 2. Account Types (UPDATED: String -> Int)
+            // 2. Account Types (Map IDs AND Names)
             if (HasColumn(rdr, "account_type_primary") && rdr["account_type_primary"] != DBNull.Value)
                 user.AccountTypePrimary = Convert.ToInt32(rdr["account_type_primary"]);
 
             if (HasColumn(rdr, "account_type_secondary") && rdr["account_type_secondary"] != DBNull.Value)
                 user.AccountTypeSecondary = Convert.ToInt32(rdr["account_type_secondary"]);
 
-            // 3. Genres (UPDATED: String -> Int)
+            // Map Names from Joins (if present)
+            if (HasColumn(rdr, "at1_name") && rdr["at1_name"] != DBNull.Value)
+                user.AccountTypePrimaryName = rdr["at1_name"].ToString();
+
+            if (HasColumn(rdr, "at2_name") && rdr["at2_name"] != DBNull.Value)
+                user.AccountTypeSecondaryName = rdr["at2_name"].ToString();
+
+            // 3. Genres (Map IDs AND Names)
             if (HasColumn(rdr, "genre_primary") && rdr["genre_primary"] != DBNull.Value)
                 user.GenrePrimary = Convert.ToInt32(rdr["genre_primary"]);
 
             if (HasColumn(rdr, "genre_secondary") && rdr["genre_secondary"] != DBNull.Value)
                 user.GenreSecondary = Convert.ToInt32(rdr["genre_secondary"]);
+
+            // Map Names from Joins (if present)
+            if (HasColumn(rdr, "g1_name") && rdr["g1_name"] != DBNull.Value)
+                user.GenrePrimaryName = rdr["g1_name"].ToString();
+
+            if (HasColumn(rdr, "g2_name") && rdr["g2_name"] != DBNull.Value)
+                user.GenreSecondaryName = rdr["g2_name"].ToString();
 
             // 4. Visibility & Contact
             if (HasColumn(rdr, "visibility_id") && rdr["visibility_id"] != DBNull.Value)

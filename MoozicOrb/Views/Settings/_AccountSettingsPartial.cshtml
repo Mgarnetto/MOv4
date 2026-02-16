@@ -68,9 +68,9 @@
                     <div class="col-md-6 mb-3">
                         <label class="form-label text-muted small text-uppercase fw-bold">Profile Visibility</label>
                         <select id="inputVisibility" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <!option value="0" @(Model.VisibilityId == 0 ? "selected" : "")>Public</!option>
-                            <!option value="1" @(Model.VisibilityId == 1 ? "selected" : "")>Connections Only</!option>
-                            <!option value="2" @(Model.VisibilityId == 2 ? "selected" : "")>Private</!option>
+                            <option value="0" selected="@(Model.VisibilityId == 0)">Public</option>
+                            <option value="1" selected="@(Model.VisibilityId == 1)">Connections Only</option>
+                            <option value="2" selected="@(Model.VisibilityId == 2)">Private</option>
                         </select>
                     </div>
                 </div>
