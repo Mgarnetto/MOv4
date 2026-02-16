@@ -7,6 +7,29 @@ namespace MoozicOrb.IO
 {
     public class UserQuery
     {
+        // --- ADDED: IO Helpers for Dropdowns ---
+        private readonly AccountTypeIO _roleIo;
+        private readonly GenreIO _genreIo;
+
+        public UserQuery()
+        {
+            _roleIo = new AccountTypeIO();
+            _genreIo = new GenreIO();
+        }
+
+        // --- ADDED: Passthrough Methods ---
+        public List<AccountType> GetAccountTypes()
+        {
+            return _roleIo.GetAllRoles();
+        }
+
+        public List<Genre> GetGenres()
+        {
+            return _genreIo.GetAllGenres();
+        }
+
+        // --- EXISTING CODE PRESERVED BELOW ---
+
         public User GetUserById(int userId)
         {
             return FetchUser("SELECT * FROM `user` WHERE user_id = @val", "@val", userId);
@@ -92,19 +115,19 @@ namespace MoozicOrb.IO
             if (HasColumn(rdr, "location_id") && rdr["location_id"] != DBNull.Value)
                 user.LocationId = Convert.ToInt32(rdr["location_id"]);
 
-            // 2. Account Types
+            // 2. Account Types (UPDATED: String -> Int)
             if (HasColumn(rdr, "account_type_primary") && rdr["account_type_primary"] != DBNull.Value)
-                user.AccountTypePrimary = rdr["account_type_primary"].ToString();
+                user.AccountTypePrimary = Convert.ToInt32(rdr["account_type_primary"]);
 
             if (HasColumn(rdr, "account_type_secondary") && rdr["account_type_secondary"] != DBNull.Value)
-                user.AccountTypeSecondary = rdr["account_type_secondary"].ToString();
+                user.AccountTypeSecondary = Convert.ToInt32(rdr["account_type_secondary"]);
 
-            // 3. Genres
+            // 3. Genres (UPDATED: String -> Int)
             if (HasColumn(rdr, "genre_primary") && rdr["genre_primary"] != DBNull.Value)
-                user.GenrePrimary = rdr["genre_primary"].ToString();
+                user.GenrePrimary = Convert.ToInt32(rdr["genre_primary"]);
 
             if (HasColumn(rdr, "genre_secondary") && rdr["genre_secondary"] != DBNull.Value)
-                user.GenreSecondary = rdr["genre_secondary"].ToString();
+                user.GenreSecondary = Convert.ToInt32(rdr["genre_secondary"]);
 
             // 4. Visibility & Contact
             if (HasColumn(rdr, "visibility_id") && rdr["visibility_id"] != DBNull.Value)
