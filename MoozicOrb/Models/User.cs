@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace MoozicOrb.Models
@@ -6,7 +7,7 @@ namespace MoozicOrb.Models
     public class User
     {
         // --- RESTORED ORIGINAL IDENTIFIERS ---
-        public int UserId { get; set; } // Was 'Id', changed back to 'UserId'
+        public int UserId { get; set; }
 
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
@@ -17,7 +18,7 @@ namespace MoozicOrb.Models
         public string UserName { get; set; }     // Kept for URL/Login legacy
         public string DisplayName { get; set; }  // "Stage Name" (Optional)
 
-        public string ProfilePic { get; set; }   // Changed back from ProfilePicUrl to match your DB column
+        public string ProfilePic { get; set; }
         public string CoverImageUrl { get; set; }
         public string Bio { get; set; }
 
@@ -26,6 +27,22 @@ namespace MoozicOrb.Models
         public string UserGroups { get; set; } = "9";
 
         public string ProfileLayoutJson { get; set; }
+
+        // --- NEW DB COLUMNS (Added Feb 2026) ---
+        public DateTime? Dob { get; set; }       // Nullable Date of Birth
+        public int? LocationId { get; set; }     // Links to Location Table (Nullable)
+
+        public string AccountTypePrimary { get; set; }   // e.g. "Producer"
+        public string AccountTypeSecondary { get; set; } // e.g. "Engineer"
+
+        public string GenrePrimary { get; set; }         // e.g. "Jazz"
+        public string GenreSecondary { get; set; }       // e.g. "Rock"
+
+        public int VisibilityId { get; set; } = 0;       // 0=Public, 1=Connections, 2=Private
+
+        public string BookingEmail { get; set; }
+        public string PhoneMain { get; set; }
+        public string PhoneBooking { get; set; }
 
         // Helper: Use DisplayName if set, otherwise fallback to First/Last (Safe Display)
         public string PublicName => !string.IsNullOrEmpty(DisplayName)

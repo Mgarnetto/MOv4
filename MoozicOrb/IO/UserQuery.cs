@@ -17,10 +17,11 @@ namespace MoozicOrb.IO
             return FetchUser("SELECT * FROM `user` WHERE email = @val", "@val", email);
         }
 
-        // NEW: Search Users
+        // Search Users (Updated to search by Display Name or Stage Name as well)
         public List<User> SearchUsers(string term)
         {
             var users = new List<User>();
+            // You might want to add 'OR account_type_primary LIKE @term' here later
             string sql = @"
                 SELECT * FROM `user` 
                 WHERE username LIKE @term 
@@ -65,7 +66,7 @@ namespace MoozicOrb.IO
 
         private User MapUser(MySqlDataReader rdr)
         {
-            return new User
+            var user = new User
             {
                 UserId = rdr.GetInt32("user_id"),
                 FirstName = rdr["first_name"].ToString(),
@@ -81,6 +82,44 @@ namespace MoozicOrb.IO
                 ProfileLayoutJson = HasColumn(rdr, "profile_layout") ? rdr["profile_layout"].ToString() : "[]",
                 UserGroups = rdr["user_groups"].ToString()
             };
+
+            // --- MAPPING NEW FIELDS (Feb 2026) ---
+
+            // 1. Date & Location
+            if (HasColumn(rdr, "dob") && rdr["dob"] != DBNull.Value)
+                user.Dob = Convert.ToDateTime(rdr["dob"]);
+
+            if (HasColumn(rdr, "location_id") && rdr["location_id"] != DBNull.Value)
+                user.LocationId = Convert.ToInt32(rdr["location_id"]);
+
+            // 2. Account Types
+            if (HasColumn(rdr, "account_type_primary") && rdr["account_type_primary"] != DBNull.Value)
+                user.AccountTypePrimary = rdr["account_type_primary"].ToString();
+
+            if (HasColumn(rdr, "account_type_secondary") && rdr["account_type_secondary"] != DBNull.Value)
+                user.AccountTypeSecondary = rdr["account_type_secondary"].ToString();
+
+            // 3. Genres
+            if (HasColumn(rdr, "genre_primary") && rdr["genre_primary"] != DBNull.Value)
+                user.GenrePrimary = rdr["genre_primary"].ToString();
+
+            if (HasColumn(rdr, "genre_secondary") && rdr["genre_secondary"] != DBNull.Value)
+                user.GenreSecondary = rdr["genre_secondary"].ToString();
+
+            // 4. Visibility & Contact
+            if (HasColumn(rdr, "visibility_id") && rdr["visibility_id"] != DBNull.Value)
+                user.VisibilityId = Convert.ToInt32(rdr["visibility_id"]);
+
+            if (HasColumn(rdr, "booking_email") && rdr["booking_email"] != DBNull.Value)
+                user.BookingEmail = rdr["booking_email"].ToString();
+
+            if (HasColumn(rdr, "phone_main") && rdr["phone_main"] != DBNull.Value)
+                user.PhoneMain = rdr["phone_main"].ToString();
+
+            if (HasColumn(rdr, "phone_booking") && rdr["phone_booking"] != DBNull.Value)
+                user.PhoneBooking = rdr["phone_booking"].ToString();
+
+            return user;
         }
 
         private bool HasColumn(MySqlDataReader rdr, string columnName)

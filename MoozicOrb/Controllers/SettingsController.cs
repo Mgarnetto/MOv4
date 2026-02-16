@@ -29,7 +29,7 @@ namespace MoozicOrb.Controllers
         }
 
         // ------------------------------------
-        // PAGE SETTINGS (Bio, Cover)
+        // PAGE SETTINGS (Bio, Cover, Artist Info)
         // ------------------------------------
         [HttpGet("page")]
         public IActionResult Page()
@@ -44,8 +44,15 @@ namespace MoozicOrb.Controllers
             {
                 Bio = user.Bio,
                 CoverImage = user.CoverImageUrl,
-                BookingEmail = user.Email,
-                LayoutOrder = user.LayoutOrder
+                BookingEmail = user.BookingEmail, // Updated to use BookingEmail column
+                LayoutOrder = user.LayoutOrder,
+
+                // --- ADDITIONS ---
+                PhoneBooking = user.PhoneBooking,
+                AccountTypePrimary = user.AccountTypePrimary,
+                AccountTypeSecondary = user.AccountTypeSecondary,
+                GenrePrimary = user.GenrePrimary,
+                GenreSecondary = user.GenreSecondary
             };
 
             if (Request.IsSpaRequest()) return PartialView("_PageSettingsPartial", model);
@@ -64,14 +71,26 @@ namespace MoozicOrb.Controllers
                           System.Text.Json.JsonSerializer.Serialize(model.LayoutOrder) :
                           "[]";
 
-            bool success = updateIo.UpdatePageSettings(userId, model.Bio, model.CoverImage, model.BookingEmail, json);
+            // Updated to pass new fields
+            bool success = updateIo.UpdatePageSettings(
+                userId,
+                model.Bio,
+                model.CoverImage,
+                model.BookingEmail,
+                json,
+                model.PhoneBooking,
+                model.AccountTypePrimary,
+                model.AccountTypeSecondary,
+                model.GenrePrimary,
+                model.GenreSecondary
+            );
 
             if (success) return Ok(new { success = true });
             return BadRequest("Failed.");
         }
 
         // ------------------------------------
-        // ACCOUNT SETTINGS (Avatar, Password)
+        // ACCOUNT SETTINGS (Avatar, Password, Personal Info)
         // ------------------------------------
         [HttpGet("account")]
         public IActionResult Account()
@@ -85,12 +104,18 @@ namespace MoozicOrb.Controllers
             {
                 DisplayName = user.DisplayName,
                 Email = user.Email,
-                ProfilePic = user.ProfilePic
+                ProfilePic = user.ProfilePic,
+
+                // --- ADDITIONS ---
+                Dob = user.Dob,
+                LocationId = user.LocationId,
+                PhoneMain = user.PhoneMain,
+                VisibilityId = user.VisibilityId
             };
 
             if (Request.IsSpaRequest()) return PartialView("_AccountSettingsPartial", model);
             //return View("Account", model);
-            return RedirectToAction("Index", "Home"); 
+            return RedirectToAction("Index", "Home");
         }
 
         [HttpPost("update-account")]
@@ -100,10 +125,18 @@ namespace MoozicOrb.Controllers
             if (userId == 0) return Unauthorized();
 
             var updateIo = new UpdateUser();
-            // Update Display Name
-            bool nameSuccess = updateIo.UpdateDisplayName(userId, model.DisplayName);
 
-            return Ok(new { success = nameSuccess });
+            // Updated to use the new UpdateAccountSettings method
+            bool success = updateIo.UpdateAccountSettings(
+                userId,
+                model.DisplayName,
+                model.Dob,
+                model.LocationId,
+                model.PhoneMain,
+                model.VisibilityId
+            );
+
+            return Ok(new { success = success });
         }
 
         [HttpPost("update-avatar")]

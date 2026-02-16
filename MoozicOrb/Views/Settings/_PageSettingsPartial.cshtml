@@ -17,11 +17,12 @@
         <div class="settings-panel">
             <h2 class="mb-4 border-bottom border-secondary pb-3">Creator Page</h2>
 
-            <div class="mb-4">
-                <label class="form-label text-muted small text-uppercase fw-bold">Cover Image</label>
+            <div class="mb-5">
+                <label class="form-label text-muted small text-uppercase fw-bold mb-2">Cover Image</label>
+
                 <div id="coverPreview" class="cover-preview mb-3"
                      data-current="@Model.CoverImage"
-                     style="background-image: url('@Model.CoverImage'); height: 150px; background-size: cover; background-position: center; border-radius: 10px; border: 1px solid #333;">
+                     style="background-image: url('@Model.CoverImage'); height: 200px; background-size: cover; background-position: center; border-radius: 10px; border: 1px solid #333;">
                 </div>
 
                 <input type="file" id="coverUploadInput" style="display:none;" accept="image/*">
@@ -29,29 +30,74 @@
                     <i class="fas fa-upload me-2"></i> Upload New Cover
                 </button>
             </div>
-
+            <br />
             <form id="pageSettingsForm">
-                <div class="form-group mb-3">
+                
+                <div class="form-group mb-5">
                     <label class="form-label text-muted small text-uppercase fw-bold">Bio / Intro</label>
-                    <textarea id="inputBio" class="form-control" rows="4" style="background: #000; color: white; border: 1px solid #333;">@Model.Bio</textarea>
+                    <textarea id="inputBio" class="form-control" rows="4" style="background: #000; color: white; border: 1px solid #333; min-height: 120px;">@Model.Bio</textarea>
                 </div>
 
-                <div class="form-group mb-4">
-                    <label class="form-label text-muted small text-uppercase fw-bold">Booking Contact</label>
-                    <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail" style="background: #000; color: white; border: 1px solid #333;">
+                <hr class="border-secondary my-5" />
+                <br />
+                <h3 class="text-white mb-4">Artist Persona</h3>
+                <br />
+                
+                <div class="row mb-4">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Primary Role</label>
+                        <input type="text" id="inputAcctPrimary" class="form-control" value="@Model.AccountTypePrimary" placeholder="e.g. Producer" 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Secondary Role</label>
+                        <input type="text" id="inputAcctSecondary" class="form-control" value="@Model.AccountTypeSecondary" placeholder="e.g. DJ" 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    </div>
                 </div>
 
-                <br /><br />
+                <div class="row mb-5">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Primary Genre</label>
+                        <input type="text" id="inputGenrePrimary" class="form-control" value="@Model.GenrePrimary" placeholder="e.g. Hip Hop" 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Secondary Genre</label>
+                        <input type="text" id="inputGenreSecondary" class="form-control" value="@Model.GenreSecondary" placeholder="e.g. Jazz" 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    </div>
+                </div>
 
+                <hr class="border-secondary my-5" />
+                <br />
+                <h3 class="text-white mb-4">Booking & Business</h3>
+                <br />
+                <div class="row mb-5">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Booking Email</label>
+                        <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail " placeholder="booking@@..." 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <small class="text-muted d-block mt-1">Publicly visible on your page.</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label text-muted small text-uppercase fw-bold">Booking Phone</label>
+                        <input type="text" id="inputPhoneBooking" class="form-control" value="@Model.PhoneBooking" placeholder="+1..." 
+                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    </div>
+                </div>
+
+                <hr class="border-secondary my-5" />
+                <br />
                 <div class="form-group mb-4">
                     <label class="form-label text-muted small text-uppercase fw-bold mb-3">Page Layout (Drag to Reorder)</label>
                     <div id="layoutSortContainer" class="layout-sort-container">
                         @{
                             var displayNames = new Dictionary<string, string> {
-                                                { "posts", "Updates & Posts" },
-                                                { "music", "Discography" },
-                                                { "store", "Merch Store" }
-                                                };
+                                { "posts", "Updates & Posts" },
+                                { "music", "Discography" },
+                                { "store", "Merch Store" }
+                            };
                         }
 
                         @if (Model.LayoutOrder != null && Model.LayoutOrder.Any())
@@ -73,8 +119,8 @@
                     </div>
                 </div>
 
-                <div class="form-actions text-end">
-                    <button type="submit" class="btn-sidebar-fill px-4">Save Changes</button>
+                <div class="form-actions text-end pt-3 border-top border-secondary">
+                    <button type="submit" class="btn-sidebar-fill px-5 py-2">Save Changes</button>
                 </div>
             </form>
         </div>

@@ -64,21 +64,32 @@ namespace MoozicOrb.Models
     // 3. SETTINGS MODELS
     // ==========================================
 
-    public class AccountSettingsViewModel
-    {
-        public string DisplayName { get; set; }
-        public string Email { get; set; }
-        public string ProfilePic { get; set; }
-    }
-
     public class PageSettingsViewModel
     {
         public string Bio { get; set; }
         public string CoverImage { get; set; }
         public string BookingEmail { get; set; }
+        public System.Collections.Generic.List<string> LayoutOrder { get; set; } = new List<string>();
 
-        // Add this:
-        public List<string> LayoutOrder { get; set; } = new List<string>();
+        // --- ADDITIONS ---
+        public string PhoneBooking { get; set; }
+        public string AccountTypePrimary { get; set; }
+        public string AccountTypeSecondary { get; set; }
+        public string GenrePrimary { get; set; }
+        public string GenreSecondary { get; set; }
+    }
+
+    public class AccountSettingsViewModel
+    {
+        public string DisplayName { get; set; }
+        public string Email { get; set; }
+        public string ProfilePic { get; set; }
+
+        // --- ADDITIONS ---
+        public System.DateTime? Dob { get; set; }
+        public int? LocationId { get; set; }
+        public string PhoneMain { get; set; }
+        public int VisibilityId { get; set; }
     }
 
     // ==========================================
