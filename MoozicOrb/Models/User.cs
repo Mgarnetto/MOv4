@@ -32,11 +32,11 @@ namespace MoozicOrb.Models
         public DateTime? Dob { get; set; }       // Nullable Date of Birth
         public int? LocationId { get; set; }     // Links to Location Table (Nullable)
 
-        public string AccountTypePrimary { get; set; }   // e.g. "Producer"
-        public string AccountTypeSecondary { get; set; } // e.g. "Engineer"
+        public int AccountTypePrimary { get; set; }   // e.g. "Producer"
+        public int AccountTypeSecondary { get; set; } // e.g. "Engineer"
 
-        public string GenrePrimary { get; set; }         // e.g. "Jazz"
-        public string GenreSecondary { get; set; }       // e.g. "Rock"
+        public int GenrePrimary { get; set; }         // e.g. "Jazz"
+        public int GenreSecondary { get; set; }       // e.g. "Rock"
 
         public int VisibilityId { get; set; } = 0;       // 0=Public, 1=Connections, 2=Private
 

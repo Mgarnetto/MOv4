@@ -73,10 +73,10 @@ namespace MoozicOrb.Models
 
         // --- ADDITIONS ---
         public string PhoneBooking { get; set; }
-        public string AccountTypePrimary { get; set; }
-        public string AccountTypeSecondary { get; set; }
-        public string GenrePrimary { get; set; }
-        public string GenreSecondary { get; set; }
+        public int AccountTypePrimary { get; set; }
+        public int AccountTypeSecondary { get; set; }
+        public int GenrePrimary { get; set; }
+        public int GenreSecondary { get; set; }
     }
 
     public class AccountSettingsViewModel
