@@ -14,7 +14,8 @@ namespace MoozicOrb.IO
                 UPDATE `user` 
                 SET 
                     dob = @dob,
-                    location_id = @loc,
+                    country_id = @country,
+                    state_id = @state,
                     
                     account_type_primary = @acct1,
                     account_type_secondary = @acct2,
@@ -40,7 +41,8 @@ namespace MoozicOrb.IO
 
                     // Location & Date
                     cmd.Parameters.AddWithValue("@dob", user.Dob ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@loc", user.LocationId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@country", user.CountryId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@state", user.StateId ?? (object)DBNull.Value);
 
                     // Account Roles
                     cmd.Parameters.AddWithValue("@acct1", user.AccountTypePrimary ?? (object)DBNull.Value);
@@ -109,14 +111,15 @@ namespace MoozicOrb.IO
             }
         }
 
-        // 2. New ACCOUNT Settings (Handles DisplayName + Personal Info)
-        public bool UpdateAccountSettings(int userId, string displayName, DateTime? dob, int? locationId, string phoneMain, int visibilityId)
+        // 2. New ACCOUNT Settings (Handles DisplayName + Personal Info + New Location Logic)
+        public bool UpdateAccountSettings(int userId, string displayName, DateTime? dob, int? countryId, int? stateId, string phoneMain, int visibilityId)
         {
             string sql = @"
                 UPDATE `user` 
                 SET display_name = @name,
                     dob = @dob,
-                    location_id = @loc,
+                    country_id = @country,
+                    state_id = @state,
                     phone_main = @phone_main,
                     visibility_id = @vis
                 WHERE user_id = @uid";
@@ -128,7 +131,11 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@name", displayName);
                     cmd.Parameters.AddWithValue("@dob", dob ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@loc", locationId ?? (object)DBNull.Value);
+
+                    // New Location Params
+                    cmd.Parameters.AddWithValue("@country", countryId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@state", stateId ?? (object)DBNull.Value);
+
                     cmd.Parameters.AddWithValue("@phone_main", phoneMain ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@vis", visibilityId);
 

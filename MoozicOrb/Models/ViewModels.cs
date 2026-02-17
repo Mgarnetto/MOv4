@@ -90,7 +90,11 @@ namespace MoozicOrb.Models
 
         // --- ADDITIONS ---
         public System.DateTime? Dob { get; set; }
-        public int? LocationId { get; set; }
+
+        // Updated Location Logic
+        public int? CountryId { get; set; }
+        public int? StateId { get; set; }
+
         public string PhoneMain { get; set; }
         public int VisibilityId { get; set; }
     }
@@ -100,7 +104,13 @@ namespace MoozicOrb.Models
     // ==========================================
     // These represent the small chunks of data inside lists
 
-
+    public class Location
+    {
+        public int Id { get; set; }
+        public int? ParentId { get; set; } // Null for Countries, Set for States
+        public string Name { get; set; }
+        public string Code { get; set; }   // e.g. "US", "GA"
+    }
 
     public class ArtistDto
     {

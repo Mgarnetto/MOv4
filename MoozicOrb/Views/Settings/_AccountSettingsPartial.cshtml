@@ -1,4 +1,6 @@
 ﻿@model MoozicOrb.Models.AccountSettingsViewModel
+@using MoozicOrb.Models
+@using System.Collections.Generic
 
 <div class="settings-grid-layout">
     <aside class="settings-sidebar">
@@ -17,7 +19,7 @@
         <div class="settings-panel">
             <h2 class="mb-4 border-bottom border-secondary pb-3">Account Settings</h2>
 
-            <div class="d-flex align-items-center gap-4 my-4">
+            <div class="d-flex align-items-center gap-4 my-5">
                 <div id="avatarPreview" style="width: 100px; height: 100px; border-radius: 50%; background-image: url('@Model.ProfilePic'); background-size: cover; background-position: center; border: 2px solid var(--accent-secondary);"></div>
                 <div>
                     <input type="file" id="avatarUploadInput" style="display:none;" accept="image/*">
@@ -27,52 +29,73 @@
                     <div class="text-muted small">Recommended: Square JPG/PNG, 500x500px</div>
                 </div>
             </div>
-            <br />
+
             <form id="accountSettingsForm">
 
-                <div class="form-group mb-4">
+                <div class="form-group mb-5">
                     <label class="form-label text-muted small text-uppercase fw-bold">Display Name</label>
                     <input type="text" id="inputDisplayName" class="form-control form-control-lg" value="@Model.DisplayName" style="background: #000; color: white; border: 1px solid #333;">
                 </div>
 
                 <hr class="border-secondary my-5" />
-                <br />
+
                 <h3 class="text-white mb-4">Personal Details</h3>
-                <br />
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Date of Birth</label>
-                        <input type="date" id="inputDob" class="form-control"
-                               value="@(Model.Dob.HasValue? Model.Dob.Value.ToString("yyyy-MM-dd") : "")"
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Location</label>
-                        <input type="text" id="locationSearch" class="form-control" placeholder="Search City..."
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                        <input type="hidden" id="inputLocationId" value="@Model.LocationId" />
-                    </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Date of Birth</label>
+                    <input type="date" id="inputDob" class="form-control"
+                           value="@(Model.Dob.HasValue? Model.Dob.Value.ToString("yyyy-MM-dd") : "")"
+                           style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Country</label>
+                    <select id="inputCountry" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="">-- Select Country --</option>
+                        @if (ViewBag.Countries != null)
+                        {
+                            foreach (var c in (List<Location>)ViewBag.Countries)
+                            {
+                                <option value="@c.Id" selected="@(Model.CountryId == c.Id)">@c.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">State / Province</label>
+                    <select id="inputState" class="form-control"
+                            style="background: #000; color: white; border: 1px solid #333; height: 45px;"
+                            @(Model.CountryId == null ? "disabled" : "")>
+                        <option value="">-- Select State --</option>
+                        @if (ViewBag.States != null)
+                        {
+                            foreach (var s in (List<Location>)ViewBag.States)
+                            {
+                                <option value="@s.Id" selected="@(Model.StateId == s.Id)">@s.Name</option>
+                            }
+                        }
+                    </select>
                 </div>
 
                 <hr class="border-secondary my-5" />
-                <br />
+
                 <h3 class="text-white mb-4">Privacy & Contact</h3>
-                <br />
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Private Phone</label>
-                        <input type="text" id="inputPhoneMain" class="form-control" value="@Model.PhoneMain" placeholder="+1..."
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                        <small class="text-muted d-block mt-1">Only visible to you and admins.</small>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Profile Visibility</label>
-                        <select id="inputVisibility" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <option value="0" selected="@(Model.VisibilityId == 0)">Public</option>
-                            <option value="1" selected="@(Model.VisibilityId == 1)">Connections Only</option>
-                            <option value="2" selected="@(Model.VisibilityId == 2)">Private</option>
-                        </select>
-                    </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Private Phone</label>
+                    <input type="text" id="inputPhoneMain" class="form-control" value="@Model.PhoneMain" placeholder="+1..."
+                           style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    <small class="text-muted d-block mt-1">Only visible to you and admins.</small>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Profile Visibility</label>
+                    <select id="inputVisibility" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="0" selected="@(Model.VisibilityId == 0)">Public</option>
+                        <option value="1" selected="@(Model.VisibilityId == 1)">Connections Only</option>
+                        <option value="2" selected="@(Model.VisibilityId == 2)">Private</option>
+                    </select>
                 </div>
 
                 <div class="form-group mb-5">

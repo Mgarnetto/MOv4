@@ -22,7 +22,13 @@ namespace MoozicOrb.Models
 
         // --- NEW INTEGER COLUMNS ---
         public DateTime? Dob { get; set; }
-        public int? LocationId { get; set; }
+
+        // --- UPDATED LOCATION FIELDS ---
+        public int? CountryId { get; set; }
+        public string CountryName { get; set; } // e.g. "United States"
+
+        public int? StateId { get; set; }
+        public string StateName { get; set; }   // e.g. "Georgia"
 
         // Account Types (ID for logic, Name for display)
         public int? AccountTypePrimary { get; set; }

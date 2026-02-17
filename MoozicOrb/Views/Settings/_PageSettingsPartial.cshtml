@@ -32,106 +32,102 @@
                     <i class="fas fa-upload me-2"></i> Upload New Cover
                 </button>
             </div>
-            <br />
+
             <form id="pageSettingsForm">
-                
+
                 <div class="form-group mb-5">
                     <label class="form-label text-muted small text-uppercase fw-bold">Bio / Intro</label>
                     <textarea id="inputBio" class="form-control" rows="4" style="background: #000; color: white; border: 1px solid #333; min-height: 120px;">@Model.Bio</textarea>
                 </div>
 
                 <hr class="border-secondary my-5" />
-                <br />
+
                 <h3 class="text-white mb-4">Identify As</h3>
-                <br />
-                
-                <div class="row mb-4">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Primary Role</label>
-                        <select id="inputAcctPrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <option value="">-- None --</option>
-                            @if (ViewBag.AccountTypes != null)
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Primary Role</label>
+                    <select id="inputAccountTypePrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="">-- None --</option>
+                        @if (ViewBag.AccountTypes != null)
+                        {
+                            foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
                             {
-                                foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
-                                {
-                                    <option value="@type.Id" selected="@(Model.AccountTypePrimary == type.Id)">@type.Name</option>
-                                }
+                                <option value="@type.Id" selected="@(Model.AccountTypePrimary == type.Id)">@type.Name</option>
                             }
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Secondary Role</label>
-                        <select id="inputAcctSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <option value="">-- None --</option>
-                            @if (ViewBag.AccountTypes != null)
-                            {
-                                foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
-                                {
-                                    <option value="@type.Id" selected="@(Model.AccountTypeSecondary == type.Id)">@type.Name</option>
-                                }
-                            }
-                        </select>
-                    </div>
+                        }
+                    </select>
                 </div>
 
-                <div class="row mb-5">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Primary Genre</label>
-                        <select id="inputGenrePrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <option value="">-- None --</option>
-                            @if (ViewBag.Genres != null)
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Secondary Role</label>
+                    <select id="inputAccountTypeSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="">-- None --</option>
+                        @if (ViewBag.AccountTypes != null)
+                        {
+                            foreach (var type in (List<AccountType>)ViewBag.AccountTypes)
                             {
-                                foreach (var g in (List<Genre>)ViewBag.Genres)
-                                {
-                                    <option value="@g.Id" selected="@(Model.GenrePrimary == g.Id)">@g.Name</option>
-                                }
+                                <option value="@type.Id" selected="@(Model.AccountTypeSecondary == type.Id)">@type.Name</option>
                             }
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Secondary Genre</label>
-                        <select id="inputGenreSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                            <option value="">-- None --</option>
-                            @if (ViewBag.Genres != null)
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Primary Genre</label>
+                    <select id="inputGenrePrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="">-- None --</option>
+                        @if (ViewBag.Genres != null)
+                        {
+                            foreach (var g in (List<Genre>)ViewBag.Genres)
                             {
-                                foreach (var g in (List<Genre>)ViewBag.Genres)
-                                {
-                                    <option value="@g.Id" selected="@(Model.GenreSecondary == g.Id)">@g.Name</option>
-                                }
+                                <option value="@g.Id" selected="@(Model.GenrePrimary == g.Id)">@g.Name</option>
                             }
-                        </select>
-                    </div>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Secondary Genre</label>
+                    <select id="inputGenreSecondary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                        <option value="">-- None --</option>
+                        @if (ViewBag.Genres != null)
+                        {
+                            foreach (var g in (List<Genre>)ViewBag.Genres)
+                            {
+                                <option value="@g.Id" selected="@(Model.GenreSecondary == g.Id)">@g.Name</option>
+                            }
+                        }
+                    </select>
                 </div>
 
                 <hr class="border-secondary my-5" />
-                <br />
+
                 <h3 class="text-white mb-4">Booking & Business</h3>
-                <br />
-                <div class="row mb-5">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Booking Email</label>
-                        <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail" placeholder="booking@@..." 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                        <small class="text-muted d-block mt-1">Publicly visible on your page.</small>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label text-muted small text-uppercase fw-bold">Booking Phone</label>
-                        <input type="text" id="inputPhoneBooking" class="form-control" value="@Model.PhoneBooking" placeholder="+1..." 
-                               style="background: #000; color: white; border: 1px solid #333; height: 45px;">
-                    </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Booking Email</label>
+                    <input type="text" id="inputEmail" class="form-control" value="@Model.BookingEmail" placeholder="booking@@..."
+                           style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+                    <small class="text-muted d-block mt-1">Publicly visible on your page.</small>
+                </div>
+
+                <div class="form-group mb-5">
+                    <label class="form-label text-muted small text-uppercase fw-bold">Booking Phone</label>
+                    <input type="text" id="inputPhoneBooking" class="form-control" value="@Model.PhoneBooking" placeholder="+1..."
+                           style="background: #000; color: white; border: 1px solid #333; height: 45px;">
                 </div>
 
                 <hr class="border-secondary my-5" />
-                <br />
+
                 <div class="form-group mb-4">
                     <label class="form-label text-muted small text-uppercase fw-bold mb-3">Page Layout (Drag to Reorder)</label>
                     <div id="layoutSortContainer" class="layout-sort-container">
                         @{
                             var displayNames = new Dictionary<string, string> {
-                                { "posts", "Updates & Posts" },
-                                { "music", "Discography" },
-                                { "store", "Merch Store" }
-                            };
+                                                { "posts", "Updates & Posts" },
+                                                { "music", "Discography" },
+                                                { "store", "Merch Store" }
+                                                };
                         }
 
                         @if (Model.LayoutOrder != null && Model.LayoutOrder.Any())

@@ -6,7 +6,7 @@ using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
-using System.Collections.Generic; // Added for List<>
+using System.Collections.Generic;
 
 namespace MoozicOrb.Controllers
 {
@@ -14,12 +14,12 @@ namespace MoozicOrb.Controllers
     public class SettingsController : Controller
     {
         private readonly UserQuery _userQuery;
-        private readonly IUserAuthService _authService; // For password changes
+        private readonly IUserAuthService _authService;
 
         public SettingsController(IUserAuthService authService)
         {
             _userQuery = new UserQuery();
-            _authService = authService; // You'll need to inject this
+            _authService = authService;
         }
 
         private int GetUserId()
@@ -41,7 +41,7 @@ namespace MoozicOrb.Controllers
             var user = _userQuery.GetUserById(userId);
             if (user == null) return NotFound();
 
-            // --- CRITICAL ADDITION: Populate Dropdowns ---
+            // Populate Dropdowns
             ViewBag.AccountTypes = _userQuery.GetAccountTypes();
             ViewBag.Genres = _userQuery.GetGenres();
 
@@ -49,10 +49,8 @@ namespace MoozicOrb.Controllers
             {
                 Bio = user.Bio,
                 CoverImage = user.CoverImageUrl,
-                BookingEmail = user.BookingEmail, // Updated to use BookingEmail column
+                BookingEmail = user.BookingEmail,
                 LayoutOrder = user.LayoutOrder,
-
-                // --- ADDITIONS ---
                 PhoneBooking = user.PhoneBooking,
                 AccountTypePrimary = user.AccountTypePrimary,
                 AccountTypeSecondary = user.AccountTypeSecondary,
@@ -76,7 +74,6 @@ namespace MoozicOrb.Controllers
                           System.Text.Json.JsonSerializer.Serialize(model.LayoutOrder) :
                           "[]";
 
-            // Updated to pass new fields
             bool success = updateIo.UpdatePageSettings(
                 userId,
                 model.Bio,
@@ -105,21 +102,36 @@ namespace MoozicOrb.Controllers
 
             var user = _userQuery.GetUserById(userId);
 
+            // --- CRITICAL ADDITION: Populate Location Dropdowns ---
+            // Note: You need to ensure _userQuery has these methods or create a LocationIO helper.
+            // Assuming _userQuery can now fetch locations based on our previous discussions.
+            // If not, you'll need to add GetCountries() to UserQuery.cs
+
+            // 1. Always get countries
+            ViewBag.Countries = new MoozicOrb.IO.LocationIO().GetCountries();
+
+            // 2. Only get states if a country is selected
+            if (user.CountryId.HasValue)
+            {
+                ViewBag.States = new MoozicOrb.IO.LocationIO().GetStates(user.CountryId.Value);
+            }
+
             var model = new AccountSettingsViewModel
             {
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 ProfilePic = user.ProfilePic,
-
-                // --- ADDITIONS ---
                 Dob = user.Dob,
-                LocationId = user.LocationId,
+
+                // Updated Mapping
+                CountryId = user.CountryId,
+                StateId = user.StateId,
+
                 PhoneMain = user.PhoneMain,
                 VisibilityId = user.VisibilityId
             };
 
             if (Request.IsSpaRequest()) return PartialView("_AccountSettingsPartial", model);
-            //return View("Account", model);
             return RedirectToAction("Index", "Home");
         }
 
@@ -131,12 +143,13 @@ namespace MoozicOrb.Controllers
 
             var updateIo = new UpdateUser();
 
-            // Updated to use the new UpdateAccountSettings method
+            // Updated to pass Country and State separately
             bool success = updateIo.UpdateAccountSettings(
                 userId,
                 model.DisplayName,
                 model.Dob,
-                model.LocationId,
+                model.CountryId, // Changed from LocationId
+                model.StateId,   // Added StateId
                 model.PhoneMain,
                 model.VisibilityId
             );
@@ -144,6 +157,7 @@ namespace MoozicOrb.Controllers
             return Ok(new { success = success });
         }
 
+        // ... (Avatar Update remains unchanged) ...
         [HttpPost("update-avatar")]
         public IActionResult UpdateAvatar([FromBody] dynamic req)
         {

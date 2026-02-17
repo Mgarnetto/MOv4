@@ -78,6 +78,8 @@
 
                     // New Fields using getInt to prevent 400 Bad Request on empty selections
                     PhoneBooking: document.getElementById('inputPhoneBooking')?.value || null,
+
+                    // These IDs match your new _PageSettingsPartial.cshtml
                     AccountTypePrimary: getInt('inputAccountTypePrimary'),
                     AccountTypeSecondary: getInt('inputAccountTypeSecondary'),
                     GenrePrimary: getInt('inputGenrePrimary'),
@@ -141,6 +143,7 @@
 
     // --- ACCOUNT SETTINGS (Profile, AND NEW FIELDS) ---
     async initAccountSettings() {
+        // 1. Avatar Upload
         const avatarInput = document.getElementById('avatarUploadInput');
         if (avatarInput) {
             avatarInput.addEventListener('change', async (e) => {
@@ -156,6 +159,48 @@
             });
         }
 
+        // 2. Dynamic Country/State Dropdown Logic
+        const countrySelect = document.getElementById('inputCountry');
+        const stateSelect = document.getElementById('inputState');
+
+        if (countrySelect && stateSelect) {
+            countrySelect.addEventListener('change', async (e) => {
+                const countryId = e.target.value;
+
+                // Clear existing states
+                stateSelect.innerHTML = '<option value="">-- Select State --</option>';
+
+                if (!countryId) {
+                    stateSelect.disabled = true;
+                    return;
+                }
+
+                // Fetch new states
+                try {
+                    stateSelect.disabled = true; // Disable while fetching
+                    const res = await fetch(`/api/locations/states/${countryId}`);
+
+                    if (res.ok) {
+                        const states = await res.json();
+
+                        // Populate Dropdown
+                        states.forEach(s => {
+                            const option = document.createElement('option');
+                            // s.id is lowercase because JSON serialization defaults to camelCase
+                            option.value = s.id;
+                            option.text = s.name;
+                            stateSelect.appendChild(option);
+                        });
+                        stateSelect.disabled = false; // Enable now that data is there
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch states:", err);
+                    stateSelect.disabled = false;
+                }
+            });
+        }
+
+        // 3. Form Submit
         const form = document.getElementById('accountSettingsForm');
         if (form) {
             form.addEventListener('submit', async (e) => {
@@ -174,8 +219,10 @@
                     // New Fields
                     Dob: document.getElementById('inputDob')?.value || null,
 
-                    // Use getInt for IDs to ensure safety
-                    LocationId: getInt('inputLocationId'),
+                    // UPDATED: Now grabbing Country and State separately
+                    CountryId: getInt('inputCountry'),
+                    StateId: getInt('inputState'),
+
                     PhoneMain: document.getElementById('inputPhoneMain')?.value || null,
                     VisibilityId: getInt('inputVisibility') || 0
                 };

@@ -8,7 +8,7 @@ namespace MoozicOrb.IO
     {
         public long Execute(User user)
         {
-            // Updated to include new columns (Feb 2026)
+            // Updated to include new Country/State columns (Feb 2026)
             string sql = @"
                 INSERT INTO `user` 
                 (
@@ -16,7 +16,7 @@ namespace MoozicOrb.IO
                     username, email, display_name,
                     profile_pic, cover_image_url, bio,
                     is_creator, profile_layout, user_groups,
-                    dob, location_id,
+                    dob, country_id, state_id,
                     account_type_primary, account_type_secondary,
                     genre_primary, genre_secondary,
                     visibility_id,
@@ -28,7 +28,7 @@ namespace MoozicOrb.IO
                     @username, @email, @display,
                     @pic, @cover, @bio,
                     @creator, @layout, @groups,
-                    @dob, @loc,
+                    @dob, @country, @state,
                     @acct1, @acct2,
                     @gen1, @gen2,
                     @vis,
@@ -67,9 +67,10 @@ namespace MoozicOrb.IO
 
                     // 5. NEW FIELDS (Feb 2026)
 
-                    // Date & Location
+                    // Date & Location (Country/State)
                     cmd.Parameters.AddWithValue("@dob", user.Dob ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@loc", user.LocationId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@country", user.CountryId ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@state", user.StateId ?? (object)DBNull.Value);
 
                     // Account Types
                     cmd.Parameters.AddWithValue("@acct1", user.AccountTypePrimary ?? (object)DBNull.Value);

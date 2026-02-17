@@ -32,18 +32,22 @@ namespace MoozicOrb.IO
 
         public User GetUserById(int userId)
         {
-            // Join account_types and genres to get the names for display
+            // Join account_types, genres, and locations to get the names for display
             string sql = @"
                 SELECT u.*, 
                        at1.name as at1_name, 
                        at2.name as at2_name,
                        g1.name as g1_name, 
-                       g2.name as g2_name
+                       g2.name as g2_name,
+                       c.name as country_name,
+                       s.name as state_name
                 FROM `user` u
                 LEFT JOIN account_types at1 ON u.account_type_primary = at1.id
                 LEFT JOIN account_types at2 ON u.account_type_secondary = at2.id
                 LEFT JOIN genres g1 ON u.genre_primary = g1.id
                 LEFT JOIN genres g2 ON u.genre_secondary = g2.id
+                LEFT JOIN locations c ON u.country_id = c.id
+                LEFT JOIN locations s ON u.state_id = s.id
                 WHERE u.user_id = @val";
 
             return FetchUser(sql, "@val", userId);
@@ -56,12 +60,16 @@ namespace MoozicOrb.IO
                        at1.name as at1_name, 
                        at2.name as at2_name,
                        g1.name as g1_name, 
-                       g2.name as g2_name
+                       g2.name as g2_name,
+                       c.name as country_name,
+                       s.name as state_name
                 FROM `user` u
                 LEFT JOIN account_types at1 ON u.account_type_primary = at1.id
                 LEFT JOIN account_types at2 ON u.account_type_secondary = at2.id
                 LEFT JOIN genres g1 ON u.genre_primary = g1.id
                 LEFT JOIN genres g2 ON u.genre_secondary = g2.id
+                LEFT JOIN locations c ON u.country_id = c.id
+                LEFT JOIN locations s ON u.state_id = s.id
                 WHERE u.email = @val";
 
             return FetchUser(sql, "@val", email);
@@ -135,12 +143,23 @@ namespace MoozicOrb.IO
 
             // --- MAPPING NEW FIELDS (Feb 2026) ---
 
-            // 1. Date & Location
+            // 1. Date & Location (Updated for Country/State)
             if (HasColumn(rdr, "dob") && rdr["dob"] != DBNull.Value)
                 user.Dob = Convert.ToDateTime(rdr["dob"]);
 
-            if (HasColumn(rdr, "location_id") && rdr["location_id"] != DBNull.Value)
-                user.LocationId = Convert.ToInt32(rdr["location_id"]);
+            if (HasColumn(rdr, "country_id") && rdr["country_id"] != DBNull.Value)
+                user.CountryId = Convert.ToInt32(rdr["country_id"]);
+
+            if (HasColumn(rdr, "state_id") && rdr["state_id"] != DBNull.Value)
+                user.StateId = Convert.ToInt32(rdr["state_id"]);
+
+            // Map Location Names from Joins
+            if (HasColumn(rdr, "country_name") && rdr["country_name"] != DBNull.Value)
+                user.CountryName = rdr["country_name"].ToString();
+
+            if (HasColumn(rdr, "state_name") && rdr["state_name"] != DBNull.Value)
+                user.StateName = rdr["state_name"].ToString();
+
 
             // 2. Account Types (Map IDs AND Names)
             if (HasColumn(rdr, "account_type_primary") && rdr["account_type_primary"] != DBNull.Value)
