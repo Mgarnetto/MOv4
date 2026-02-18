@@ -29,7 +29,7 @@ namespace MoozicOrb.IO
                     @price, @loc, 
                     @diff, @vid, 
                     @mid, @cat,
-                    NOW()
+                    UTC_TIMESTAMP()
                 );
                 SELECT LAST_INSERT_ID();";
 

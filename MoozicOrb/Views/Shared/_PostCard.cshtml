@@ -17,7 +17,9 @@
                     <a href="/creator/@Model.AuthorId" class="post-author-name">@Model.AuthorName</a>
                 </div>
                 <div class="post-meta-line">
-                    <span>@Model.CreatedAgo</span>
+                    <span class="live-timestamp" data-utc="@Model.CreatedAt.ToString("o")">
+                        @Model.CreatedAgo
+                    </span>
                 </div>
             </div>
         </div>

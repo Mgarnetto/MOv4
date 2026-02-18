@@ -352,6 +352,12 @@ function renderNewPost(post) {
 
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);
+
+    // UPDATED: Use TimeAgo helper
+    const timeDisplay = (window.timeAgo && post.createdAt)
+        ? window.timeAgo(post.createdAt)
+        : 'Just now';
+
     const div = document.createElement('div');
 
     div.innerHTML = `
@@ -365,7 +371,7 @@ function renderNewPost(post) {
                         <div class="d-flex align-items-center gap-2">
                             <a href="/creator/${post.authorId}" class="post-author-name">${post.authorName || 'User'}</a>
                         </div>
-                        <div class="post-meta-line"><span>Just now</span></div>
+                        <div class="post-meta-line"><span>${timeDisplay}</span></div>
                     </div>
                 </div>
                 <div class="ms-auto position-relative">
@@ -790,6 +796,11 @@ function createCommentElement(c) {
     // UPDATED: Check Ownership
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(c.userId);
 
+    // UPDATED: Use TimeAgo
+    const timeDisplay = (window.timeAgo && c.createdAt)
+        ? window.timeAgo(c.createdAt)
+        : (c.createdAgo || 'Just now');
+
     let html = `
         <div class="d-flex align-items-start position-relative">
             <img src="${picUrl}" class="comment-avatar" onerror="this.src='/img/profile_default.jpg'">
@@ -808,7 +819,7 @@ function createCommentElement(c) {
                 </div>
 
                 <div class="comment-meta-line">
-                    <span class="comment-time">${c.createdAgo}</span>
+                    <span class="comment-time">${timeDisplay}</span>
                     <button class="btn-reply-toggle" onclick="toggleReplyBox('${c.commentId}')">Reply</button>
                 </div>
                 
@@ -938,6 +949,11 @@ function appendHistoricalPost(post, container) {
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);
 
+    // UPDATED: Use TimeAgo
+    const timeDisplay = (window.timeAgo && post.createdAt)
+        ? window.timeAgo(post.createdAt)
+        : (post.createdAgo || 'Just now');
+
     const div = document.createElement('div');
     div.innerHTML = `
         <div class="post-card" id="post-${post.id}">
@@ -950,7 +966,7 @@ function appendHistoricalPost(post, container) {
                         <div class="d-flex align-items-center gap-2">
                             <a href="/creator/${post.authorId}" class="post-author-name">${post.authorName || 'User'}</a>
                         </div>
-                        <div class="post-meta-line"><span>${post.createdAgo || 'Just now'}</span></div>
+                        <div class="post-meta-line"><span>${timeDisplay}</span></div>
                     </div>
                 </div>
                 <div class="ms-auto position-relative">
@@ -1051,7 +1067,11 @@ window.loadAudioPlaylist = async () => {
             const titleEscaped = title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const artist = post.authorName || 'Unknown Artist';
             const profileLink = `/creator/${post.authorId}`;
-            const timeAgo = post.createdAgo || 'Just now';
+
+            // UPDATED: Use TimeAgo
+            const timeAgo = (window.timeAgo && post.createdAt)
+                ? window.timeAgo(post.createdAt)
+                : (post.createdAgo || 'Just now');
 
             html += `
 <div class="audio-row">

@@ -256,6 +256,9 @@ namespace MoozicOrb.IO
 
         private PostDto MapReaderToDto(MySqlDataReader rdr)
         {
+            // FIX: Explicitly treat MySQL datetime as UTC so TimeAgo works correctly
+            var createdAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc);
+
             return new PostDto
             {
                 Id = rdr.GetInt64("post_id"),
@@ -268,7 +271,10 @@ namespace MoozicOrb.IO
                 Title = rdr["title"] == DBNull.Value ? null : rdr["title"].ToString(),
                 Text = rdr["content_text"] == DBNull.Value ? null : rdr["content_text"].ToString(),
                 ImageUrl = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString(),
-                CreatedAt = rdr.GetDateTime("created_at"),
+
+                // UPDATED: Use the specific UTC kind
+                CreatedAt = createdAt,
+
                 Price = rdr["price"] == DBNull.Value ? null : (decimal?)rdr.GetDecimal("price"),
                 LocationLabel = rdr["location_label"] == DBNull.Value ? null : rdr["location_label"].ToString(),
                 DifficultyLevel = rdr["difficulty_level"] == DBNull.Value ? null : rdr["difficulty_level"].ToString(),
@@ -276,7 +282,9 @@ namespace MoozicOrb.IO
                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
                 IsLiked = Convert.ToInt32(rdr["is_liked"]) > 0,
-                CreatedAgo = TimeAgo(rdr.GetDateTime("created_at"))
+
+                // UPDATED: Calculate relative time using the UTC object
+                CreatedAgo = TimeAgo(createdAt)
             };
         }
 

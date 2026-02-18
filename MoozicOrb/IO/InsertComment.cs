@@ -12,7 +12,7 @@ namespace MoozicOrb.IO
                 INSERT INTO comments 
                 (post_id, user_id, parent_comment_id, content_text, created_at) 
                 VALUES 
-                (@pid, @uid, @parent, @text, NOW());
+                (@pid, @uid, @parent, @text, UTC_TIMESTAMP());
                 SELECT LAST_INSERT_ID();";
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))

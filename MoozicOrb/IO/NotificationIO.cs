@@ -16,7 +16,7 @@ namespace MoozicOrb.IO
                 conn.Open();
                 string sql = @"
                     INSERT INTO notifications (user_id, actor_id, type, reference_id, message, created_at)
-                    VALUES (@uid, @aid, @type, @ref, @msg, NOW());
+                    VALUES (@uid, @aid, @type, @ref, @msg, UTC_TIMESTAMP());
                     SELECT LAST_INSERT_ID();";
 
                 using (var cmd = new MySqlCommand(sql, conn))

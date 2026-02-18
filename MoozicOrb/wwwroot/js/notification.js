@@ -17,7 +17,7 @@
             // 1. Initial Fetch
             this.fetchNotifications();
 
-            // 2. Setup SignalR (Real-time Updates) -- NEW ADDITION
+            // 2. Setup SignalR (Real-time Updates)
             this.setupSignalR();
 
             if (!btn || !dropdown) return;
@@ -45,14 +45,14 @@
             this.initialized = true;
         },
 
-        // --- NEW METHOD: HANDLES SIGNALR CONNECTION ---
+        // --- HANDLES SIGNALR CONNECTION ---
         setupSignalR() {
             if (this.connection) return;
 
             // Ensure signalR lib is loaded
             if (typeof signalR === 'undefined') return;
 
-            // Connect to the correct Hub URL
+            // Connect to the correct Hub URL (/PostHub)
             this.connection = new signalR.HubConnectionBuilder()
                 .withUrl("/PostHub")
                 .withAutomaticReconnect()
@@ -82,7 +82,6 @@
                 })
                 .catch(err => console.error("SignalR Error:", err));
         },
-        // ----------------------------------------------
 
         openDropdown() {
             const btn = document.getElementById("notifToggleBtn");
@@ -153,7 +152,6 @@
                     items.forEach(i => i.classList.remove("unread"));
                 }
 
-                // FIX: Close dropdown after marking read
                 this.closeDropdown();
 
             } catch (e) {
@@ -187,7 +185,7 @@
             notifications.forEach(n => {
                 const li = document.createElement("a");
                 li.className = `notif-item ${n.isRead ? '' : 'unread'}`;
-                li.href = "#"; // Default to prevent page jump
+                li.href = "#";
 
                 let isModalAction = false;
                 let autoComment = false;
@@ -201,13 +199,18 @@
                     li.href = `/creator/${n.actorId}`;
                 }
 
+                // USE WINDOW.TIMEAGO IF AVAILABLE, ELSE FALLBACK TO SERVER STRING
+                const timeDisplay = (window.timeAgo && n.createdAt)
+                    ? window.timeAgo(n.createdAt)
+                    : (n.createdAgo || 'Just now');
+
                 li.innerHTML = `
                     <img src="${n.actorPic || '/img/profile_default.jpg'}" class="notif-img">
                     <div class="notif-content">
                         <div class="notif-text">
                             <strong>${n.actorName}</strong> ${n.message}
                         </div>
-                        <div class="notif-time">${n.createdAgo || 'Just now'}</div>
+                        <div class="notif-time">${timeDisplay}</div>
                     </div>
                 `;
 
@@ -220,11 +223,10 @@
                         return;
                     }
 
-                    // 2. Group Message / Invite Click (NEW)
+                    // 2. Group Message / Invite Click
                     if (n.type === "group_message" || n.type === "group_invite") {
                         e.preventDefault();
                         if (window.loadGroupMessages) {
-                            // For group types, referenceId is the GroupId
                             window.loadGroupMessages(n.referenceId, "Group Chat");
                         }
                         this.closeDropdown();
@@ -243,8 +245,6 @@
 
                     // 4. Normal navigation (Follow, etc)
                     if (n.type === "follow") {
-                        // Let the href work, just close the dropdown
-                        // (No preventDefault here)
                         this.closeDropdown();
                         return;
                     }

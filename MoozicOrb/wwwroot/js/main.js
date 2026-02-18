@@ -1,7 +1,42 @@
-﻿// =========================================
-// GLOBAL VARIABLES
-// =========================================
+﻿/* =========================================
+   GLOBAL VARIABLES
+   ========================================= */
 let globeRoot = null; // Track the amCharts instance to dispose of it later
+
+/* =========================================
+   GLOBAL UTILITIES
+   ========================================= */
+
+// NEW: Time Ago Helper (Client-side calculation)
+window.timeAgo = function (dateString) {
+    if (!dateString) return 'Just now';
+
+    // Ensure date ends with 'Z' to treat as UTC if missing, preventing timezone offset errors
+    if (typeof dateString === 'string' && !dateString.endsWith('Z') && !dateString.includes('+')) {
+        dateString += 'Z';
+    }
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    let interval = seconds / 31536000;
+    if (interval > 1) return Math.floor(interval) + "y ago";
+
+    interval = seconds / 2592000;
+    if (interval > 1) return Math.floor(interval) + "mo ago";
+
+    interval = seconds / 86400;
+    if (interval > 1) return Math.floor(interval) + "d ago";
+
+    interval = seconds / 3600;
+    if (interval > 1) return Math.floor(interval) + "h ago";
+
+    interval = seconds / 60;
+    if (interval > 1) return Math.floor(interval) + "m ago";
+
+    return "Just now";
+};
 
 // =========================================
 // GLOBAL INIT FUNCTIONS (Called by Router)
