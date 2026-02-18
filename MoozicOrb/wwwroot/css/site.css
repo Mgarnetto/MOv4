@@ -4060,3 +4060,41 @@ textarea.form-control {
         padding: 10px;
         outline: none;
     }
+
+/* =========================================
+   CUSTOM POST MENU BUTTON (Non-Bootstrap)
+   ========================================= */
+.btn-post-options {
+    /* 1. Reset Browser Defaults */
+    background-color: transparent; /* Matches post background */
+    cursor: pointer;
+    box-shadow: none;
+    outline: none;
+    /* 2. Color & Border */
+    color: #cccccc; /* Light Gray Dots */
+    border: 1px solid #cccccc; /* Matching Gray Border */
+    /* 3. Sizing & Shape */
+    width: 32px; /* Fixed width */
+    height: 32px; /* Fixed height */
+    border-radius: 50%; /* Circle */
+    /* 4. Alignment (Centers the 3 dots) */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0; /* Remove default padding */
+    transition: all 0.2s ease;
+}
+
+    /* Hover Effect */
+    .btn-post-options:hover {
+        color: #ffffff; /* White dots */
+        border-color: #ffffff; /* White border */
+        background-color: rgba(255, 255, 255, 0.1); /* Slight glowing background */
+    }
+
+    /* Active/Focus State */
+    .btn-post-options:focus,
+    .btn-post-options:active {
+        outline: none;
+        transform: scale(0.95); /* Slight press effect */
+    }
