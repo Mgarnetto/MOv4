@@ -2,6 +2,7 @@
 using MoozicOrb.API.Models;
 using MoozicOrb.Hubs;
 using MoozicOrb.IO;
+using System; // Required for DateTime
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
@@ -133,7 +134,11 @@ namespace MoozicOrb.Services
                 ActorPic = actor?.ProfilePic ?? "/img/profile_default.jpg",
                 Type = type,
                 Message = msg,
-                ReferenceId = refId
+                ReferenceId = refId,
+
+                // ADDED: Fix for "Just Now" issue on real-time updates
+                CreatedAt = DateTime.UtcNow,
+                CreatedAgo = "Just now"
             };
         }
 

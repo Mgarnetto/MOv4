@@ -14,6 +14,7 @@ namespace MoozicOrb.IO
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
+                // Using UTC_TIMESTAMP() for consistency
                 string sql = @"
                     INSERT INTO notifications (user_id, actor_id, type, reference_id, message, created_at)
                     VALUES (@uid, @aid, @type, @ref, @msg, UTC_TIMESTAMP());
@@ -51,6 +52,10 @@ namespace MoozicOrb.IO
                     {
                         while (r.Read())
                         {
+                            // 1. READ AND FORCE UTC
+                            var dt = r.GetDateTime("created_at");
+                            var utcDt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
                             list.Add(new NotificationDto
                             {
                                 Id = r.GetInt64("id"),
@@ -60,13 +65,26 @@ namespace MoozicOrb.IO
                                 Type = r["type"].ToString(),
                                 Message = r["message"].ToString(),
                                 ReferenceId = r.GetInt64("reference_id"),
-                                IsRead = false
+                                IsRead = false,
+
+                                // 2. ASSIGN TO DTO
+                                CreatedAt = utcDt,
+                                CreatedAgo = TimeAgo(utcDt) // Fallback server-side string
                             });
                         }
                     }
                 }
             }
             return list;
+        }
+
+        private string TimeAgo(DateTime date)
+        {
+            var span = DateTime.UtcNow - date;
+            if (span.TotalMinutes < 1) return "Just now";
+            if (span.TotalMinutes < 60) return $"{span.Minutes}m ago";
+            if (span.TotalHours < 24) return $"{span.Hours}h ago";
+            return $"{span.Days}d ago";
         }
     }
 }

@@ -12,6 +12,9 @@ namespace MoozicOrb.API.Models
         public string Message { get; set; }   // "sent a message"
         public long ReferenceId { get; set; } // ID to link to
         public bool IsRead { get; set; }
+
+        // ADDED: Required for JS timeAgo() calculation
+        public DateTime CreatedAt { get; set; }
         public string CreatedAgo { get; set; }
     }
 }
