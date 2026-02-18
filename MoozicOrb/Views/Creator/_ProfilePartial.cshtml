@@ -50,18 +50,23 @@
     <div class="main-column">
         @if (Model.LayoutOrder == null || Model.LayoutOrder.Count == 0)
         {
-            <div class="mb-5">
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <h4 class="section-heading mb-0">Updates</h4>
-                </div>
-                @await Component.InvokeAsync("PostFeed", new
-                {
-                    contextType = "user",
-                        contextId = Model.UserId.ToString(),
-                        allowPosting = Model.IsCurrentUser,
-                        inputType = "standard"
-                        })
-        </div>
+            if (Model.IsCurrentUser){
+
+                <div class="mb-5">
+                                <div class="d-flex align-items-center justify-content-between mb-3">
+                                    <h4 class="section-heading mb-0">Updates</h4>
+                                </div>
+                                @await Component.InvokeAsync("PostFeed", new
+                                {
+                                    contextType = "user",
+                                        contextId = Model.UserId.ToString(),
+                                        allowPosting = Model.IsCurrentUser,
+                                        inputType = "standard"
+                                        })
+                            </div>
+
+            }
+            
                 }
         else
         {
@@ -99,7 +104,7 @@
     </div>
 
     <aside class="side-column">
-        <div class="widget-card">
+        @* <div class="widget-card">
             <h5 class="widget-title">About</h5>
             <p class="widget-text text-muted">
                 @(string.IsNullOrEmpty(Model.Bio) ? "No bio information provided." : Model.Bio)
@@ -108,7 +113,7 @@
             <div class="text-muted small">
                 <i class="far fa-calendar-alt me-2 text-accent"></i> Joined Jan 2026
             </div>
-        </div>
+        </div> *@
 
         <div class="widget-card">
             <h5 class="widget-title mb-3">Network</h5>
@@ -122,8 +127,9 @@
                     <span class="text-muted small">Following</span>
                 </div>
                 <div>
-                    <strong class="d-block text-white fs-5">0</strong>
-                    <span class="text-muted small">Tracks</span>
+                    @* <strong class="d-block text-white fs-5">0</strong> *@
+                    @* <i class="far fa-calendar-alt me-2 text-accent"></i> *@ Joined Jan 2026
+                    @* <span class="text-muted small">Tracks</span> *@
                 </div>
             </div>
         </div>
