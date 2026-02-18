@@ -10,16 +10,23 @@ namespace MoozicOrb.Services
 {
     public class NotificationService
     {
-        private readonly IHubContext<MessageHub> _hub;
+        // Renamed _hub to _chatHub for clarity, added _postHub for sidebar stats
+        private readonly IHubContext<MessageHub> _chatHub;
+        private readonly IHubContext<PostHub> _postHub;
         private readonly UserConnectionManager _connections;
 
-        public NotificationService(IHubContext<MessageHub> hub, UserConnectionManager connections)
+        // Inject BOTH Hubs
+        public NotificationService(
+            IHubContext<MessageHub> chatHub,
+            IHubContext<PostHub> postHub,
+            UserConnectionManager connections)
         {
-            _hub = hub;
+            _chatHub = chatHub;
+            _postHub = postHub;
             _connections = connections;
         }
 
-        // 1. Single User Notification (Direct Messages)
+        // 1. Single User Notification (Direct Messages) -> Uses MessageHub
         public async Task NotifyUser(int recipientId, int actorId, string type, long refId, string customMsg = null)
         {
             if (recipientId == actorId) return;
@@ -35,12 +42,13 @@ namespace MoozicOrb.Services
                 var conns = _connections.GetConnections(recipientId);
                 foreach (var cid in conns)
                 {
-                    await _hub.Clients.Client(cid).SendAsync("OnNotification", payload);
+                    // Changed from _hub to _chatHub
+                    await _chatHub.Clients.Client(cid).SendAsync("OnNotification", payload);
                 }
             }
         }
 
-        // 2. NEW: Group Notification (For Group Chats)
+        // 2. Group Notification (For Group Chats) -> Uses MessageHub
         public async Task NotifyGroup(long groupId, int senderId, string customMsg)
         {
             // A. Get Members from the new Association Table
@@ -59,8 +67,6 @@ namespace MoozicOrb.Services
             {
                 // In a group chat, we might NOT want to save a persistent notification for every single message 
                 // to the DB if it's too spammy. But for now, we will save it to be safe.
-                // You can wrap this in an 'if' block later to only notify on mentions (@user).
-
                 long notifId = io.Insert(userId, senderId, type, groupId, customMsg);
 
                 if (notifId > 0)
@@ -69,13 +75,14 @@ namespace MoozicOrb.Services
                     var conns = _connections.GetConnections(userId);
                     foreach (var cid in conns)
                     {
-                        await _hub.Clients.Client(cid).SendAsync("OnNotification", payload);
+                        // Changed from _hub to _chatHub
+                        await _chatHub.Clients.Client(cid).SendAsync("OnNotification", payload);
                     }
                 }
             }
         }
 
-        // 3. Mass Notification (Followers - LEFT UNTOUCHED)
+        // 3. Mass Notification (Followers) -> Uses MessageHub (usually)
         public async Task NotifyFollowers(int authorId, long postId, string postTitle)
         {
             var followers = new List<int>();
@@ -100,7 +107,8 @@ namespace MoozicOrb.Services
                     var conns = _connections.GetConnections(followerId);
                     foreach (var cid in conns)
                     {
-                        await _hub.Clients.Client(cid).SendAsync("OnNotification", payload);
+                        // Changed from _hub to _chatHub
+                        await _chatHub.Clients.Client(cid).SendAsync("OnNotification", payload);
                     }
                 }
             }
@@ -129,15 +137,16 @@ namespace MoozicOrb.Services
             };
         }
 
+        // 4. REAL-TIME STATS UPDATE -> Uses PostHub
         public async Task SendStatsUpdate(int userId)
         {
             // 1. Get fresh counts from the Database
             var io = new GetFollowCounts();
             var counts = io.Execute(userId);
 
-            // 2. Broadcast to the User's specific group
-            // This relies on the user being subscribed to "user_{id}"
-            await _hub.Clients.Group($"user_{userId}").SendAsync("ReceiveStatsUpdate", new
+            // 2. Broadcast to the User's specific group using POSTHUB
+            // The frontend notification.js connects to /PostHub and joins "user_{id}"
+            await _postHub.Clients.Group($"user_{userId}").SendAsync("ReceiveStatsUpdate", new
             {
                 userId = userId,
                 followers = counts.Followers,

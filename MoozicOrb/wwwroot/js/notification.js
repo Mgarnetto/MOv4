@@ -17,7 +17,7 @@
             // 1. Initial Fetch
             this.fetchNotifications();
 
-            // 2. Setup SignalR (Real-time Updates)
+            // 2. Setup SignalR (Real-time Updates) -- NEW ADDITION
             this.setupSignalR();
 
             if (!btn || !dropdown) return;
@@ -45,22 +45,22 @@
             this.initialized = true;
         },
 
+        // --- NEW METHOD: HANDLES SIGNALR CONNECTION ---
         setupSignalR() {
             if (this.connection) return;
 
             // Ensure signalR lib is loaded
             if (typeof signalR === 'undefined') return;
 
+            // Connect to the correct Hub URL
             this.connection = new signalR.HubConnectionBuilder()
-                .withUrl("/hubs/post") // Using PostHub as discussed
+                .withUrl("/PostHub")
                 .withAutomaticReconnect()
                 .build();
 
             // A. Listen for Notifications
             this.connection.on("ReceiveNotification", (data) => {
-                // Show a toast or update badge
                 this.fetchNotifications();
-                // Optional: Show a toast here if you have a ToastService
             });
 
             // B. Listen for Stats Updates (Followers/Following)
@@ -70,9 +70,19 @@
                 }
             });
 
-            // Start Connection
-            this.connection.start().catch(err => console.error("SignalR Error:", err));
+            // Start Connection and Join User Group
+            this.connection.start()
+                .then(() => {
+                    console.log("Connected to PostHub");
+                    if (window.AuthState && window.AuthState.userId) {
+                        const myGroup = "user_" + window.AuthState.userId;
+                        this.connection.invoke("JoinGroup", myGroup)
+                            .catch(err => console.error("Failed to join group:", err));
+                    }
+                })
+                .catch(err => console.error("SignalR Error:", err));
         },
+        // ----------------------------------------------
 
         openDropdown() {
             const btn = document.getElementById("notifToggleBtn");
