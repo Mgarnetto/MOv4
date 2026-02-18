@@ -42,6 +42,36 @@ const SidebarManager = {
         } catch (err) {
             console.error("Failed to update sidebar:", err);
         }
+    },
+
+    // --- NEW: Real-time SignalR Handler ---
+    handleStatsUpdate(data) {
+        // data = { userId, followers, following }
+
+        // 1. Check if this update is for ME (The logged-in user)
+        // If so, update the sidebar
+        const session = JSON.parse(localStorage.getItem("moozic_session") || "{}");
+        if (session && session.userId == data.userId) {
+            const followersEl = document.getElementById("sidebar-followers");
+            const followingEl = document.getElementById("sidebar-following");
+
+            if (followersEl) followersEl.innerHTML = `<strong>${data.followers}</strong> Followers`;
+            if (followingEl) followingEl.innerHTML = `<strong>${data.following}</strong> Following`;
+        }
+
+        // 2. Check if we are currently VIEWING this user's profile
+        // If I am looking at User B's profile, and User C follows them,
+        // I should see the number go up on the page header immediately.
+        // We check the hidden input usually found in _ProfilePartial.cshtml
+        const pageContext = document.getElementById("page-signalr-context"); // e.g. "user_105"
+
+        if (pageContext && pageContext.value === `user_${data.userId}`) {
+            const profileFollowers = document.getElementById("profile-stat-followers");
+            const profileFollowing = document.getElementById("profile-stat-following");
+
+            if (profileFollowers) profileFollowers.innerText = data.followers;
+            if (profileFollowing) profileFollowing.innerText = data.following;
+        }
     }
 };
 

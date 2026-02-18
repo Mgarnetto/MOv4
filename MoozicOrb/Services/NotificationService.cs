@@ -128,5 +128,21 @@ namespace MoozicOrb.Services
                 ReferenceId = refId
             };
         }
+
+        public async Task SendStatsUpdate(int userId)
+        {
+            // 1. Get fresh counts from the Database
+            var io = new GetFollowCounts();
+            var counts = io.Execute(userId);
+
+            // 2. Broadcast to the User's specific group
+            // This relies on the user being subscribed to "user_{id}"
+            await _hub.Clients.Group($"user_{userId}").SendAsync("ReceiveStatsUpdate", new
+            {
+                userId = userId,
+                followers = counts.Followers,
+                following = counts.Following
+            });
+        }
     }
 }

@@ -35,7 +35,25 @@
                     }
                     else
                     {
-                        <button class="btn-login me-2" data-id="@Model.UserId">Follow</button>
+                        @if (Model.IsFollowing)
+                        {
+                            <button id="btn-follow-action"
+                                    class="btn-sidebar-outline me-2"
+                                    data-id="@Model.UserId"
+                                    data-status="following">
+                                Unfollow
+                            </button>
+                        }
+                        else
+                        {
+                            <button id="btn-follow-action"
+                                    class="btn-login me-2"
+                                    data-id="@Model.UserId"
+                                    data-status="not-following">
+                                Follow
+                            </button>
+                        }
+
                         <button class="btn-sidebar-outline" onclick="startChat(@Model.UserId)">
                             <i class="fas fa-comment-alt me-2"></i>Message
                         </button>
@@ -119,17 +137,15 @@
             <h5 class="widget-title mb-3">Network</h5>
             <div class="d-flex justify-content-between text-center mb-3">
                 <div>
-                    <strong class="d-block text-white fs-5">0</strong>
+                    <strong id="profile-stat-followers" class="d-block text-white fs-5">@Model.FollowersCount</strong>
                     <span class="text-muted small">Followers</span>
                 </div>
                 <div>
-                    <strong class="d-block text-white fs-5">0</strong>
+                    <strong id="profile-stat-following" class="d-block text-white fs-5">@Model.FollowingCount</strong>
                     <span class="text-muted small">Following</span>
                 </div>
                 <div>
-                    @* <strong class="d-block text-white fs-5">0</strong> *@
-                    @* <i class="far fa-calendar-alt me-2 text-accent"></i> *@ Joined Jan 2026
-                    @* <span class="text-muted small">Tracks</span> *@
+                    Joined Jan 2026
                 </div>
             </div>
         </div>

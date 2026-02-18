@@ -1,6 +1,7 @@
 ﻿(() => {
     const NotificationService = {
         initialized: false,
+        connection: null,
 
         // Called by AuthState.bootstrap()
         init() {
@@ -13,12 +14,15 @@
             const dropdown = document.getElementById("notifDropdown");
             const markReadBtn = document.getElementById("markAllReadBtn");
 
-            if (!btn || !dropdown) return;
-
             // 1. Initial Fetch
             this.fetchNotifications();
 
-            // 2. Toggle Handler
+            // 2. Setup SignalR (Real-time Updates)
+            this.setupSignalR();
+
+            if (!btn || !dropdown) return;
+
+            // 3. Toggle Handler
             btn.addEventListener("click", (e) => {
                 e.stopPropagation();
                 const isOpen = dropdown.classList.contains("show");
@@ -26,19 +30,48 @@
                 else this.openDropdown();
             });
 
-            // 3. Outside Click Handler
+            // 4. Outside Click Handler
             document.addEventListener("click", (e) => {
                 if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
                     this.closeDropdown();
                 }
             });
 
-            // 4. Mark Read Handler
+            // 5. Mark Read Handler
             if (markReadBtn) {
                 markReadBtn.addEventListener("click", () => this.markAllRead());
             }
 
             this.initialized = true;
+        },
+
+        setupSignalR() {
+            if (this.connection) return;
+
+            // Ensure signalR lib is loaded
+            if (typeof signalR === 'undefined') return;
+
+            this.connection = new signalR.HubConnectionBuilder()
+                .withUrl("/hubs/post") // Using PostHub as discussed
+                .withAutomaticReconnect()
+                .build();
+
+            // A. Listen for Notifications
+            this.connection.on("ReceiveNotification", (data) => {
+                // Show a toast or update badge
+                this.fetchNotifications();
+                // Optional: Show a toast here if you have a ToastService
+            });
+
+            // B. Listen for Stats Updates (Followers/Following)
+            this.connection.on("ReceiveStatsUpdate", (data) => {
+                if (window.SidebarManager && window.SidebarManager.handleStatsUpdate) {
+                    window.SidebarManager.handleStatsUpdate(data);
+                }
+            });
+
+            // Start Connection
+            this.connection.start().catch(err => console.error("SignalR Error:", err));
         },
 
         openDropdown() {

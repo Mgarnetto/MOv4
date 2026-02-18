@@ -42,6 +42,10 @@ namespace MoozicOrb.Models
         public List<string> LayoutOrder { get; set; } = new List<string>(); // ["posts", "music", "store"]
 
         public List<CollectionDto> Collections { get; set; } = new();
+
+        public int FollowersCount { get; set; }
+        public int FollowingCount { get; set; }
+        public bool IsFollowing { get; set; } // True if the Viewer follows this Creator
     }
 
     public class PageViewModel : BaseSignalRViewModel
