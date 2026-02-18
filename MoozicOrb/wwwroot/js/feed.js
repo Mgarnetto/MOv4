@@ -428,11 +428,20 @@ function renderNewPost(post) {
     const postEl = div.firstElementChild;
     postEl.classList.add('feed-interactive');
 
+    // [FIX] - Click Listener Logic for Menu Closing
     postEl.addEventListener('click', (e) => {
+        // 1. Exclude clickable elements inside the card
         if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
+
+        // 2. [NEW] Check if ANY menu is currently open
+        // If a menu is open, we assume this click was meant to close it (via the document handler).
+        // So we prevent the modal from opening on this specific click.
+        if (document.querySelector('.post-options-menu.show')) {
+            return;
+        }
 
         e.preventDefault();
         if (window.FeedService && window.FeedService.openPostModal) {
@@ -1020,11 +1029,20 @@ function appendHistoricalPost(post, container) {
     const postEl = div.firstElementChild;
     postEl.classList.add('feed-interactive');
 
+    // [FIX] - Click Listener Logic for Menu Closing
     postEl.addEventListener('click', (e) => {
+        // 1. Exclude clickable elements inside the card
         if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
+
+        // 2. [NEW] Check if ANY menu is currently open
+        // If a menu is open, we assume this click was meant to close it (via the document handler).
+        // So we prevent the modal from opening on this specific click.
+        if (document.querySelector('.post-options-menu.show')) {
+            return;
+        }
 
         e.preventDefault();
         if (window.FeedService && window.FeedService.openPostModal) {
