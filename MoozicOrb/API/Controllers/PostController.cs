@@ -74,6 +74,12 @@ namespace MoozicOrb.API.Controllers
             {
                 int userId = GetUserId();
 
+                // ENFORCEMENT: Limit standard posts to 1 media attachment
+                if (req.Type == "standard" && req.MediaAttachments != null && req.MediaAttachments.Count > 1)
+                {
+                    return BadRequest("Standard posts only support one media attachment.");
+                }
+
                 // 1. Fetch Real User Info for the live update
                 var user = new UserQuery().GetUserById(userId);
                 string authorName = user?.UserName ?? "Unknown";
@@ -223,6 +229,32 @@ namespace MoozicOrb.API.Controllers
             try
             {
                 int userId = GetUserId();
+
+                // ENFORCEMENT: Restrict to 1 sub-comment level deep
+                if (req.ParentId.HasValue)
+                {
+                    var commentsIo = new GetComments();
+                    var allComments = commentsIo.Execute(req.PostId);
+
+                    // Logic: Find the intended parent. If the parent already has a ParentId, it is a reply.
+                    // We block replies to replies.
+                    bool isParentAReply = false;
+                    foreach (var root in allComments)
+                    {
+                        if (root.CommentId == req.ParentId.Value) { break; } // Parent is root, OK
+                        if (root.Replies != null && root.Replies.Exists(r => r.CommentId == req.ParentId.Value))
+                        {
+                            isParentAReply = true; // Parent is already a reply, BLOCK
+                            break;
+                        }
+                    }
+
+                    if (isParentAReply)
+                    {
+                        return BadRequest("Nesting is limited to one sub-comment level.");
+                    }
+                }
+
                 var io = new InsertComment();
                 long id = io.Execute(userId, req);
 

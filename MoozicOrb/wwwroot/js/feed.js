@@ -524,6 +524,9 @@ let activeFileInput = null;
 let activeMediaType = null;
 
 window.handleFileSelect = function (input, type) {
+    // Force input to only allow 1 file by removing 'multiple' attribute if it exists
+    input.removeAttribute('multiple');
+
     document.querySelectorAll('input[type="file"]').forEach(el => {
         if (el !== input) el.value = '';
     });
@@ -533,28 +536,25 @@ window.handleFileSelect = function (input, type) {
     const titleInput = document.getElementById('postTitle');
 
     if (input.files && input.files[0]) {
+        // Only take the first file, even if the OS allowed selecting more
+        const file = input.files[0];
         activeFileInput = input;
         activeMediaType = type;
-        const file = input.files[0];
 
         preview.classList.remove('d-none');
         let icon = 'fa-paperclip';
         let color = 'text-white';
 
         if (type === 'audio') {
-            icon = 'fa-music';
-            color = 'text-warning';
+            icon = 'fa-music'; color = 'text-warning';
             titleGroup.style.display = 'block';
             titleInput.placeholder = "Track Title (Required)";
             titleInput.focus();
-        }
-        else if (type === 'video') {
-            icon = 'fa-video';
-            color = 'text-primary';
+        } else if (type === 'video') {
+            icon = 'fa-video'; color = 'text-primary';
             titleGroup.style.display = 'block';
             titleInput.placeholder = "Video Title (Optional)";
-        }
-        else {
+        } else {
             if (type === 'image') { icon = 'fa-image'; color = 'text-success'; }
             titleGroup.style.display = 'none';
         }
@@ -810,6 +810,9 @@ function createCommentElement(c) {
         ? window.timeAgo(c.createdAt)
         : (c.createdAgo || 'Just now');
 
+    // RESTRICTION: Only show the "Reply" button if this is a top-level comment (parentId is null)
+    const isTopLevel = !c.parentId;
+
     let html = `
         <div class="d-flex align-items-start position-relative">
             <img src="${picUrl}" class="comment-avatar" onerror="this.src='/img/profile_default.jpg'">
@@ -829,7 +832,7 @@ function createCommentElement(c) {
 
                 <div class="comment-meta-line">
                     <span class="comment-time">${timeDisplay}</span>
-                    <button class="btn-reply-toggle" onclick="toggleReplyBox('${c.commentId}')">Reply</button>
+                    ${isTopLevel ? `<button class="btn-reply-toggle" onclick="toggleReplyBox('${c.commentId}')">Reply</button>` : ''}
                 </div>
                 
                 <div id="reply-box-${c.commentId}" class="reply-input-wrapper d-none">
