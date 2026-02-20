@@ -116,16 +116,30 @@
                         }
                     else if (layoutItem == "store")
                     {
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h4 class="section-heading mb-0">Store</h4>
+                        <div class="mb-3">
+                            <h4 class="section-heading mb-2">Store</h4>
+
                             @if (Model.IsCurrentUser)
                             {
-                                <button class="commerce-btn-submit" style="font-size: 0.9em; padding: 6px 12px;" onclick="window.openCommerceModal('user', '@Model.UserId', 'merch')">
-                                    <i class="fas fa-plus" style="margin-right: 5px;"></i> Add Product
-                                </button>
+                                <div class="mt-2">
+                                    <button class="commerce-btn-submit" style="font-size: 0.9em; padding: 6px 12px;" onclick="window.openCommerceModal('user', '@Model.UserId', 'merch')">
+                                        <i class="fas fa-plus" style="margin-right: 5px;"></i> Add Product
+                                    </button>
+                                </div>
                             }
                         </div>
-                        <div class="store-carousel-track" id="store-carousel-container">
+
+                        <div class="store-carousel-wrapper">
+                            <button class="store-carousel-btn left" onclick="window.scrollStoreCarousel(-1)">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+
+                            <div class="store-carousel-track" id="store-carousel-container">
+                            </div>
+
+                            <button class="store-carousel-btn right" onclick="window.scrollStoreCarousel(1)">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
                         </div>
                     }
                 </div>
@@ -162,55 +176,4 @@
             </div>
         </div>
     </aside>
-</div>
-
-<div id="commerceModal" class="commerce-modal-overlay">
-    <div class="commerce-modal-content">
-        <div class="commerce-modal-header">
-            <h4><i class="fas fa-store" style="color: #007bff;"></i> Create Listing</h4>
-            <button type="button" class="commerce-btn-close" onclick="window.closeCommerceModal()">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-
-        <form id="createCommerceForm">
-            <div class="commerce-modal-body">
-                <input type="hidden" id="commercePostType" name="Type" value="merch">
-                <input type="hidden" id="commerceContextType" value="user">
-                <input type="hidden" id="commerceContextId" value="">
-
-                <div class="commerce-form-group">
-                    <label>Product Image <span class="req">*</span></label>
-                    <input type="file" id="commerceImageInput" class="commerce-input" accept="image/*" onchange="window.previewCommerceImage(this)">
-                    <div id="commerceImagePreview" class="commerce-preview-box d-none"></div>
-                </div>
-
-                <div class="commerce-form-group">
-                    <label>Title / Product Name <span class="req">*</span></label>
-                    <input type="text" id="commerceTitle" class="commerce-input" required placeholder="e.g., Limited Edition T-Shirt">
-                </div>
-
-                <div class="commerce-form-row">
-                    <div class="commerce-form-half">
-                        <label>Price ($) <span class="req">*</span></label>
-                        <input type="number" step="0.01" min="0" id="commercePrice" class="commerce-input" required placeholder="0.00">
-                    </div>
-                    <div class="commerce-form-half">
-                        <label>Quantity</label>
-                        <input type="number" id="commerceQuantity" class="commerce-input" min="1" placeholder="Unlimited">
-                    </div>
-                </div>
-
-                <div class="commerce-form-group" style="margin-bottom: 0;">
-                    <label>Description</label>
-                    <textarea id="commerceDescription" class="commerce-input" rows="3" placeholder="Describe the item..."></textarea>
-                </div>
-            </div>
-
-            <div class="commerce-modal-footer">
-                <button type="button" class="commerce-btn-cancel" onclick="window.closeCommerceModal()">Cancel</button>
-                <button type="submit" class="commerce-btn-submit" id="commerceSubmitBtn">Post Item</button>
-            </div>
-        </form>
-    </div>
 </div>

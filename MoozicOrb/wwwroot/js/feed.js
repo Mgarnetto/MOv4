@@ -1405,52 +1405,68 @@ document.addEventListener('submit', async function (e) {
 });
 
 // ============================================
-// 13. MERCH CARD RENDERER
+// 13. MERCH CARD RENDERER (Overlay Design)
 // ============================================
 function renderMerchCard(post, containerToAppend = null) {
-    // Look for the specific store carousel container
     const container = containerToAppend || document.getElementById('store-carousel-container');
     if (!container) return;
 
-    // Safety checks for variables
     const imageUrl = post.attachments && post.attachments.length > 0 ? post.attachments[0].url : '/img/default_cover.jpg';
     const priceDisplay = post.price != null ? `$${post.price.toFixed(2)}` : 'Free';
-    const description = post.text || '';
 
     // Quantity display logic
     let qtyText = '';
     let isSoldOut = false;
     if (post.quantity !== null && post.quantity !== undefined) {
         if (post.quantity > 0) {
-            qtyText = `<br><span style="color: #aaa; font-size: 0.9em;">(${post.quantity} in stock)</span>`;
+            qtyText = `${post.quantity} in stock`;
         } else {
-            qtyText = `<br><span style="color: #ff4d4d; font-size: 0.9em;">(Sold Out)</span>`;
+            qtyText = `<span style="color: #ff4d4d;">Sold Out</span>`;
             isSoldOut = true;
         }
     }
 
+    // Notice the updated structure: .product-card__overlay acts as the transparent container
     const cardHtml = `
       <div class="product-card" id="post-${post.id}">
         <div class="product-card__image">
           <img src="${imageUrl}" alt="${post.title || 'Product Image'}">
         </div>
-        <div class="product-card__details">
-          <h2 class="product-card__brand">${post.authorName}</h2>
-          <h3 class="product-card__name" title="${post.title || 'Untitled Product'}">${post.title || 'Untitled Product'}</h3>
-          <p class="product-card__description">
-            ${description} ${qtyText}
-          </p>
-          <p class="product-card__price">${priceDisplay}</p>
+        <div class="product-card__overlay">
+          <div class="product-card__brand">${post.authorName}</div>
+          <div class="product-card__name" title="${post.title || 'Untitled Product'}">${post.title || 'Untitled Product'}</div>
+          
+          <div class="product-card__price">
+              ${priceDisplay}
+              <span class="product-card__qty">${qtyText}</span>
+          </div>
+          
           <div class="product-card__actions">
             <button class="product-card__add-to-cart" ${isSoldOut ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
                 ${isSoldOut ? 'Sold Out' : 'Add to Cart'}
             </button>
-            <a href="#" class="product-card__view-details" onclick="window.FeedService.openPostModal('${post.id}'); return false;">View Details</a>
+            <button class="product-card__view-details" onclick="window.FeedService.openPostModal('${post.id}'); return false;">Details</button>
           </div>
         </div>
       </div>
     `;
 
-    // Append the card side-by-side in the flex container
     container.insertAdjacentHTML('beforeend', cardHtml);
 }
+
+// ============================================
+// 14. STORE CAROUSEL NAVIGATION
+// ============================================
+window.scrollStoreCarousel = function (direction) {
+    const track = document.getElementById('store-carousel-container');
+    if (!track) return;
+
+    // Calculates the scroll amount: width of one card + the gap (approx 295px)
+    // Multiplied by direction (1 for right, -1 for left)
+    const scrollAmount = 295 * direction;
+
+    track.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+    });
+};
