@@ -3445,61 +3445,101 @@ textarea.form-control {
    20. MANUAL NOTIFICATION MODAL (No Bootstrap)
    ========================================= */
 
+/* --- SINGLE POST MODAL SCALING FIX --- */
 #singlePostModal {
+    display: none;
     position: fixed;
-    top: 0;
+    z-index: 9999;
     left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.9); /* Dark overlay */
-    z-index: 10050 !important; /* Raised */
-    display: none; /* Hidden by default */
-    align-items: center;
-    justify-content: center;
-    backdrop-filter: blur(5px);
-    overflow-y: auto; /* Allow scrolling if post is long */
+    background-color: rgba(0, 0, 0, 0.85);
+    /* Crucial: Allows scrolling if content is taller than screen */
+    overflow-y: auto;
+    padding: 20px;
 }
 
-    /* When JS adds the .active class, show it with Flexbox for centering */
     #singlePostModal.active {
-        display: flex !important;
+        display: block; /* Overrides flexbox centering to prevent top cut-off */
     }
 
-    /* Style the inner box */
-    #singlePostModal .modal-dialog {
-        width: 100%;
-        max-width: 700px;
-        margin: 20px;
-        pointer-events: all;
+.custom-single-dialog {
+    max-width: 650px; /* Optimal width for a desktop feed post */
+    margin: 40px auto; /* Centers horizontally and gives top/bottom breathing room */
+}
+
+.custom-single-content {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 12px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+}
+
+/* --- THE VISIBLE CLOSE BUTTON --- */
+.custom-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #444;
+    color: #fff;
+    border-radius: 50%;
+    width: 35px;
+    height: 35px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 50; /* Ensures it stays above the images */
+    transition: all 0.2s ease;
+}
+
+    .custom-modal-close:hover {
+        background: #ff4d4d;
+        border-color: #ff4d4d;
+        transform: scale(1.1);
     }
 
-    #singlePostModal .modal-content {
-        background: var(--bg-card);
-        border: 1px solid #333;
-        border-radius: 12px;
-        padding: 0; /* Let content dictate padding */
-        box-shadow: 0 20px 60px rgba(0,0,0,0.9);
-        position: relative;
-        display: flex;
-        flex-direction: column;
+/* --- THE VISIBLE CLOSE BUTTON (Screen-Pinned) --- */
+.custom-modal-close-fixed {
+    position: fixed;
+    top: 20px;
+    right: 25px;
+    background: rgba(0, 0, 0, 0.75);
+    border: 1px solid #555;
+    color: #fff;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10000; /* Extremely high to stay above everything */
+    transition: all 0.2s ease;
+}
+
+    .custom-modal-close-fixed:hover {
+        background: #ff4d4d;
+        border-color: #ff4d4d;
+        transform: scale(1.1);
     }
 
-    /* Close button positioning */
-    #singlePostModal .btn-close {
-        background: transparent;
-        border: none;
-        color: #fff;
-        font-size: 1.5rem;
-        position: absolute;
+/* On mobile, shrink it slightly and pull it in so it doesn't get cut off by phone bezels */
+@media (max-width: 768px) {
+    .custom-modal-close-fixed {
         top: 15px;
-        right: 20px;
-        cursor: pointer;
-        z-index: 10;
+        right: 15px;
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
     }
-
-        #singlePostModal .btn-close::before {
-            content: "\00d7"; /* X character */
-        }
+}
 
 /* =========================================
    21. MINI GRID SYSTEM (Replacements for Bootstrap col-*)

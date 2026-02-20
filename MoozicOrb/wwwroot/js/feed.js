@@ -1260,8 +1260,10 @@ window.processVideoUpload = function (file) {
 };
 
 // ============================================
-// 12. COMMERCE MODAL (Store & Classifieds Prep)
+// 12. COMMERCE MODAL (Multi-Image Support)
 // ============================================
+
+window.commerceSelectedFiles = []; // Global array to hold multiple files
 
 window.openCommerceModal = function (contextType, contextId, postType) {
     document.getElementById('commerceContextType').value = contextType;
@@ -1269,7 +1271,7 @@ window.openCommerceModal = function (contextType, contextId, postType) {
     document.getElementById('commercePostType').value = postType;
 
     document.getElementById('createCommerceForm').reset();
-    window.clearCommerceImage();
+    window.clearCommerceImages(); // Clears the array and UI
 
     const modalEl = document.getElementById('commerceModal');
     if (modalEl) modalEl.classList.add('active');
@@ -1287,37 +1289,75 @@ document.addEventListener('click', function (e) {
     }
 });
 
+// Handles file selection and pushes to our custom array
 window.previewCommerceImage = function (input) {
-    input.removeAttribute('multiple');
+    if (input.files) {
+        for (let i = 0; i < input.files.length; i++) {
+            // Optional: Limit to 5 images so they don't crash the UI
+            if (window.commerceSelectedFiles.length >= 5) {
+                alert("You can only upload up to 5 images per listing.");
+                break;
+            }
+            window.commerceSelectedFiles.push(input.files[i]);
+        }
+    }
 
-    const preview = document.getElementById('commerceImagePreview');
-    if (input.files && input.files[0]) {
-        const file = input.files[0];
-        preview.classList.remove('d-none');
+    // Clear the input value so the same file can be picked again if removed
+    input.value = '';
 
-        preview.innerHTML = `
-            <img src="${URL.createObjectURL(file)}" class="commerce-preview-img">
-            <button type="button" class="commerce-preview-remove" onclick="window.clearCommerceImage()">
+    window.renderCommerceImagePreviews();
+};
+
+// Renders the grid of mini-thumbnails
+window.renderCommerceImagePreviews = function () {
+    const previewContainer = document.getElementById('commerceImagePreview');
+
+    if (window.commerceSelectedFiles.length === 0) {
+        previewContainer.innerHTML = '';
+        previewContainer.classList.add('d-none');
+        return;
+    }
+
+    previewContainer.classList.remove('d-none');
+    previewContainer.innerHTML = '';
+
+    const gridDiv = document.createElement('div');
+    gridDiv.style.display = 'flex';
+    gridDiv.style.flexWrap = 'wrap';
+    gridDiv.style.gap = '10px';
+    gridDiv.style.marginTop = '10px';
+
+    window.commerceSelectedFiles.forEach((file, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'commerce-preview-box';
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+
+        wrapper.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" class="commerce-preview-img" style="height: 80px; width: 80px; border-radius: 5px; border: 1px solid #555; object-fit: cover;">
+            <button type="button" class="commerce-preview-remove" onclick="window.removeCommerceImage(${index})" style="position: absolute; top: -8px; right: -8px; background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; z-index: 2;">
                 <i class="fas fa-times"></i>
             </button>
         `;
-    } else {
-        window.clearCommerceImage();
-    }
+        gridDiv.appendChild(wrapper);
+    });
+
+    previewContainer.appendChild(gridDiv);
 };
 
-window.clearCommerceImage = function () {
-    const input = document.getElementById('commerceImageInput');
-    if (input) input.value = '';
-
-    const preview = document.getElementById('commerceImagePreview');
-    if (preview) {
-        preview.innerHTML = '';
-        preview.classList.add('d-none');
-    }
+// Removes a specific image from the array based on its index
+window.removeCommerceImage = function (index) {
+    window.commerceSelectedFiles.splice(index, 1);
+    window.renderCommerceImagePreviews();
 };
 
-// Handle Commerce Submission
+// Completely resets the form's images
+window.clearCommerceImages = function () {
+    window.commerceSelectedFiles = [];
+    window.renderCommerceImagePreviews();
+};
+
+// Handle Commerce Submission & Batch Uploading
 document.addEventListener('submit', async function (e) {
     if (e.target && e.target.id === 'createCommerceForm') {
         e.preventDefault();
@@ -1328,29 +1368,40 @@ document.addEventListener('submit', async function (e) {
         submitBtn.disabled = true;
 
         try {
-            const fileInput = document.getElementById('commerceImageInput');
-            if (!fileInput.files || fileInput.files.length === 0) {
-                alert("An image is required to list an item.");
+            if (window.commerceSelectedFiles.length === 0) {
+                alert("At least one image is required to list an item.");
                 submitBtn.disabled = false;
                 return;
             }
 
-            submitBtn.innerText = "Uploading Image...";
-            const uploadData = new FormData();
-            uploadData.append("file", fileInput.files[0]);
+            let attachments = [];
 
-            const uploadRes = await fetch("/api/upload/image", {
-                method: 'POST',
-                headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
-                body: uploadData
-            });
+            // Loop through our array and upload them one by one
+            for (let i = 0; i < window.commerceSelectedFiles.length; i++) {
+                submitBtn.innerText = `Uploading Image ${i + 1} of ${window.commerceSelectedFiles.length}...`;
 
-            if (!uploadRes.ok) {
-                const errText = await uploadRes.text();
-                throw new Error("Image upload failed: " + errText);
+                const uploadData = new FormData();
+                uploadData.append("file", window.commerceSelectedFiles[i]);
+
+                const uploadRes = await fetch("/api/upload/image", {
+                    method: 'POST',
+                    headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                    body: uploadData
+                });
+
+                if (!uploadRes.ok) {
+                    const errText = await uploadRes.text();
+                    throw new Error(`Image ${i + 1} upload failed: ` + errText);
+                }
+
+                const mediaResult = await uploadRes.json();
+
+                attachments.push({
+                    MediaId: mediaResult.id,
+                    MediaType: mediaResult.type,
+                    Url: mediaResult.url
+                });
             }
-
-            const mediaResult = await uploadRes.json();
 
             submitBtn.innerText = "Creating Listing...";
 
@@ -1364,11 +1415,7 @@ document.addEventListener('submit', async function (e) {
                 Text: document.getElementById('commerceDescription').value.trim(),
                 Price: parseFloat(document.getElementById('commercePrice').value),
                 Quantity: isNaN(parsedQty) ? null : parsedQty,
-                MediaAttachments: [{
-                    MediaId: mediaResult.id,
-                    MediaType: mediaResult.type,
-                    Url: mediaResult.url
-                }]
+                MediaAttachments: attachments // <--- Now passes the entire array of uploaded images!
             };
 
             const postRes = await fetch('/api/posts', {
@@ -1383,7 +1430,7 @@ document.addEventListener('submit', async function (e) {
             if (postRes.ok) {
                 window.closeCommerceModal();
                 form.reset();
-                window.clearCommerceImage();
+                window.clearCommerceImages();
 
                 // Reload the feed if the user is currently looking at it
                 if (window.loadFeedHistory) {

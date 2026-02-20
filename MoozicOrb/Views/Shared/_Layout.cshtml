@@ -468,9 +468,12 @@
     </div>
 
     <div id="singlePostModal" class="modal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <button type="button" class="btn-close" onclick="closeAllModals()"></button>
+        <button type="button" class="custom-modal-close-fixed" onclick="window.closeAllModals()">
+            <i class="fas fa-times"></i>
+        </button>
+
+        <div class="modal-dialog custom-single-dialog">
+            <div class="modal-content custom-single-content">
                 <div id="singlePostContainer" class="p-3"></div>
             </div>
         </div>
@@ -547,7 +550,7 @@
 
                     <div class="commerce-form-group">
                         <label>Product Image <span class="req">*</span></label>
-                        <input type="file" id="commerceImageInput" class="commerce-input" accept="image/*" onchange="window.previewCommerceImage(this)">
+                        <input type="file" id="commerceImageInput" class="commerce-input" accept="image/*" multiple onchange="window.previewCommerceImage(this)">
                         <div id="commerceImagePreview" class="commerce-preview-box d-none"></div>
                     </div>
 
