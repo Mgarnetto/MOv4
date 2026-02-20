@@ -4062,7 +4062,7 @@ textarea.form-control {
     }
 
 /* =========================================
-   CUSTOM POST MENU BUTTON (Non-Bootstrap)
+   26 CUSTOM POST MENU BUTTON (Non-Bootstrap)
    ========================================= */
 .btn-post-options {
     /* 1. Reset Browser Defaults */
@@ -4097,4 +4097,287 @@ textarea.form-control {
     .btn-post-options:active {
         outline: none;
         transform: scale(0.95); /* Slight press effect */
+    }
+
+    /**********************
+    27 COMMERCE MODAL
+    **********************/
+
+/* --- COMMERCE MODAL STYLES --- */
+.commerce-modal-overlay {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    align-items: center;
+    justify-content: center;
+}
+
+    .commerce-modal-overlay.active {
+        display: flex;
+    }
+
+.commerce-modal-content {
+    background-color: #1a1a1a;
+    color: #fff;
+    border: 1px solid #333;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+}
+
+.commerce-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #333;
+}
+
+    .commerce-modal-header h4 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+
+.commerce-btn-close {
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+    .commerce-btn-close:hover {
+        color: #fff;
+    }
+
+.commerce-modal-body {
+    padding: 20px;
+}
+
+.commerce-form-group {
+    margin-bottom: 15px;
+}
+
+.commerce-form-row {
+    display: flex;
+    gap: 15px;
+}
+
+.commerce-form-half {
+    flex: 1;
+}
+
+.commerce-form-group label {
+    display: block;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.commerce-form-group .req {
+    color: #ff4d4d;
+}
+
+.commerce-input {
+    width: 100%;
+    padding: 10px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: #fff;
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+    .commerce-input:focus {
+        outline: none;
+        border-color: #007bff;
+    }
+
+.commerce-modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #333;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.commerce-btn-cancel {
+    background: transparent;
+    color: #ccc;
+    border: 1px solid #555;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+    .commerce-btn-cancel:hover {
+        background: #333;
+        color: #fff;
+    }
+
+.commerce-btn-submit {
+    background: #007bff;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+    .commerce-btn-submit:hover:not(:disabled) {
+        background: #0056b3;
+    }
+
+    .commerce-btn-submit:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+.commerce-preview-box {
+    margin-top: 10px;
+    position: relative;
+    display: inline-block;
+}
+
+.commerce-preview-img {
+    max-height: 120px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    object-fit: cover;
+}
+
+.commerce-preview-remove {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #ff4d4d;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+/*******************
+  28 STORE PRODUCT CARD
+    AND CAROUSEL
+********************/
+
+/* --- STORE CAROUSEL WRAPPER (Native CSS Scroll) --- */
+.store-carousel-track {
+    display: flex;
+    overflow-x: auto;
+    padding: 10px 0 20px 0;
+    gap: 20px;
+    /* Hides scrollbar for cleaner look while keeping swipe functionality */
+    scrollbar-width: none;
+}
+
+    .store-carousel-track::-webkit-scrollbar {
+        display: none;
+    }
+
+/* --- STORE / MERCH PRODUCT CARD --- */
+.product-card {
+    flex-shrink: 0;
+    width: 300px;
+    background: #000000;
+    border: 1px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+}
+
+.product-card__image img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+}
+
+.product-card__details {
+    padding: 15px;
+}
+
+.product-card__brand {
+    font-size: 0.9em;
+    color: #ffffff;
+    margin-bottom: 5px;
+}
+
+.product-card__name {
+    font-size: 1.3em;
+    margin-bottom: 10px;
+    color: #ffffff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-card__description {
+    font-size: 0.85em;
+    color: #ffffff;
+    margin-bottom: 15px;
+    line-height: 1.5;
+    height: 3.2em; /* Keeps card height uniform */
+    overflow: hidden;
+}
+
+.product-card__price {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #007bff;
+    margin-bottom: 15px;
+}
+
+.product-card__actions {
+    display: flex;
+    gap: 10px;
+}
+
+.product-card__add-to-cart,
+.product-card__view-details {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: none;
+    text-align: center;
+    flex-grow: 1;
+}
+
+.product-card__add-to-cart {
+    background-color: #28a745;
+    color: white;
+}
+
+    .product-card__add-to-cart:hover:not(:disabled) {
+        background-color: #218838;
+    }
+
+.product-card__view-details {
+    background-color: #007bff;
+    color: white;
+}
+
+    .product-card__view-details:hover {
+        background-color: #0056b3;
     }

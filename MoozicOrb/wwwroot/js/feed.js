@@ -37,11 +37,20 @@ feedConnection.on("UpdatePost", function (msg) {
     // Handle potential duplicates (modal + feed)
     const cards = document.querySelectorAll(`#post-${msg.postId}`);
     cards.forEach(card => {
-        const titleEl = card.querySelector('.post-title');
-        const textEl = card.querySelector('.post-text');
+        const titleEl = card.querySelector('.post-title, .product-card__name'); // Updated to catch merch title
+        const textEl = card.querySelector('.post-text, .product-card__description'); // Updated to catch merch text
 
         if (titleEl && msg.data.title) titleEl.innerText = msg.data.title;
-        if (textEl && msg.data.text) textEl.innerHTML = msg.data.text;
+
+        if (textEl && msg.data.text) {
+            // For merch cards, we need to preserve the quantity text if we update description
+            if (card.classList.contains('product-card')) {
+                const qtySpan = textEl.querySelector('span');
+                textEl.innerHTML = `${msg.data.text} <br>${qtySpan ? qtySpan.outerHTML : ''}`;
+            } else {
+                textEl.innerHTML = msg.data.text;
+            }
+        }
 
         card.style.transition = "background-color 0.5s";
         card.style.backgroundColor = "#2a2a2a";
@@ -254,19 +263,21 @@ window.FeedService.openEditModal = async (id) => {
         document.getElementById('editPostText').value = post.text || "";
 
         const mediaContainer = document.getElementById('editMediaList');
-        mediaContainer.innerHTML = '';
-        post.media?.forEach(m => {
-            const div = document.createElement('div');
-            div.className = "position-relative";
-            div.innerHTML = `
-                <img src="${m.url}" class="rounded" style="width:60px;height:60px;object-fit:cover;">
-                <button onclick="window.deleteMedia('${post.id}', '${m.id}', this)" class="btn btn-sm btn-danger position-absolute top-0 start-100 translate-middle badge rounded-pill">X</button>
-            `;
-            mediaContainer.appendChild(div);
-        });
+        if (mediaContainer) {
+            mediaContainer.innerHTML = '';
+            post.media?.forEach(m => {
+                const div = document.createElement('div');
+                div.className = "position-relative";
+                div.innerHTML = `
+                    <img src="${m.url}" class="rounded" style="width:60px;height:60px;object-fit:cover;">
+                    <button onclick="window.deleteMedia('${post.id}', '${m.id}', this)" class="btn btn-sm btn-danger position-absolute top-0 start-100 translate-middle badge rounded-pill">X</button>
+                `;
+                mediaContainer.appendChild(div);
+            });
+        }
 
         const modal = document.getElementById('editPostModal');
-        modal.classList.add('active');
+        if (modal) modal.classList.add('active');
 
     } catch (err) { console.error(err); }
 };
@@ -334,7 +345,7 @@ document.addEventListener('click', function (e) {
 });
 
 function closeAllModals() {
-    const modals = document.querySelectorAll('.modal.active');
+    const modals = document.querySelectorAll('.modal.active, .commerce-modal-overlay.active');
     modals.forEach(m => {
         m.classList.remove('active');
         m.style.display = '';
@@ -344,6 +355,18 @@ function closeAllModals() {
 
 // 4. POST RENDERING (Match Server HTML)
 function renderNewPost(post) {
+    // NEW: Route merch posts to the carousel
+    if (post.type === 'merch') {
+        const storeContainer = document.getElementById('store-carousel-container');
+        if (storeContainer) {
+            const dummyContainer = document.createElement('div');
+            renderMerchCard(post, dummyContainer);
+            // Insert at beginning of carousel
+            storeContainer.insertBefore(dummyContainer.firstElementChild, storeContainer.firstChild);
+        }
+        return;
+    }
+
     const container = document.getElementById('feed-stream-container');
     if (!container) return;
 
@@ -396,7 +419,6 @@ function renderNewPost(post) {
 
             <div class="post-body">
                 ${post.title ? `<h5 class="post-title">${post.title}</h5>` : ''}
-                ${post.quantity !== null && post.quantity !== undefined ? `<span class="badge bg-secondary mb-2">Quantity: ${post.quantity}</span>` : ''}
                 ${post.text ? `<div class="post-text text-break">${post.text}</div>` : ''}
                 ${renderAttachments(post.attachments)}
             </div>
@@ -673,18 +695,13 @@ document.addEventListener('submit', async function (e) {
 
             submitBtn.innerText = "Posting...";
 
-            // SAFELY ADD QUANTITY: Check if the input exists in the form (for when the merch modal is added)
-            const qtyInput = document.getElementById('merchQuantityInput');
-            const parsedQty = qtyInput ? parseInt(qtyInput.value) : NaN;
-
             const payload = {
                 ContextType: cType,
                 ContextId: cId,
-                Type: document.getElementById('postTypeInput')?.value || "standard", // Dynamically grab Type if it exists, otherwise fallback to "standard"
+                Type: "standard",
                 Title: titleInput.value.trim(),
                 Text: textArea.value,
-                MediaAttachments: attachments,
-                Quantity: isNaN(parsedQty) ? null : parsedQty // Only send valid integers, otherwise null
+                MediaAttachments: attachments
             };
 
             const postRes = await fetch('/api/posts', {
@@ -699,8 +716,6 @@ document.addEventListener('submit', async function (e) {
             if (postRes.ok) {
                 textArea.value = '';
                 clearAttachment();
-                // Optionally clear the quantity input upon success
-                if (qtyInput) qtyInput.value = '';
             } else {
                 const errText = await postRes.text();
                 alert("Failed to post: " + errText);
@@ -950,6 +965,11 @@ window.loadFeedHistory = async function (contextType, contextId) {
         if (res.ok) {
             const posts = await res.json();
             container.innerHTML = '';
+
+            // Clear store carousel if it exists on the page before repopulating
+            const storeContainer = document.getElementById('store-carousel-container');
+            if (storeContainer) storeContainer.innerHTML = '';
+
             if (posts.length === 0) {
                 container.innerHTML = '<div class="text-center text-muted p-5"><h3>No signals found here yet.</h3><p>Be the first to broadcast.</p></div>';
                 return;
@@ -967,6 +987,13 @@ window.loadFeedHistory = async function (contextType, contextId) {
 };
 
 function appendHistoricalPost(post, container) {
+    // NEW: Route merch posts to the carousel instead of main feed
+    if (post.type === 'merch') {
+        const storeContainer = document.getElementById('store-carousel-container');
+        if (storeContainer) renderMerchCard(post, storeContainer);
+        return;
+    }
+
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);
 
@@ -1012,7 +1039,6 @@ function appendHistoricalPost(post, container) {
 
             <div class="post-body">
                 ${post.title ? `<h5 class="post-title">${post.title}</h5>` : ''}
-                ${post.quantity !== null && post.quantity !== undefined ? `<span class="badge bg-secondary mb-2">Quantity: ${post.quantity}</span>` : ''}
                 ${post.text ? `<div class="post-text text-break">${post.text}</div>` : ''}
                 ${renderAttachments(post.attachments)}
             </div>
@@ -1232,3 +1258,199 @@ window.processVideoUpload = function (file) {
         };
     });
 };
+
+// ============================================
+// 12. COMMERCE MODAL (Store & Classifieds Prep)
+// ============================================
+
+window.openCommerceModal = function (contextType, contextId, postType) {
+    document.getElementById('commerceContextType').value = contextType;
+    document.getElementById('commerceContextId').value = contextId;
+    document.getElementById('commercePostType').value = postType;
+
+    document.getElementById('createCommerceForm').reset();
+    window.clearCommerceImage();
+
+    const modalEl = document.getElementById('commerceModal');
+    if (modalEl) modalEl.classList.add('active');
+};
+
+window.closeCommerceModal = function () {
+    const modalEl = document.getElementById('commerceModal');
+    if (modalEl) modalEl.classList.remove('active');
+};
+
+// Close modal if user clicks the dark background overlay
+document.addEventListener('click', function (e) {
+    if (e.target && e.target.id === 'commerceModal') {
+        window.closeCommerceModal();
+    }
+});
+
+window.previewCommerceImage = function (input) {
+    input.removeAttribute('multiple');
+
+    const preview = document.getElementById('commerceImagePreview');
+    if (input.files && input.files[0]) {
+        const file = input.files[0];
+        preview.classList.remove('d-none');
+
+        preview.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" class="commerce-preview-img">
+            <button type="button" class="commerce-preview-remove" onclick="window.clearCommerceImage()">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+    } else {
+        window.clearCommerceImage();
+    }
+};
+
+window.clearCommerceImage = function () {
+    const input = document.getElementById('commerceImageInput');
+    if (input) input.value = '';
+
+    const preview = document.getElementById('commerceImagePreview');
+    if (preview) {
+        preview.innerHTML = '';
+        preview.classList.add('d-none');
+    }
+};
+
+// Handle Commerce Submission
+document.addEventListener('submit', async function (e) {
+    if (e.target && e.target.id === 'createCommerceForm') {
+        e.preventDefault();
+
+        const form = e.target;
+        const submitBtn = document.getElementById('commerceSubmitBtn');
+        const originalText = submitBtn.innerText;
+        submitBtn.disabled = true;
+
+        try {
+            const fileInput = document.getElementById('commerceImageInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert("An image is required to list an item.");
+                submitBtn.disabled = false;
+                return;
+            }
+
+            submitBtn.innerText = "Uploading Image...";
+            const uploadData = new FormData();
+            uploadData.append("file", fileInput.files[0]);
+
+            const uploadRes = await fetch("/api/upload/image", {
+                method: 'POST',
+                headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                body: uploadData
+            });
+
+            if (!uploadRes.ok) {
+                const errText = await uploadRes.text();
+                throw new Error("Image upload failed: " + errText);
+            }
+
+            const mediaResult = await uploadRes.json();
+
+            submitBtn.innerText = "Creating Listing...";
+
+            const parsedQty = parseInt(document.getElementById('commerceQuantity').value);
+
+            const payload = {
+                ContextType: document.getElementById('commerceContextType').value,
+                ContextId: document.getElementById('commerceContextId').value,
+                Type: document.getElementById('commercePostType').value,
+                Title: document.getElementById('commerceTitle').value.trim(),
+                Text: document.getElementById('commerceDescription').value.trim(),
+                Price: parseFloat(document.getElementById('commercePrice').value),
+                Quantity: isNaN(parsedQty) ? null : parsedQty,
+                MediaAttachments: [{
+                    MediaId: mediaResult.id,
+                    MediaType: mediaResult.type,
+                    Url: mediaResult.url
+                }]
+            };
+
+            const postRes = await fetch('/api/posts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': window.AuthState?.sessionId || ''
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (postRes.ok) {
+                window.closeCommerceModal();
+                form.reset();
+                window.clearCommerceImage();
+
+                // Reload the feed if the user is currently looking at it
+                if (window.loadFeedHistory) {
+                    window.loadFeedHistory(payload.ContextType, payload.ContextId);
+                }
+            } else {
+                const errText = await postRes.text();
+                alert("Failed to create listing: " + errText);
+            }
+
+        } catch (error) {
+            console.error(error);
+            alert("Error: " + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+        }
+    }
+});
+
+// ============================================
+// 13. MERCH CARD RENDERER
+// ============================================
+function renderMerchCard(post, containerToAppend = null) {
+    // Look for the specific store carousel container
+    const container = containerToAppend || document.getElementById('store-carousel-container');
+    if (!container) return;
+
+    // Safety checks for variables
+    const imageUrl = post.attachments && post.attachments.length > 0 ? post.attachments[0].url : '/img/default_cover.jpg';
+    const priceDisplay = post.price != null ? `$${post.price.toFixed(2)}` : 'Free';
+    const description = post.text || '';
+
+    // Quantity display logic
+    let qtyText = '';
+    let isSoldOut = false;
+    if (post.quantity !== null && post.quantity !== undefined) {
+        if (post.quantity > 0) {
+            qtyText = `<br><span style="color: #aaa; font-size: 0.9em;">(${post.quantity} in stock)</span>`;
+        } else {
+            qtyText = `<br><span style="color: #ff4d4d; font-size: 0.9em;">(Sold Out)</span>`;
+            isSoldOut = true;
+        }
+    }
+
+    const cardHtml = `
+      <div class="product-card" id="post-${post.id}">
+        <div class="product-card__image">
+          <img src="${imageUrl}" alt="${post.title || 'Product Image'}">
+        </div>
+        <div class="product-card__details">
+          <h2 class="product-card__brand">${post.authorName}</h2>
+          <h3 class="product-card__name" title="${post.title || 'Untitled Product'}">${post.title || 'Untitled Product'}</h3>
+          <p class="product-card__description">
+            ${description} ${qtyText}
+          </p>
+          <p class="product-card__price">${priceDisplay}</p>
+          <div class="product-card__actions">
+            <button class="product-card__add-to-cart" ${isSoldOut ? 'disabled style="opacity:0.5; cursor:not-allowed;"' : ''}>
+                ${isSoldOut ? 'Sold Out' : 'Add to Cart'}
+            </button>
+            <a href="#" class="product-card__view-details" onclick="window.FeedService.openPostModal('${post.id}'); return false;">View Details</a>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Append the card side-by-side in the flex container
+    container.insertAdjacentHTML('beforeend', cardHtml);
+}
