@@ -118,6 +118,7 @@ namespace MoozicOrb.API.Controllers
                     CreatedAgo = "Just now",
                     Attachments = req.MediaAttachments ?? new List<MediaAttachmentDto>(),
                     Price = req.Price,
+                    Quantity = req.Quantity, // <-- ADDED QUANTITY
                     LocationLabel = req.LocationLabel,
                     DifficultyLevel = req.DifficultyLevel,
                     VideoUrl = req.VideoUrl,

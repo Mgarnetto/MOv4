@@ -12,7 +12,7 @@ namespace MoozicOrb.IO
             string sql = @"
                 UPDATE posts 
                 SET title = @title, content_text = @text, 
-                    price = @price, location_label = @loc, difficulty_level = @diff
+                    price = @price, quantity = @qty, location_label = @loc, difficulty_level = @diff
                 WHERE post_id = @pid AND user_id = @uid";
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
@@ -25,6 +25,7 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@title", req.Title ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@text", req.Text ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@price", req.Price ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@qty", req.Quantity ?? (object)DBNull.Value); // <-- ADDED QUANTITY
                     cmd.Parameters.AddWithValue("@loc", req.LocationLabel ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@diff", req.DifficultyLevel ?? (object)DBNull.Value);
                     cmd.ExecuteNonQuery();

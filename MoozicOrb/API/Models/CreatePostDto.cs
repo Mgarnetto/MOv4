@@ -24,6 +24,8 @@ namespace MoozicOrb.API.Models
         public int? MediaId { get; set; }
         public string? Category { get; set; }
 
+        public int? Quantity { get; set; }
+
         public List<MediaAttachmentDto> MediaAttachments { get; set; } = new List<MediaAttachmentDto>();
     }
 }

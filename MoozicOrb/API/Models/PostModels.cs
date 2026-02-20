@@ -47,6 +47,7 @@ namespace MoozicOrb.API.Models
         public bool IsLiked { get; set; }      // Did the current user like this?
         public int LikesCount { get; set; }    // Total likes
         public int CommentsCount { get; set; } // Total comments
+        public int? Quantity { get; set; }
 
         public List<MediaAttachmentDto> Attachments { get; set; } = new List<MediaAttachmentDto>();
     }
@@ -152,5 +153,6 @@ namespace MoozicOrb.API.Models
         public decimal? Price { get; set; }
         public string? LocationLabel { get; set; }
         public string? DifficultyLevel { get; set; }
+        public int? Quantity { get; set; }
     }
 }

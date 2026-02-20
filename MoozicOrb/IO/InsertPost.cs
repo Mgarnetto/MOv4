@@ -15,7 +15,7 @@ namespace MoozicOrb.IO
                     context_type, context_id, 
                     post_type, 
                     title, content_text, image_url,
-                    price, location_label, 
+                    price, quantity, location_label, 
                     difficulty_level, video_url, 
                     media_id, category,
                     created_at
@@ -26,7 +26,7 @@ namespace MoozicOrb.IO
                     @ctype, @cid, 
                     @type, 
                     @title, @content, @img,
-                    @price, @loc, 
+                    @price, @qty, @loc, 
                     @diff, @vid, 
                     @mid, @cat,
                     UTC_TIMESTAMP()
@@ -49,6 +49,7 @@ namespace MoozicOrb.IO
 
                     // Polymorphic Extras
                     cmd.Parameters.AddWithValue("@price", req.Price ?? (object)DBNull.Value);
+                    cmd.Parameters.AddWithValue("@qty", req.Quantity ?? (object)DBNull.Value); // <-- ADDED QUANTITY
                     cmd.Parameters.AddWithValue("@loc", req.LocationLabel ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@diff", req.DifficultyLevel ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@vid", req.VideoUrl ?? (object)DBNull.Value);

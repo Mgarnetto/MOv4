@@ -396,6 +396,7 @@ function renderNewPost(post) {
 
             <div class="post-body">
                 ${post.title ? `<h5 class="post-title">${post.title}</h5>` : ''}
+                ${post.quantity !== null && post.quantity !== undefined ? `<span class="badge bg-secondary mb-2">Quantity: ${post.quantity}</span>` : ''}
                 ${post.text ? `<div class="post-text text-break">${post.text}</div>` : ''}
                 ${renderAttachments(post.attachments)}
             </div>
@@ -671,13 +672,19 @@ document.addEventListener('submit', async function (e) {
             }
 
             submitBtn.innerText = "Posting...";
+
+            // SAFELY ADD QUANTITY: Check if the input exists in the form (for when the merch modal is added)
+            const qtyInput = document.getElementById('merchQuantityInput');
+            const parsedQty = qtyInput ? parseInt(qtyInput.value) : NaN;
+
             const payload = {
                 ContextType: cType,
                 ContextId: cId,
-                Type: "standard",
+                Type: document.getElementById('postTypeInput')?.value || "standard", // Dynamically grab Type if it exists, otherwise fallback to "standard"
                 Title: titleInput.value.trim(),
                 Text: textArea.value,
-                MediaAttachments: attachments
+                MediaAttachments: attachments,
+                Quantity: isNaN(parsedQty) ? null : parsedQty // Only send valid integers, otherwise null
             };
 
             const postRes = await fetch('/api/posts', {
@@ -692,6 +699,8 @@ document.addEventListener('submit', async function (e) {
             if (postRes.ok) {
                 textArea.value = '';
                 clearAttachment();
+                // Optionally clear the quantity input upon success
+                if (qtyInput) qtyInput.value = '';
             } else {
                 const errText = await postRes.text();
                 alert("Failed to post: " + errText);
@@ -1003,6 +1012,7 @@ function appendHistoricalPost(post, container) {
 
             <div class="post-body">
                 ${post.title ? `<h5 class="post-title">${post.title}</h5>` : ''}
+                ${post.quantity !== null && post.quantity !== undefined ? `<span class="badge bg-secondary mb-2">Quantity: ${post.quantity}</span>` : ''}
                 ${post.text ? `<div class="post-text text-break">${post.text}</div>` : ''}
                 ${renderAttachments(post.attachments)}
             </div>

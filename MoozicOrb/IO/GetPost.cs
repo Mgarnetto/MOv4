@@ -171,12 +171,12 @@ namespace MoozicOrb.IO
 
         private string GetBaseSql(string whereClause)
         {
-            // Note: Explicitly selecting columns to avoid ambiguity
+            // Note: Added p.quantity
             return $@"
                 SELECT 
                     p.post_id, p.user_id, p.context_type, p.context_id,
                     p.post_type, p.title, p.content_text, p.image_url, p.created_at,
-                    p.price, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
+                    p.price, p.quantity, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
                     u.display_name, u.profile_pic,
                     (SELECT COUNT(*) FROM post_likes WHERE post_id = p.post_id) AS likes_count,
                     (SELECT COUNT(*) FROM comments WHERE post_id = p.post_id) AS comments_count,
@@ -276,6 +276,7 @@ namespace MoozicOrb.IO
                 CreatedAt = createdAt,
 
                 Price = rdr["price"] == DBNull.Value ? null : (decimal?)rdr.GetDecimal("price"),
+                Quantity = rdr["quantity"] == DBNull.Value ? null : (int?)rdr.GetInt32("quantity"), // <-- ADDED QUANTITY
                 LocationLabel = rdr["location_label"] == DBNull.Value ? null : rdr["location_label"].ToString(),
                 DifficultyLevel = rdr["difficulty_level"] == DBNull.Value ? null : rdr["difficulty_level"].ToString(),
                 VideoUrl = rdr["video_url"] == DBNull.Value ? null : rdr["video_url"].ToString(),
