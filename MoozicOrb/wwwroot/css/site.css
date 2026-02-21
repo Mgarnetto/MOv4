@@ -3166,7 +3166,7 @@ textarea.form-control {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.85);
-    z-index: 10050 !important; /* Raised */
+    z-index: 10060 !important; /* Raised */
     display: none; /* HIDDEN BY DEFAULT */
     align-items: center;
     justify-content: center;

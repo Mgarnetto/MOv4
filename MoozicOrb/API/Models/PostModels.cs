@@ -154,5 +154,6 @@ namespace MoozicOrb.API.Models
         public string? LocationLabel { get; set; }
         public string? DifficultyLevel { get; set; }
         public int? Quantity { get; set; }
+        public List<MediaAttachmentDto>? MediaAttachments { get; set; }
     }
 }

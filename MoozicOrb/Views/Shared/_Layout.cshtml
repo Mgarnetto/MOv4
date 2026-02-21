@@ -244,26 +244,55 @@
 
     <div id="editPostModal" class="modal">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header border-bottom border-secondary p-3">
-                    <h5 class="modal-title m-0">Edit Post</h5>
-                    <button type="button" class="btn-close" onclick="closeAllModals()">×</button>
+            <div class="modal-content" style="background: var(--bg-card); border: 1px solid #333; border-radius: 12px; padding: 25px; width: 90%; max-width: 550px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 15px;">
+
+                <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-2">
+                    <h5 class="modal-title m-0 text-white">Edit Post</h5>
+                    <button type="button" style="background: transparent; border: none; color: #fff; font-size: 1.5rem; cursor: pointer;" onclick="closeAllModals()">&times;</button>
                 </div>
-                <div class="modal-body p-3">
+
+                <div class="modal-body">
                     <input type="hidden" id="editPostId">
+                    <input type="hidden" id="editPostType">
+
                     <div class="mb-3">
-                        <label class="form-label text-muted small">Title</label>
-                        <input type="text" id="editPostTitle" class="form-control bg-black text-white border-secondary">
+                        <label class="text-muted small fw-bold text-uppercase">Title</label>
+                        <input type="text" id="editPostTitle" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px;">
                     </div>
+
+                    <div id="editMerchFields" class="d-none mb-3">
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="text-muted small fw-bold text-uppercase">Price ($)</label>
+                                <input type="number" step="0.01" min="0" id="editPostPrice" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="text-muted small fw-bold text-uppercase">Quantity</label>
+                                <input type="number" min="0" id="editPostQuantity" placeholder="Unlimited" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px;">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
-                        <label class="form-label text-muted small">Content</label>
-                        <textarea id="editPostText" class="form-control bg-black text-white border-secondary" rows="4"></textarea>
+                        <label class="text-muted small fw-bold text-uppercase">Content</label>
+                        <textarea id="editPostText" rows="4" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px; resize: none;"></textarea>
                     </div>
-                    <div id="editMediaList" class="d-flex flex-wrap gap-2"></div>
+
+                    <div class="mb-3 border-top border-secondary pt-3">
+                        <label class="text-muted small fw-bold text-uppercase">Current Images</label>
+                        <div id="editMediaList" class="d-flex flex-wrap mt-2"></div>
+                    </div>
+
+                    <div class="mb-3 border-top border-secondary pt-3">
+                        <label class="text-muted small fw-bold text-uppercase mb-2 d-block">Add New Images</label>
+                        <input type="file" id="editImageInput" accept="image/*" multiple onchange="window.previewEditImage(this)" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 10px; border-radius: 8px;">
+                        <div id="editImagePreview" class="d-flex flex-wrap mt-2"></div>
+                    </div>
+
                 </div>
-                <div class="modal-footer border-top border-secondary p-3 text-end">
-                    <button type="button" class="btn btn-secondary me-2" onclick="closeAllModals()">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="window.FeedService.submitEdit()">Save Changes</button>
+                <div class="modal-footer border-top border-secondary pt-3" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn" style="background: #333; color: #ccc; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold;" onclick="closeAllModals()">Cancel</button>
+                    <button type="button" class="btn" id="btnSubmitEdit" style="background: #00AEEF; color: #000; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold;" onclick="window.FeedService.submitEdit()">Save Changes</button>
                 </div>
             </div>
         </div>

@@ -253,63 +253,287 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 
 // --- EDIT MODAL LOGIC (POSTS) ---
 
+window.editSelectedFiles = []; // Track new files being added
+window.currentEditPostType = 'standard'; // Track what we are editing to enforce rules
+window.currentEditExistingImagesCount = 0; // Track how many DB images it already has
+
+// HELPER: Controls visibility of the file input based on strict constraints
+window.checkEditImageLimit = function () {
+    const input = document.getElementById('editImageInput');
+    if (!input) return;
+
+    const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
+
+    if (window.currentEditPostType !== 'merch') {
+        input.removeAttribute('multiple'); // Standard posts: 1 at a time
+        if (total >= 1) {
+            input.style.display = 'none'; // Completely hide if they hit the 1 limit
+        } else {
+            input.style.display = 'block';
+        }
+    } else {
+        input.setAttribute('multiple', 'multiple'); // Merch: Multi-select allowed
+        if (total >= 5) {
+            input.style.display = 'none';
+        } else {
+            input.style.display = 'block';
+        }
+    }
+};
+
 window.FeedService.openEditModal = async (id) => {
     try {
+        // 1. Hide Single Post Modal if it is open so they don't overlap awkwardly
+        const singleModal = document.getElementById('singlePostModal');
+        if (singleModal && singleModal.classList.contains('active')) {
+            singleModal.classList.remove('active');
+        }
+
+        // 2. Close any lingering 3-dot dropdown menus
+        document.querySelectorAll('.post-options-menu.show').forEach(el => el.classList.remove('show'));
+
+        // Reset the "Add New" inputs and tracking variables
+        window.editSelectedFiles = [];
+        window.currentEditPostType = 'standard';
+        window.currentEditExistingImagesCount = 0;
+
+        const preview = document.getElementById('editImagePreview');
+        if (preview) preview.innerHTML = '';
+        const fileInput = document.getElementById('editImageInput');
+        if (fileInput) fileInput.value = '';
+
+        // 3. Fetch the post data
         const res = await fetch(`/api/posts/${id}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+        if (!res.ok) throw new Error("Failed to load post data.");
+
         const post = await res.json();
 
+        // 4. Populate Text/Title/Type
         document.getElementById('editPostId').value = post.id;
+        document.getElementById('editPostType').value = post.type || "standard";
+        window.currentEditPostType = post.type || "standard"; // Save state for constraints
+
         document.getElementById('editPostTitle').value = post.title || "";
         document.getElementById('editPostText').value = post.text || "";
 
-        const mediaContainer = document.getElementById('editMediaList');
-        if (mediaContainer) {
-            mediaContainer.innerHTML = '';
-            post.media?.forEach(m => {
-                const div = document.createElement('div');
-                div.className = "position-relative";
-                div.innerHTML = `
-                    <img src="${m.url}" class="rounded" style="width:60px;height:60px;object-fit:cover;">
-                    <button onclick="window.deleteMedia('${post.id}', '${m.id}', this)" class="btn btn-sm btn-danger position-absolute top-0 start-100 translate-middle badge rounded-pill">X</button>
-                `;
-                mediaContainer.appendChild(div);
-            });
+        // TOGGLE MERCH FIELDS
+        const merchFields = document.getElementById('editMerchFields');
+        if (merchFields) {
+            if (post.type === 'merch') {
+                merchFields.classList.remove('d-none');
+                document.getElementById('editPostPrice').value = post.price !== null ? post.price : "";
+                document.getElementById('editPostQuantity').value = post.quantity !== null ? post.quantity : "";
+            } else {
+                merchFields.classList.add('d-none');
+            }
         }
 
+        // 5. Populate the Images Grid with fixed Delete Badges
+        const mediaContainer = document.getElementById('editMediaList');
+        if (mediaContainer) {
+            mediaContainer.innerHTML = ''; // Clear old images
+
+            if (post.attachments && post.attachments.length > 0) {
+                // Filter to only show Images (mediaType === 3)
+                const images = post.attachments.filter(m => m.mediaType === 3);
+                window.currentEditExistingImagesCount = images.length; // Track existing count
+
+                if (images.length > 0) {
+                    images.forEach(m => {
+                        const div = document.createElement('div');
+                        // Use inline styles to create the positioning anchor
+                        div.style.position = 'relative';
+                        div.style.display = 'inline-block';
+                        div.style.margin = '10px 15px 10px 0'; // Give breathing room for the badge
+
+                        div.innerHTML = `
+                            <img src="${m.url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #444;">
+                            
+                            <button type="button" onclick="window.deleteMedia('${post.id}', '${m.mediaId}', this)" 
+                                    style="position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: 2px solid #1a1a1a; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 10; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                                &times;
+                            </button>
+                        `;
+                        mediaContainer.appendChild(div);
+                    });
+                } else {
+                    mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
+                }
+            } else {
+                mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
+            }
+        }
+
+        // 6. Check constraints to see if we should show/hide the Add File input
+        window.checkEditImageLimit();
+
+        // 7. Show the Edit Modal
         const modal = document.getElementById('editPostModal');
         if (modal) modal.classList.add('active');
 
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error(err);
+        alert("Error loading post for editing.");
+    }
+};
+
+// HANDLES NEW FILES (With Strict Constraints)
+window.previewEditImage = function (input) {
+    if (input.files) {
+        for (let i = 0; i < input.files.length; i++) {
+            const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
+
+            if (window.currentEditPostType !== 'merch' && total >= 1) {
+                alert("Standard posts can only have 1 image limit.");
+                break;
+            }
+            if (window.currentEditPostType === 'merch' && total >= 5) {
+                alert("Store items can have up to 5 images max.");
+                break;
+            }
+
+            window.editSelectedFiles.push(input.files[i]);
+        }
+    }
+    input.value = ''; // Reset so they can add more if allowed
+    window.renderEditImagePreviews();
+    window.checkEditImageLimit();
+};
+
+window.renderEditImagePreviews = function () {
+    const previewContainer = document.getElementById('editImagePreview');
+    if (!previewContainer) return;
+    previewContainer.innerHTML = '';
+
+    window.editSelectedFiles.forEach((file, index) => {
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
+        wrapper.style.display = 'inline-block';
+        wrapper.style.margin = '10px 15px 10px 0';
+
+        wrapper.innerHTML = `
+            <img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">
+            <button type="button" onclick="window.removeEditImage(${index})" 
+                    style="position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: 2px solid #1a1a1a; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 10; padding: 0;">
+                &times;
+            </button>
+        `;
+        previewContainer.appendChild(wrapper);
+    });
+};
+
+window.removeEditImage = function (index) {
+    window.editSelectedFiles.splice(index, 1);
+    window.renderEditImagePreviews();
+    window.checkEditImageLimit();
 };
 
 window.FeedService.submitEdit = async () => {
-    const id = document.getElementById('editPostId').value;
-    const body = {
-        Title: document.getElementById('editPostTitle').value,
-        Text: document.getElementById('editPostText').value
-    };
+    const btn = document.getElementById('btnSubmitEdit');
+    const originalText = btn.innerText;
+    btn.disabled = true;
 
-    const res = await fetch(`/api/posts/${id}`, {
-        method: 'PUT',
-        headers: {
-            "Content-Type": "application/json",
-            "X-Session-Id": window.AuthState?.sessionId || ""
-        },
-        body: JSON.stringify(body)
-    });
+    try {
+        const id = document.getElementById('editPostId').value;
+        const type = document.getElementById('editPostType').value;
 
-    if (res.ok) {
-        closeAllModals();
-    } else {
-        alert("Update failed");
+        let parsedPrice = null;
+        let parsedQty = null;
+
+        // Collect Merch Data if applicable
+        if (type === 'merch') {
+            const rawPrice = document.getElementById('editPostPrice').value;
+            const rawQty = document.getElementById('editPostQuantity').value;
+            parsedPrice = rawPrice ? parseFloat(rawPrice) : null;
+            parsedQty = rawQty ? parseInt(rawQty) : null;
+        }
+
+        let newAttachments = [];
+
+        // Upload new images sequentially
+        if (window.editSelectedFiles.length > 0) {
+            for (let i = 0; i < window.editSelectedFiles.length; i++) {
+                btn.innerText = `Uploading Image ${i + 1}...`;
+                const uploadData = new FormData();
+                uploadData.append("file", window.editSelectedFiles[i]);
+
+                const uploadRes = await fetch("/api/upload/image", {
+                    method: 'POST',
+                    headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                    body: uploadData
+                });
+
+                if (!uploadRes.ok) throw new Error(`Upload failed for image ${i + 1}`);
+                const mediaResult = await uploadRes.json();
+
+                newAttachments.push({
+                    MediaId: mediaResult.id,
+                    MediaType: mediaResult.type,
+                    Url: mediaResult.url
+                });
+            }
+        }
+
+        btn.innerText = "Saving Changes...";
+
+        const body = {
+            Title: document.getElementById('editPostTitle').value,
+            Text: document.getElementById('editPostText').value,
+            Price: parsedPrice,
+            Quantity: isNaN(parsedQty) ? null : parsedQty,
+            MediaAttachments: newAttachments // Send the array of newly uploaded images
+        };
+
+        const res = await fetch(`/api/posts/${id}`, {
+            method: 'PUT',
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-Id": window.AuthState?.sessionId || ""
+            },
+            body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+            closeAllModals();
+
+            // SPA SEAMLESS RELOAD FIX: Figure out what page context we are on to reload cleanly without hard refresh
+            let currentType = 'global';
+            let currentId = '0';
+
+            const sigCtx = document.getElementById('page-signalr-context')?.value;
+            if (sigCtx) {
+                if (sigCtx.startsWith('user_')) {
+                    currentType = 'user';
+                    currentId = sigCtx.split('_')[1];
+                }
+            }
+
+            if (window.loadFeedHistory) {
+                window.loadFeedHistory(currentType, currentId);
+            }
+        } else {
+            alert("Update failed.");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Error saving changes.");
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
     }
 };
 
 window.deleteMedia = async (postId, mediaId, btnElement) => {
-    if (!confirm("Remove this attachment?")) return;
+    if (!confirm("Remove this image? This cannot be undone.")) return;
 
-    const wrapper = btnElement.closest('.position-relative');
-    wrapper.style.opacity = '0.5';
+    // FIX: Safely grab the direct parent container holding the image
+    const wrapper = btnElement.parentElement;
+
+    if (wrapper) {
+        wrapper.style.opacity = '0.5'; // Dim it while processing
+    }
 
     try {
         const res = await fetch(`/api/posts/${postId}/media/${mediaId}`, {
@@ -318,14 +542,27 @@ window.deleteMedia = async (postId, mediaId, btnElement) => {
         });
 
         if (res.ok) {
-            wrapper.remove();
+            // Remove the image from the DOM entirely
+            if (wrapper) wrapper.remove();
+
+            // Free up the limit so they can upload a new image
+            window.currentEditExistingImagesCount = Math.max(0, window.currentEditExistingImagesCount - 1);
+            window.checkEditImageLimit();
+
+            // Check if there are any images left, if not, show the "No images" message
+            const mediaContainer = document.getElementById('editMediaList');
+            if (mediaContainer && mediaContainer.children.length === 0) {
+                mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
+            }
         } else {
-            alert("Failed to delete media.");
-            wrapper.style.opacity = '1';
+            const errText = await res.text();
+            alert("Failed to delete media: " + errText);
+            if (wrapper) wrapper.style.opacity = '1'; // Restore opacity if it failed
         }
     } catch (err) {
         console.error(err);
-        wrapper.style.opacity = '1';
+        alert("A network error occurred while deleting.");
+        if (wrapper) wrapper.style.opacity = '1';
     }
 };
 
@@ -460,8 +697,6 @@ function renderNewPost(post) {
         if (window.getSelection().toString().length > 0) return;
 
         // 2. [NEW] Check if ANY menu is currently open
-        // If a menu is open, we assume this click was meant to close it (via the document handler).
-        // So we prevent the modal from opening on this specific click.
         if (document.querySelector('.post-options-menu.show')) {
             return;
         }
@@ -955,7 +1190,10 @@ window.submitReply = async function (postId, parentId) {
 
 window.loadFeedHistory = async function (contextType, contextId) {
     const container = document.getElementById('feed-stream-container');
-    if (!container) return;
+    const storeContainer = document.getElementById('store-carousel-container');
+
+    // If neither container exists on this page, abort cleanly
+    if (!container && !storeContainer) return;
 
     try {
         const res = await fetch(`/api/posts?contextType=${contextType}&contextId=${contextId}&page=1`, {
@@ -964,25 +1202,26 @@ window.loadFeedHistory = async function (contextType, contextId) {
 
         if (res.ok) {
             const posts = await res.json();
-            container.innerHTML = '';
 
-            // Clear store carousel if it exists on the page before repopulating
-            const storeContainer = document.getElementById('store-carousel-container');
+            // Clear existing elements
+            if (container) container.innerHTML = '';
             if (storeContainer) storeContainer.innerHTML = '';
 
             if (posts.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted p-5"><h3>No signals found here yet.</h3><p>Be the first to broadcast.</p></div>';
+                if (container) {
+                    container.innerHTML = '<div class="text-center text-muted p-5"><h3>No signals found here yet.</h3><p>Be the first to broadcast.</p></div>';
+                }
                 return;
             }
             posts.forEach(post => {
                 appendHistoricalPost(post, container);
             });
         } else {
-            container.innerHTML = '<div class="text-danger text-center p-3">Failed to load feed.</div>';
+            if (container) container.innerHTML = '<div class="text-danger text-center p-3">Failed to load feed.</div>';
         }
     } catch (err) {
         console.error(err);
-        container.innerHTML = '<div class="text-danger text-center p-3">Connection error.</div>';
+        if (container) container.innerHTML = '<div class="text-danger text-center p-3">Connection error.</div>';
     }
 };
 
@@ -993,6 +1232,9 @@ function appendHistoricalPost(post, container) {
         if (storeContainer) renderMerchCard(post, storeContainer);
         return;
     }
+
+    // Safety check: If it's a standard post but no feed container exists, skip rendering
+    if (!container) return;
 
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);

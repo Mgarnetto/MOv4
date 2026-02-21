@@ -324,9 +324,23 @@ namespace MoozicOrb.API.Controllers
             try
             {
                 int userId = GetUserId();
+
+                // 1. Update text, title, price, and quantity
                 var io = new UpdatePost();
                 io.Execute(userId, id, req);
 
+                // 2. NEW: Intercept newly uploaded files and append them to the post
+                if (req.MediaAttachments != null && req.MediaAttachments.Count > 0)
+                {
+                    var mediaIo = new InsertPostMedia();
+                    foreach (var item in req.MediaAttachments)
+                    {
+                        // Passing 0 for sort_order appends it to the list
+                        mediaIo.Execute(id, item.MediaId, item.MediaType, 0);
+                    }
+                }
+
+                // 3. Get updated post to broadcast via SignalR
                 var getIo = new GetPost();
                 var updatedPost = getIo.Execute(id, userId);
 
