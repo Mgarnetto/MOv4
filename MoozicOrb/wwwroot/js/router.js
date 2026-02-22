@@ -80,7 +80,6 @@
     }
 
     reinitScripts() {
-        // Wrapped in a try/catch so a failure on one page never breaks the router globally
         try {
             // A. Globe
             if (document.getElementById("chartdiv") && window.initGlobe) {
@@ -97,19 +96,30 @@
                 window.initSettings();
             }
 
-            // D. Social Feed Loader (Standard Cards)
+            // D. Social Feed Loader & Carousel Loader
             const feedContainer = document.getElementById("feed-stream-container");
+            const storeCarouselContainer = document.getElementById("store-carousel-container");
             const contextEl = document.getElementById("page-signalr-context");
 
-            if (feedContainer && window.loadFeedHistory && contextEl) {
-                const groupValue = contextEl.value; // e.g., "feed_global" or "user_105"
+            if (contextEl) {
+                const groupValue = contextEl.value;
 
                 if (groupValue === 'feed_global') {
-                    window.loadFeedHistory('global', '0');
+                    if (feedContainer && window.loadFeedHistory) {
+                        window.loadFeedHistory('global', '0');
+                    }
                 }
                 else if (groupValue && groupValue.startsWith('user_')) {
                     const userId = groupValue.split('_')[1];
-                    window.loadFeedHistory('user', userId);
+
+                    if (feedContainer && window.loadFeedHistory) {
+                        window.loadFeedHistory('user', userId);
+                    }
+
+                    // CAROUSEL TRIGGER
+                    if (storeCarouselContainer && window.loadStoreCarousel) {
+                        window.loadStoreCarousel(userId);
+                    }
                 }
             }
 
@@ -128,7 +138,7 @@
                 window.loadStorefront(userId);
             }
 
-            // G. Photo Gallery Loader - NEW
+            // G. Photo Gallery Loader
             const photoContainer = document.getElementById("photo-gallery-container");
             const galleryUserIdEl = document.getElementById("gallery-user-id");
 
@@ -137,7 +147,7 @@
                 window.loadPhotoGallery(userId);
             }
 
-            // H. Video Hub Loader - NEW
+            // H. Video Hub Loader
             const videoContainer = document.getElementById("video-hub-container");
             const videoUserIdEl = document.getElementById("video-user-id");
 
@@ -154,3 +164,12 @@
 
 // Start Engine
 window.AppRouter = new SpaRouter();
+
+// NEW: Guarantee the loaders fire even on a hard refresh of the browser
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        if (window.AppRouter) {
+            window.AppRouter.reinitScripts();
+        }
+    }, 200);
+});

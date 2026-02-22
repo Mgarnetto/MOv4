@@ -4,6 +4,8 @@ using MoozicOrb.API.Models;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
+using System.Collections.Generic;
+using MySql.Data.MySqlClient;
 
 namespace MoozicOrb.API.Controllers
 {
@@ -18,52 +20,174 @@ namespace MoozicOrb.API.Controllers
             _http = http;
         }
 
-        // --- AUTH HELPER ---
         private int GetUserId()
         {
             var sid = _http.HttpContext?.Request.Headers["X-Session-Id"].ToString();
             if (string.IsNullOrEmpty(sid)) throw new UnauthorizedAccessException();
-
             var session = SessionStore.GetSession(sid);
             if (session == null) throw new UnauthorizedAccessException();
-
             return session.UserId;
         }
 
         [HttpPost("create")]
-        public IActionResult Create([FromBody] CreateCollectionRequest req)
+        public IActionResult CreateCollection([FromBody] CreateCollectionRequest req)
         {
             try
             {
-                int userId = GetUserId(); // <--- Real Auth
+                int userId = GetUserId();
+                long collectionId = new InsertCollection().Execute(userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
 
-                // 1. Create Header
-                var io = new InsertCollection();
-                long colId = io.Execute(userId, req.Title, req.Description, req.Type, req.CoverImageId);
-
-                // 2. Add Items
                 if (req.Items != null && req.Items.Count > 0)
                 {
                     var itemIo = new InsertCollectionItem();
                     int sort = 0;
                     foreach (var item in req.Items)
                     {
-                        itemIo.Execute(colId, item.TargetId, item.TargetType, sort++);
+                        itemIo.Execute(collectionId, item.TargetId, item.TargetType, sort++);
                     }
                 }
-                return Ok(new { id = colId });
+
+                return Ok(new { id = collectionId, success = true });
             }
             catch (UnauthorizedAccessException) { return Unauthorized(); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
         [HttpGet("{id}")]
-        public IActionResult Get(long id)
+        public IActionResult GetCollection(long id)
         {
-            var io = new GetCollection();
-            var data = io.Execute(id);
-            if (data == null) return NotFound();
-            return Ok(data);
+            try
+            {
+                var collection = new GetCollectionDetails().Execute(id);
+                if (collection == null) return NotFound("Collection not found.");
+
+                return Ok(collection);
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpGet("user/{userId}/context/{displayContext}")]
+        public IActionResult GetUserCollectionsByContext(int userId, string displayContext)
+        {
+            try
+            {
+                var results = new List<CollectionDto>();
+
+                using (var conn = new MySqlConnection(DBConn1.ConnectionString))
+                {
+                    conn.Open();
+                    string sql = @"
+                        SELECT c.*, img.file_path as cover_url 
+                        FROM collections c 
+                        LEFT JOIN media_images img ON c.cover_image_id = img.image_id 
+                        WHERE c.user_id = @uid AND c.display_context = @ctx
+                        ORDER BY c.created_at DESC";
+
+                    using (var cmd = new MySqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@ctx", displayContext);
+
+                        using (var rdr = cmd.ExecuteReader())
+                        {
+                            while (rdr.Read())
+                            {
+                                string coverUrl = rdr["cover_url"] == DBNull.Value ? "/img/default_cover.jpg" : rdr["cover_url"].ToString();
+                                if (!coverUrl.StartsWith("/")) coverUrl = "/" + coverUrl;
+
+                                results.Add(new CollectionDto
+                                {
+                                    Id = rdr.GetInt64("collection_id"),
+                                    UserId = rdr.GetInt32("user_id"),
+                                    Title = rdr["title"].ToString(),
+                                    Description = rdr["description"].ToString(),
+                                    Type = rdr.GetInt32("collection_type"),
+                                    DisplayContext = rdr["display_context"].ToString(),
+                                    CoverImageUrl = coverUrl
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return Ok(results);
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPut("{id}")]
+        public IActionResult UpdateCollection(long id, [FromBody] CreateCollectionRequest req)
+        {
+            try
+            {
+                int userId = GetUserId();
+
+                // APPLICATION-LEVEL SECURITY PRE-CHECK
+                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+
+                bool success = new UpdateCollection().Execute(id, userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
+
+                if (!success) return BadRequest("Update failed.");
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpDelete("{id}")]
+        public IActionResult DeleteCollection(long id)
+        {
+            try
+            {
+                int userId = GetUserId();
+
+                // APPLICATION-LEVEL SECURITY PRE-CHECK
+                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+
+                bool success = new DeleteCollection().Execute(id, userId);
+
+                if (!success) return BadRequest("Delete failed.");
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("{id}/add-item")]
+        public IActionResult AddItem(long id, [FromBody] CollectionItemRequest req)
+        {
+            try
+            {
+                int userId = GetUserId();
+
+                // APPLICATION-LEVEL SECURITY PRE-CHECK
+                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+
+                var itemIo = new InsertCollectionItem();
+                itemIo.Execute(id, req.TargetId, req.TargetType, 999);
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpDelete("items/{linkId}")]
+        public IActionResult RemoveItem(long linkId, [FromQuery] long collectionId)
+        {
+            try
+            {
+                int userId = GetUserId();
+
+                // Check ownership of the parent collection before allowing item removal
+                if (!new CheckCollectionOwner().Execute(collectionId, userId)) return Forbid();
+
+                new DeleteCollectionItem().Execute(linkId, collectionId);
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
         }
     }
 }

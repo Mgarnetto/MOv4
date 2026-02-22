@@ -70,19 +70,31 @@ namespace MoozicOrb.API.Models
     // Used for creating Albums, Playlists, or Bundles.
     // ==================================================================================
 
-    /// <summary>
-    /// Payload sent from Client to create a new Collection (Album/Playlist).
-    /// </summary>
     public class CreateCollectionRequest
     {
-        public string Title { get; set; }       // Name of the Album/Playlist
-        public string Description { get; set; } // Optional blurb
-        public int Type { get; set; }           // 1 = Album (released content), 2 = Playlist (curated content)
-        public long CoverImageId { get; set; }  // Media ID of the album art (must be uploaded first)
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public int Type { get; set; }
+        public string DisplayContext { get; set; } // NEW: "audio", "video", "image", "store", "showcase"
+        public long CoverImageId { get; set; }
 
-        // The list of songs/videos to include immediately upon creation
         public List<CollectionItemRequest> Items { get; set; }
     }
+
+    public class CollectionDto
+    {
+        public long Id { get; set; }
+        public int UserId { get; set; }        // NEW: Allows the UI to know who owns this
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public int Type { get; set; }
+        public string DisplayContext { get; set; }
+        public long CoverImageId { get; set; }
+        public string CoverImageUrl { get; set; }
+
+        public List<CollectionItemDto> Items { get; set; }
+    }
+
 
     /// <summary>
     /// Represents a pointer to a specific piece of media to add to a collection.
@@ -94,29 +106,15 @@ namespace MoozicOrb.API.Models
     }
 
     /// <summary>
-    /// Data sent back to UI to display an Album or Playlist.
-    /// </summary>
-    public class CollectionDto
-    {
-        public long Id { get; set; }
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public int Type { get; set; }           // 1=Album, 2=Playlist
-        public long CoverImageId { get; set; }
-
-        // The actual playable items inside this collection
-        public List<CollectionItemDto> Items { get; set; }
-    }
-
-    /// <summary>
     /// A resolved item inside a collection, ready for the Player.
     /// </summary>
     public class CollectionItemDto
     {
-        public long TargetId { get; set; }      // ID of the media file
-        public int TargetType { get; set; }     // Type of the media
-        public string Title { get; set; }       // Display Name (e.g., "Song Title")
-        public string Url { get; set; }         // Direct stream URL
+        public long LinkId { get; set; }        // NEW: The PK from collection_items
+        public long TargetId { get; set; }
+        public int TargetType { get; set; }
+        public string Title { get; set; }
+        public string Url { get; set; }
     }
 
     public class CommentDto

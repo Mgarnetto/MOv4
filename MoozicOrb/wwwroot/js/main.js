@@ -494,3 +494,132 @@ const ModalScrollManager = {
 document.addEventListener('DOMContentLoaded', () => {
     ModalScrollManager.init();
 });
+
+// ============================================
+// UNIVERSAL COLLECTIONS MANAGER
+// ============================================
+
+window.openSaveToCollectionModal = async function (targetId, targetType, displayContext) {
+    // targetType: 1=Audio, 2=Video, 3=Image, 4=Post
+    // displayContext: "audio", "video", "image", "store", "showcase"
+
+    document.getElementById('collectionTargetId').value = targetId;
+    document.getElementById('collectionTargetType').value = targetType;
+    document.getElementById('collectionTargetContext').value = displayContext;
+    document.getElementById('newCollectionTitle').value = '';
+
+    const modal = document.getElementById('saveToCollectionModal');
+    if (modal) modal.classList.add('active'); // Or use Bootstrap modal triggers if preferred
+
+    const listContainer = document.getElementById('existingCollectionsList');
+    listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
+    try {
+        const userId = window.AuthState?.userId;
+        if (!userId) throw new Error("Not logged in");
+
+        // Fetch user's collections that match this specific context
+        const res = await fetch(`/api/collections/user/${userId}/context/${displayContext}`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (res.ok) {
+            const collections = await res.json();
+            listContainer.innerHTML = '';
+
+            if (collections.length === 0) {
+                listContainer.innerHTML = '<div class="text-muted small">No folders yet. Create one below!</div>';
+                return;
+            }
+
+            collections.forEach(c => {
+                listContainer.innerHTML += `
+                    <button class="btn btn-outline-secondary text-start text-white border-secondary w-100 d-flex align-items-center" onclick="window.saveItemToCollection('${c.id}')">
+                        <img src="${c.coverImageUrl}" style="width:30px; height:30px; object-fit:cover; border-radius:4px; margin-right:10px;">
+                        <span class="flex-grow-1 text-truncate">${c.title}</span>
+                        <i class="fas fa-plus"></i>
+                    </button>
+                `;
+            });
+        }
+    } catch (err) {
+        console.error(err);
+        listContainer.innerHTML = '<div class="text-danger small">Error loading folders.</div>';
+    }
+};
+
+window.closeCollectionModal = function () {
+    const modal = document.getElementById('saveToCollectionModal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.saveItemToCollection = async function (collectionId) {
+    const targetId = document.getElementById('collectionTargetId').value;
+    const targetType = document.getElementById('collectionTargetType').value;
+
+    try {
+        const res = await fetch(`/api/collections/${collectionId}/add-item`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': window.AuthState?.sessionId || ''
+            },
+            body: JSON.stringify({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) })
+        });
+
+        if (res.ok) {
+            alert("Saved to collection!");
+            window.closeCollectionModal();
+        } else {
+            alert("Failed to save.");
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};
+
+window.createNewCollectionInline = async function () {
+    const title = document.getElementById('newCollectionTitle').value.trim();
+    if (!title) return;
+
+    const targetId = document.getElementById('collectionTargetId').value;
+    const targetType = document.getElementById('collectionTargetType').value;
+    const displayContext = document.getElementById('collectionTargetContext').value;
+
+    // Map UI context to database Collection Type
+    let colType = 5; // Default Custom
+    if (displayContext === 'audio') colType = 2; // Playlist
+    if (displayContext === 'video') colType = 3; // Series
+    if (displayContext === 'image') colType = 4; // Gallery
+
+    try {
+        const payload = {
+            Title: title,
+            Description: "",
+            Type: colType,
+            DisplayContext: displayContext,
+            CoverImageId: 0,
+            Items: [
+                { TargetId: parseInt(targetId), TargetType: parseInt(targetType) } // Add the item immediately!
+            ]
+        };
+
+        const res = await fetch('/api/collections/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': window.AuthState?.sessionId || ''
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            alert("Folder created and item saved!");
+            window.closeCollectionModal();
+        } else {
+            alert("Failed to create folder.");
+        }
+    } catch (err) {
+        console.error(err);
+    }
+};

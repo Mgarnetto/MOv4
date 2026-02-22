@@ -34,7 +34,6 @@ feedConnection.on("ReceivePost", function (message) {
 // --- EXISTING SIGNALR LISTENERS ---
 
 feedConnection.on("UpdatePost", function (msg) {
-    // Handle potential duplicates (modal + feed)
     const cards = document.querySelectorAll(`#post-${msg.postId}`);
     cards.forEach(card => {
         const titleEl = card.querySelector('.post-title, .product-card__name');
@@ -64,8 +63,6 @@ feedConnection.on("RemovePost", function (msg) {
         setTimeout(() => card.remove(), 300);
     });
 });
-
-// --- NEW: COMMENT SIGNALR LISTENERS ---
 
 feedConnection.on("OnCommentUpdated", function (msg) {
     const comments = document.querySelectorAll(`#comment-${msg.commentId}`);
@@ -206,7 +203,6 @@ window.FeedService.saveComment = async (postId, commentId, btnElement) => {
     } catch (err) { console.error(err); }
 };
 
-// --- SINGLE POST MODAL ---
 window.FeedService.openPostModal = async (postId, autoComment = false) => {
     const modalEl = document.getElementById('singlePostModal');
     const container = document.getElementById('singlePostContainer');
@@ -237,8 +233,6 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
         container.innerHTML = '<div class="text-center p-4 text-danger">Failed to load post.</div>';
     }
 };
-
-// --- EDIT MODAL LOGIC (POSTS) ---
 
 window.editSelectedFiles = [];
 window.currentEditPostType = 'standard';
@@ -519,7 +513,6 @@ window.FeedService.submitEdit = async () => {
                 if (!uploadRes.ok) throw new Error(`Upload failed for media ${i + 1}`);
                 const mediaResult = await uploadRes.json();
 
-                // FIX: Ensure SnippetPath is captured and passed to SignalR
                 newAttachments.push({
                     MediaId: mediaResult.id,
                     MediaType: mediaResult.type,
@@ -603,7 +596,6 @@ window.deleteMedia = function (postId, mediaId, btnElement) {
     }
 };
 
-// --- GLOBAL MODAL CLOSER ---
 function closeAllModals() {
     const modals = document.querySelectorAll('.modal.active, .commerce-modal-overlay.active');
 
@@ -642,22 +634,9 @@ document.addEventListener('click', function (e) {
 
 // 4. POST RENDERING (Match Server HTML)
 function renderNewPost(post) {
-    // 1. ROUTE MERCH POSTS
+    // 1. ROUTE MERCH POSTS (Removed Carousel Hijack)
     if (post.type === 'merch') {
-        const storeContainer = document.getElementById('store-carousel-container');
         const storefrontGrid = document.getElementById('storefront-grid-container');
-
-        if (storeContainer) {
-            if (storeContainer.innerHTML.includes("No products available")) storeContainer.innerHTML = '';
-            const dummyContainer = document.createElement('div');
-            renderMerchCard(post, dummyContainer);
-            storeContainer.insertBefore(dummyContainer.firstElementChild, storeContainer.firstChild);
-
-            // FIX: Smooth scroll back to start to reveal the newly appended item!
-            setTimeout(() => {
-                storeContainer.scrollTo({ left: 0, behavior: 'smooth' });
-            }, 50);
-        }
 
         if (storefrontGrid) {
             if (storefrontGrid.innerHTML.includes("No products available")) storefrontGrid.innerHTML = '';
@@ -783,9 +762,6 @@ function renderNewPost(post) {
     container.insertBefore(postEl, container.firstChild);
 }
 
-// -------------------------------------------------------------
-// HELPER: RENDER ATTACHMENTS
-// -------------------------------------------------------------
 function renderAttachments(attachments) {
     if (!attachments || attachments.length === 0) return '';
     let html = `<div class="row g-2 mt-3">`;
@@ -801,7 +777,6 @@ function renderAttachments(attachments) {
             </div>`;
         }
         else if (media.mediaType === 2) {
-            // FIX: Safely retrieve the newly assigned SnippetPath to display thumbnail instantly
             let sPath = media.snippetPath || media.SnippetPath;
             const hasThumb = sPath && sPath !== "null";
             const thumbClass = hasThumb ? "thumb-mode" : "";
@@ -997,7 +972,7 @@ document.addEventListener('submit', async function (e) {
                         MediaId: mediaResult.id,
                         MediaType: mediaResult.type,
                         Url: mediaResult.url,
-                        SnippetPath: mediaResult.snippetPath || mediaResult.SnippetPath || null // FIX: Catch the thumbnail path
+                        SnippetPath: mediaResult.snippetPath || mediaResult.SnippetPath || null
                     });
                 } else {
                     const errText = await uploadRes.text();
@@ -1240,9 +1215,8 @@ window.submitReply = async function (postId, parentId) {
 
 window.loadFeedHistory = async function (contextType, contextId) {
     const container = document.getElementById('feed-stream-container');
-    const storeContainer = document.getElementById('store-carousel-container');
 
-    if (!container && !storeContainer) return;
+    if (!container) return;
 
     try {
         const res = await fetch(`/api/posts?contextType=${contextType}&contextId=${contextId}&page=1`, {
@@ -1252,31 +1226,27 @@ window.loadFeedHistory = async function (contextType, contextId) {
         if (res.ok) {
             const posts = await res.json();
 
-            if (container) container.innerHTML = '';
-            if (storeContainer) storeContainer.innerHTML = '';
+            container.innerHTML = '';
 
             if (posts.length === 0) {
-                if (container) {
-                    container.innerHTML = '<div class="text-center text-muted p-5"><h3>No signals found here yet.</h3><p>Be the first to broadcast.</p></div>';
-                }
+                container.innerHTML = '<div class="text-center text-muted p-5"><h3>No signals found here yet.</h3><p>Be the first to broadcast.</p></div>';
                 return;
             }
             posts.forEach(post => {
                 appendHistoricalPost(post, container);
             });
         } else {
-            if (container) container.innerHTML = '<div class="text-danger text-center p-3">Failed to load feed.</div>';
+            container.innerHTML = '<div class="text-danger text-center p-3">Failed to load feed.</div>';
         }
     } catch (err) {
         console.error(err);
-        if (container) container.innerHTML = '<div class="text-danger text-center p-3">Connection error.</div>';
+        container.innerHTML = '<div class="text-danger text-center p-3">Connection error.</div>';
     }
 };
 
 function appendHistoricalPost(post, container) {
+    // 1. DO NOT inject merch posts here! Leave that to loadStoreCarousel
     if (post.type === 'merch') {
-        const storeContainer = document.getElementById('store-carousel-container');
-        if (storeContainer) renderMerchCard(post, storeContainer);
         return;
     }
 
@@ -1672,7 +1642,6 @@ document.addEventListener('submit', async function (e) {
 
                 const mediaResult = await uploadRes.json();
 
-                // FIX: Ensure SnippetPath is captured
                 attachments.push({
                     MediaId: mediaResult.id,
                     MediaType: mediaResult.type,
@@ -1898,6 +1867,10 @@ function renderStorefrontCard(post, container) {
             <i class="fas fa-trash me-2"></i> Delete
          </button>
       </div>
+
+      <div class="store-carousel-select-overlay ${window.isStoreCarouselManagerActive ? '' : 'd-none'}" onclick="window.addToStoreCarouselDock('${post.id}', '${imageUrl}')">
+          <i class="fas fa-plus-circle add-icon"></i>
+      </div>
     `;
 
     container.appendChild(div);
@@ -2057,7 +2030,6 @@ function renderVideoCard(post, container) {
     const vidAttach = post.attachments && post.attachments.find(a => a.mediaType === 2);
     if (!vidAttach) return;
 
-    // FIX: Safely retrieve the newly assigned SnippetPath for video thumbnails
     let sPath = vidAttach.snippetPath || vidAttach.SnippetPath;
     const thumbSrc = (sPath && sPath !== "null") ? sPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
     const title = post.title || 'Untitled Video';
@@ -2093,3 +2065,280 @@ function renderVideoCard(post, container) {
 
     container.appendChild(div);
 }
+
+// ============================================
+// STOREFRONT CAROUSEL MANAGER (DOCK)
+// ============================================
+
+window.isStoreCarouselManagerActive = false;
+window.storeCarouselDockItems = [];
+
+window.toggleStoreCarouselManager = function () {
+    window.isStoreCarouselManagerActive = !window.isStoreCarouselManagerActive;
+
+    if (window.isStoreCarouselManagerActive && window.isInventoryMode) {
+        window.toggleInventoryMode();
+    }
+
+    const btn = document.getElementById('btnToggleStoreCarouselManager');
+    const dock = document.getElementById('storeCarouselManagerDock');
+
+    if (window.isStoreCarouselManagerActive) {
+        if (btn) {
+            btn.style.backgroundColor = '#0dcaf0';
+            btn.style.color = '#000';
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> <span>Close Manager</span>';
+        }
+        if (dock) dock.classList.remove('d-none');
+        window.renderStoreCarouselDockSlots();
+    } else {
+        if (btn) {
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = '#0dcaf0';
+            btn.innerHTML = '<i class="fas fa-star me-1"></i> <span>Manage Carousel</span>';
+        }
+        if (dock) dock.classList.add('d-none');
+    }
+
+    document.querySelectorAll('.store-carousel-select-overlay').forEach(el => {
+        if (window.isStoreCarouselManagerActive) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+    });
+};
+
+window.renderStoreCarouselDockSlots = function () {
+    const container = document.getElementById('storeCarouselDockSlotsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const maxSlots = 8;
+
+    for (let i = 0; i < maxSlots; i++) {
+        if (window.storeCarouselDockItems[i]) {
+            const item = window.storeCarouselDockItems[i];
+            container.innerHTML += `
+                <div class="store-carousel-dock-slot filled" onclick="window.removeFromStoreCarouselDock('${item.id}')" title="Click to remove">
+                    <img src="${item.imgUrl}">
+                    <div class="store-carousel-dock-slot-remove"><i class="fas fa-times-circle"></i></div>
+                </div>
+            `;
+        } else {
+            container.innerHTML += `
+                <div class="store-carousel-dock-slot empty" title="Click a product above to fill this slot">
+                    <i class="fas fa-plus text-muted"></i>
+                </div>
+            `;
+        }
+    }
+};
+
+window.addToStoreCarouselDock = function (postId, imgUrl) {
+    if (!window.isStoreCarouselManagerActive) return;
+
+    if (window.storeCarouselDockItems.find(x => String(x.id) === String(postId))) {
+        window.removeFromStoreCarouselDock(postId);
+        return;
+    }
+
+    if (window.storeCarouselDockItems.length >= 8) {
+        alert("Carousel is full! Remove an item first.");
+        return;
+    }
+
+    window.storeCarouselDockItems.push({ id: String(postId), imgUrl: imgUrl });
+    window.renderStoreCarouselDockSlots();
+};
+
+window.removeFromStoreCarouselDock = function (postId) {
+    window.storeCarouselDockItems = window.storeCarouselDockItems.filter(x => String(x.id) !== String(postId));
+    window.renderStoreCarouselDockSlots();
+};
+
+window.saveStoreCarouselDock = async function () {
+    const btn = document.querySelector('.store-carousel-dock-header button');
+    if (btn) {
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+    }
+
+    try {
+        const userId = window.AuthState?.userId;
+
+        // 1. DELETE EXISTING CAROUSELS TO AVOID DUPLICATES
+        if (userId) {
+            const existRes = await fetch(`/api/collections/user/${userId}/context/store`, {
+                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+            });
+            if (existRes.ok) {
+                const existingCols = await existRes.json();
+                for (let col of existingCols) {
+                    const colId = col.id !== undefined ? col.id : col.Id;
+                    await fetch(`/api/collections/${colId}`, {
+                        method: 'DELETE',
+                        headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+                    });
+                }
+            }
+        }
+
+        // 2. CREATE NEW
+        const itemsPayload = window.storeCarouselDockItems.map(item => ({
+            TargetId: parseInt(item.id),
+            TargetType: 4
+        }));
+
+        const payload = {
+            Title: "Featured Storefront",
+            Description: "My featured items",
+            Type: 5,
+            DisplayContext: "store",
+            CoverImageId: 0,
+            Items: itemsPayload
+        };
+
+        const res = await fetch('/api/collections/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': window.AuthState?.sessionId || ''
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error("Failed to save collection");
+
+        if (btn) {
+            btn.innerText = "Saved!";
+            setTimeout(() => {
+                btn.innerText = "Save to Profile";
+                btn.disabled = false;
+
+                // FORCE THE UI TO RELOAD IMMEDIATELY AFTER SAVING
+                if (window.loadStoreCarousel) {
+                    window.loadStoreCarousel(userId);
+                }
+            }, 2000);
+        }
+
+    } catch (err) {
+        console.error(err);
+        alert("Error saving carousel.");
+        if (btn) {
+            btn.innerText = "Save to Profile";
+            btn.disabled = false;
+        }
+    }
+};
+
+// ============================================
+// 18. DEFENSIVE CAROUSEL LOADER
+// ============================================
+
+window.loadStoreCarousel = async function (userId) {
+    const storeContainer = document.getElementById('store-carousel-container');
+    if (!storeContainer) return;
+
+    try {
+        // Show a loading spinner so it never goes completely black silently
+        storeContainer.innerHTML = '<div class="text-center w-100 p-3 text-muted"><i class="fas fa-spinner fa-spin"></i> Loading Custom Carousel...</div>';
+
+        const res = await fetch(`/api/collections/user/${userId}/context/store`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (!res.ok) {
+            console.warn("API Error checking for collections.");
+            storeContainer.innerHTML = '<div class="text-muted p-3">Failed to check carousel data.</div>';
+            return;
+        }
+
+        const collections = await res.json();
+
+        // ==========================================
+        // FALLBACK LOGIC: No collection found
+        // ==========================================
+        if (!collections || collections.length === 0) {
+            const fallbackRes = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
+                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+            });
+
+            storeContainer.innerHTML = '';
+
+            if (fallbackRes.ok) {
+                const fallbackPosts = await fallbackRes.json();
+                if (!fallbackPosts || fallbackPosts.length === 0) {
+                    storeContainer.innerHTML = '<div class="text-muted p-3">No products available.</div>';
+                    return;
+                }
+
+                // Render up to 5 default items
+                const defaultPosts = fallbackPosts.slice(0, 5);
+                defaultPosts.forEach(post => {
+                    renderMerchCard(post, storeContainer);
+                });
+            } else {
+                storeContainer.innerHTML = '<div class="text-muted p-3">Failed to load default items.</div>';
+            }
+            return;
+        }
+
+        // ==========================================
+        // CURATED LOGIC: Defensive mapping
+        // ==========================================
+        // Handle C# DTO PascalCase vs camelCase variations
+        const latestCollectionId = collections[0].id !== undefined ? collections[0].id : collections[0].Id;
+
+        const detailRes = await fetch(`/api/collections/${latestCollectionId}`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        storeContainer.innerHTML = '';
+
+        if (!detailRes.ok) {
+            storeContainer.innerHTML = '<div class="text-muted p-3">Error fetching custom carousel layout.</div>';
+            return;
+        }
+
+        const collectionDetails = await detailRes.json();
+
+        // Defensively check for arrays
+        const rawItems = collectionDetails.items || collectionDetails.Items || [];
+
+        if (rawItems.length === 0) {
+            storeContainer.innerHTML = '<div class="text-muted p-3">Carousel is empty.</div>';
+            return;
+        }
+
+        const customItems = rawItems.slice(0, 10);
+        const postPromises = customItems.map(item => {
+            const tType = item.targetType !== undefined ? item.targetType : item.TargetType;
+            const tId = item.targetId !== undefined ? item.targetId : item.TargetId;
+
+            if (tType === 4) {
+                return fetch(`/api/posts/${tId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } })
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(e => null);
+            }
+            return Promise.resolve(null);
+        });
+
+        const resolvedPosts = await Promise.all(postPromises);
+
+        let renderedCount = 0;
+        resolvedPosts.forEach(postData => {
+            if (postData) {
+                renderMerchCard(postData, storeContainer);
+                renderedCount++;
+            }
+        });
+
+        if (renderedCount === 0) {
+            storeContainer.innerHTML = '<div class="text-muted p-3">Posts in this carousel may have been deleted.</div>';
+        }
+
+    } catch (err) {
+        console.error("Failed to load store carousel", err);
+        storeContainer.innerHTML = '<div class="text-muted p-3">Error loading carousel.</div>';
+    }
+};
+

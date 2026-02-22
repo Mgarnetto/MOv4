@@ -4502,3 +4502,127 @@ textarea.form-control {
     .product-card__view-details:hover {
         background-color: #0056b3;
     }
+
+/* =========================================
+   STOREFRONT CAROUSEL MANAGER DOCK
+   ========================================= */
+.store-carousel-dock {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 900px;
+    background: rgba(20, 20, 20, 0.95);
+    border: 1px solid #0dcaf0;
+    border-radius: 12px;
+    padding: 15px 20px;
+    z-index: 1050;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    backdrop-filter: blur(10px);
+    animation: slideUpStoreDock 0.3s ease-out;
+}
+
+@keyframes slideUpStoreDock {
+    from {
+        bottom: -150px;
+        opacity: 0;
+    }
+
+    to {
+        bottom: 20px;
+        opacity: 1;
+    }
+}
+
+.store-carousel-dock-slots-container {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+}
+
+/* Individual Slots */
+.store-carousel-dock-slot {
+    flex: 0 0 80px;
+    height: 80px;
+    border-radius: 8px;
+    border: 2px dashed #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    background: #111;
+}
+
+    .store-carousel-dock-slot.empty:hover {
+        border-color: #0dcaf0;
+        background: #1a1a1a;
+    }
+
+    .store-carousel-dock-slot.filled {
+        border: 2px solid #0dcaf0;
+    }
+
+    .store-carousel-dock-slot img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 6px;
+        opacity: 0.8;
+    }
+
+    .store-carousel-dock-slot.filled:hover img {
+        opacity: 0.4;
+    }
+
+.store-carousel-dock-slot-remove {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ff4d4d;
+    font-size: 1.5rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.store-carousel-dock-slot.filled:hover .store-carousel-dock-slot-remove {
+    opacity: 1;
+}
+
+/* Grid Overlay when Active */
+.store-carousel-select-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(13, 202, 240, 0.2);
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px dashed transparent;
+    transition: all 0.2s;
+}
+
+    .store-carousel-select-overlay:hover {
+        background: rgba(13, 202, 240, 0.4);
+        border-color: #0dcaf0;
+    }
+
+    .store-carousel-select-overlay .add-icon {
+        font-size: 3rem;
+        color: white;
+        text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+        transform: scale(0.8);
+        transition: transform 0.2s;
+    }
+
+    .store-carousel-select-overlay:hover .add-icon {
+        transform: scale(1.1);
+    }

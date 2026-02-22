@@ -463,6 +463,35 @@
         }
     </script>
 
+    <div class="modal" id="saveToCollectionModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-folder-plus text-info me-2"></i> Save to...</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="window.closeCollectionModal()"></button>
+                </div>
+                <div class="modal-body">
+
+                    <input type="hidden" id="collectionTargetId">
+                    <input type="hidden" id="collectionTargetType">
+                    <input type="hidden" id="collectionTargetContext">
+
+                    <div id="existingCollectionsList" class="mb-3 d-flex flex-column gap-2" style="max-height: 250px; overflow-y: auto;">
+                        <div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+                    </div>
+
+                    <hr class="border-secondary">
+
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="text" id="newCollectionTitle" class="form-control bg-dark text-white border-secondary" placeholder="New folder name..." autocomplete="off">
+                        <button class="btn btn-info fw-bold" onclick="window.createNewCollectionInline()">Create</button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="groupInfoModal" class="modal" tabindex="-1" style="display: none;">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content" style="background: #1a1a1a; border: 1px solid #333;">
