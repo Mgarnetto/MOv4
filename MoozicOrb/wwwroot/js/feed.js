@@ -656,11 +656,31 @@ document.addEventListener('click', function (e) {
 
 function closeAllModals() {
     const modals = document.querySelectorAll('.modal.active, .commerce-modal-overlay.active');
+
     modals.forEach(m => {
+        // 1. STRICT FIX: Pause any playing media before hiding the modal
+        m.querySelectorAll('video, audio').forEach(media => {
+            if (!media.paused) media.pause();
+        });
+
+        // 2. Hide the modal visually
         m.classList.remove('active');
         m.style.display = '';
         m.style.opacity = '';
     });
+
+    // 3. GHOST KILLER: Wipe the Single Post Modal HTML after it fades out 
+    // This permanently destroys the video element so it can't play in the background
+    const spContainer = document.getElementById('singlePostContainer');
+    if (spContainer) {
+        setTimeout(() => {
+            const spm = document.getElementById('singlePostModal');
+            // Only wipe it if the modal is actually closed
+            if (spm && !spm.classList.contains('active')) {
+                spContainer.innerHTML = '';
+            }
+        }, 300); // 300ms gives your CSS fade-out animation time to finish
+    }
 }
 
 // 4. POST RENDERING (Match Server HTML)
