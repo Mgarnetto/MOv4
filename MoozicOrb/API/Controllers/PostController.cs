@@ -100,12 +100,12 @@ namespace MoozicOrb.API.Controllers
                     }
                 }
 
-                // 4. Construct DTO for Broadcast
+                // 4. Construct DTO for Broadcast (MANUAL BINDING - NO DB QUERY)
                 var livePost = new PostDto
                 {
                     Id = postId,
                     AuthorId = userId,
-                    ViewerId = userId, // <--- SET VIEWER ID (Creator is viewer)
+                    ViewerId = userId,
                     AuthorName = authorName,
                     AuthorPic = authorPic,
                     ContextType = req.ContextType,
@@ -116,9 +116,12 @@ namespace MoozicOrb.API.Controllers
                     ImageUrl = req.ImageUrl,
                     CreatedAt = DateTime.UtcNow,
                     CreatedAgo = "Just now",
+
+                    // Because feed.js now sends SnippetPath in the JSON, it automatically exists right here!
                     Attachments = req.MediaAttachments ?? new List<MediaAttachmentDto>(),
+
                     Price = req.Price,
-                    Quantity = req.Quantity, // <-- ADDED QUANTITY
+                    Quantity = req.Quantity,
                     LocationLabel = req.LocationLabel,
                     DifficultyLevel = req.DifficultyLevel,
                     VideoUrl = req.VideoUrl,

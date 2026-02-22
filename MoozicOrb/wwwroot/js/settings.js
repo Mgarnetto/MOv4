@@ -1,11 +1,69 @@
-﻿const SettingsManager = {
+﻿// --- GLOBAL IMAGE COMPRESSOR ---
+// This function shrinks images in the browser before they hit your server
+window.processImageUpload = function (file, maxWidth = 1200) {
+    return new Promise((resolve, reject) => {
+        // If it's not an image (e.g., video/audio), skip compression
+        if (!file.type.startsWith('image/')) {
+            resolve(file);
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = event => {
+            const img = new Image();
+            img.src = event.target.result;
+            img.onload = () => {
+                let width = img.width;
+                let height = img.height;
+
+                // Scale down proportionally if it exceeds maxWidth
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+
+                // Draw to invisible canvas
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Convert to compressed JPEG (80% quality)
+                canvas.toBlob((blob) => {
+                    const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, ".jpg"), {
+                        type: 'image/jpeg',
+                        lastModified: Date.now()
+                    });
+                    resolve(compressedFile);
+                }, 'image/jpeg', 0.80);
+            };
+            img.onerror = error => reject(error);
+        };
+        reader.onerror = error => reject(error);
+    });
+};
+
+const SettingsManager = {
 
     // --- UPLOAD HELPER ---
     async uploadImage(fileInput) {
         if (!fileInput.files || fileInput.files.length === 0) return null;
 
+        let file = fileInput.files[0];
+
+        // NEW: Compress the image before uploading (Max width 800px for Profile/Cover)
+        if (window.processImageUpload) {
+            try {
+                file = await window.processImageUpload(file, 800);
+            } catch (e) {
+                console.warn("Compression failed, uploading original.", e);
+            }
+        }
+
         const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
+        formData.append("file", file);
 
         try {
             const res = await fetch('/api/upload/image', {

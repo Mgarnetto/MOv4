@@ -109,7 +109,7 @@ namespace MoozicOrb.API.Controllers
                 string webUrl = "/" + dbPath.Replace("MoozicOrb/", "").Replace("\\", "/");
                 long newId = new InsertAudio().Execute(uid, file.FileName, webUrl, snippetPath, duration);
 
-                return Ok(new { id = newId, type = 1, url = webUrl });
+                return Ok(new { id = newId, type = 1, url = webUrl, snippetPath = snippetPath });
             }
             catch (Exception ex) { return BadRequest($"Audio Upload Error: {ex.Message}"); }
         }
@@ -154,7 +154,7 @@ namespace MoozicOrb.API.Controllers
                 // We skip server-side _processor.ProcessVideoAsync() entirely here.
                 long newId = new InsertVideo().Execute(uid, file.FileName, webUrl, webThumbUrl, duration, width, height);
 
-                return Ok(new { id = newId, type = 2, url = webUrl });
+                return Ok(new { id = newId, type = 2, url = webUrl, snippetPath = webThumbUrl });
             }
             catch (Exception ex) { return BadRequest($"Video Upload Error: {ex.Message}"); }
         }

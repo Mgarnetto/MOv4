@@ -37,13 +37,12 @@ feedConnection.on("UpdatePost", function (msg) {
     // Handle potential duplicates (modal + feed)
     const cards = document.querySelectorAll(`#post-${msg.postId}`);
     cards.forEach(card => {
-        const titleEl = card.querySelector('.post-title, .product-card__name'); // Updated to catch merch title
-        const textEl = card.querySelector('.post-text, .product-card__description'); // Updated to catch merch text
+        const titleEl = card.querySelector('.post-title, .product-card__name');
+        const textEl = card.querySelector('.post-text, .product-card__description');
 
         if (titleEl && msg.data.title) titleEl.innerText = msg.data.title;
 
         if (textEl && msg.data.text) {
-            // For merch cards, we need to preserve the quantity text if we update description
             if (card.classList.contains('product-card')) {
                 const qtySpan = textEl.querySelector('span');
                 textEl.innerHTML = `${msg.data.text} <br>${qtySpan ? qtySpan.outerHTML : ''}`;
@@ -69,13 +68,11 @@ feedConnection.on("RemovePost", function (msg) {
 // --- NEW: COMMENT SIGNALR LISTENERS ---
 
 feedConnection.on("OnCommentUpdated", function (msg) {
-    // Update ALL instances (Modal + Feed)
     const comments = document.querySelectorAll(`#comment-${msg.commentId}`);
     comments.forEach(commentEl => {
         const textEl = commentEl.querySelector('.comment-text');
         if (textEl) textEl.innerText = msg.text;
 
-        // Ensure edit mode is closed
         const displayBox = commentEl.querySelector('.comment-display-box');
         const editBox = commentEl.querySelector('.comment-edit-box');
         if (displayBox && editBox) {
@@ -83,11 +80,9 @@ feedConnection.on("OnCommentUpdated", function (msg) {
             editBox.classList.add('d-none');
         }
 
-        // Sync the textarea value for next time
         const ta = commentEl.querySelector('textarea');
         if (ta) ta.value = msg.text;
 
-        // Flash effect
         commentEl.style.transition = "background-color 0.5s";
         commentEl.style.backgroundColor = "#222";
         setTimeout(() => commentEl.style.backgroundColor = "", 500);
@@ -113,17 +108,17 @@ window.FeedService.deletePost = async (id) => {
             method: 'DELETE',
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
-        if (!res.ok) alert("Failed to delete post.");
-        // SignalR will handle the removal from UI
+        if (!res.ok) {
+            alert("Failed to delete post.");
+        } else {
+            closeAllModals();
+        }
     } catch (err) { console.error(err); }
 };
-
-// --- UPDATED COMMENT SERVICE METHODS (With Manual UI Sync) ---
 
 window.FeedService.deleteComment = async (postId, commentId, btnElement) => {
     if (!confirm("Delete this comment?")) return;
 
-    // Close menu immediately
     if (btnElement) {
         const menu = btnElement.closest('.msg-context-menu');
         if (menu) menu.classList.remove('active');
@@ -136,7 +131,6 @@ window.FeedService.deleteComment = async (postId, commentId, btnElement) => {
         });
 
         if (res.ok) {
-            // MANUAL UPDATE: Remove all instances immediately
             const allInstances = document.querySelectorAll(`#comment-${commentId}`);
             allInstances.forEach(el => el.remove());
         } else {
@@ -146,21 +140,17 @@ window.FeedService.deleteComment = async (postId, commentId, btnElement) => {
 };
 
 window.FeedService.editComment = (commentId, btnElement) => {
-    // Only open edit mode for the specific row clicked
     const row = btnElement.closest('.comment-item');
     if (!row) return;
 
-    // Close menu
     row.querySelector('.msg-context-menu')?.classList.remove('active');
-
-    // Toggle UI
     row.querySelector('.comment-display-box').classList.add('d-none');
+
     const editBox = row.querySelector('.comment-edit-box');
     editBox.classList.remove('d-none');
 
     const textarea = editBox.querySelector('textarea');
     textarea.focus();
-    // Move cursor to end
     const len = textarea.value.length;
     textarea.setSelectionRange(len, len);
 };
@@ -172,7 +162,6 @@ window.FeedService.cancelEditComment = (commentId, btnElement) => {
     row.querySelector('.comment-display-box').classList.remove('d-none');
     row.querySelector('.comment-edit-box').classList.add('d-none');
 
-    // Reset textarea to original text
     const currentText = row.querySelector('.comment-text').innerText;
     row.querySelector('textarea').value = currentText;
 };
@@ -196,13 +185,11 @@ window.FeedService.saveComment = async (postId, commentId, btnElement) => {
         });
 
         if (res.ok) {
-            // MANUAL UPDATE: Sync ALL instances (Modal + Feed)
             const allInstances = document.querySelectorAll(`#comment-${commentId}`);
             allInstances.forEach(el => {
                 const textEl = el.querySelector('.comment-text');
                 if (textEl) textEl.innerText = newText;
 
-                // Update hidden textarea too
                 const ta = el.querySelector('textarea');
                 if (ta) ta.value = newText;
 
@@ -253,12 +240,11 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 
 // --- EDIT MODAL LOGIC (POSTS) ---
 
-window.editSelectedFiles = []; // Track new files being added
-window.currentEditPostType = 'standard'; // Track what we are editing to enforce rules
-window.currentEditExistingImagesCount = 0; // Track how many DB images it already has
-window.pendingMediaDeletions = []; // Track items to delete on save
+window.editSelectedFiles = [];
+window.currentEditPostType = 'standard';
+window.currentEditExistingImagesCount = 0;
+window.pendingMediaDeletions = [];
 
-// HELPER: Controls visibility of the file input based on strict constraints
 window.checkEditImageLimit = function () {
     const input = document.getElementById('editImageInput');
     if (!input) return;
@@ -267,16 +253,16 @@ window.checkEditImageLimit = function () {
     const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
     if (window.currentEditPostType !== 'merch') {
-        input.removeAttribute('multiple'); // Standard posts: 1 at a time
+        input.removeAttribute('multiple');
         if (total >= 1) {
-            input.style.display = 'none'; // Completely hide if they hit the 1 limit
+            input.style.display = 'none';
             if (label) label.style.display = 'none';
         } else {
             input.style.display = 'block';
             if (label) label.style.display = 'block';
         }
     } else {
-        input.setAttribute('multiple', 'multiple'); // Merch: Multi-select allowed
+        input.setAttribute('multiple', 'multiple');
         if (total >= 5) {
             input.style.display = 'none';
             if (label) label.style.display = 'none';
@@ -289,41 +275,35 @@ window.checkEditImageLimit = function () {
 
 window.FeedService.openEditModal = async (id) => {
     try {
-        // 1. Hide Single Post Modal if it is open so they don't overlap awkwardly
         const singleModal = document.getElementById('singlePostModal');
         if (singleModal && singleModal.classList.contains('active')) {
             singleModal.classList.remove('active');
         }
 
-        // 2. Close any lingering 3-dot dropdown menus
         document.querySelectorAll('.post-options-menu.show').forEach(el => el.classList.remove('show'));
 
-        // Reset the "Add New" inputs and tracking variables
         window.editSelectedFiles = [];
         window.currentEditPostType = 'standard';
         window.currentEditExistingImagesCount = 0;
-        window.pendingMediaDeletions = []; // Reset queue
+        window.pendingMediaDeletions = [];
 
         const preview = document.getElementById('editImagePreview');
         if (preview) preview.innerHTML = '';
         const fileInput = document.getElementById('editImageInput');
         if (fileInput) fileInput.value = '';
 
-        // 3. Fetch the post data
         const res = await fetch(`/api/posts/${id}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
         if (!res.ok) throw new Error("Failed to load post data.");
 
         const post = await res.json();
 
-        // 4. Populate Text/Title/Type
         document.getElementById('editPostId').value = post.id;
         document.getElementById('editPostType').value = post.type || "standard";
-        window.currentEditPostType = post.type || "standard"; // Save state for constraints
+        window.currentEditPostType = post.type || "standard";
 
         document.getElementById('editPostTitle').value = post.title || "";
         document.getElementById('editPostText').value = post.text || "";
 
-        // TOGGLE MERCH FIELDS
         const merchFields = document.getElementById('editMerchFields');
         if (merchFields) {
             if (post.type === 'merch') {
@@ -335,13 +315,11 @@ window.FeedService.openEditModal = async (id) => {
             }
         }
 
-        // 5. Populate the Media Grid with fixed Delete Badges (UPDATED FOR ALL MEDIA)
         const mediaContainer = document.getElementById('editMediaList');
         if (mediaContainer) {
-            mediaContainer.innerHTML = ''; // Clear old media
+            mediaContainer.innerHTML = '';
 
             if (post.attachments && post.attachments.length > 0) {
-                // Track total existing media attachments
                 window.currentEditExistingImagesCount = post.attachments.length;
 
                 post.attachments.forEach(m => {
@@ -351,14 +329,13 @@ window.FeedService.openEditModal = async (id) => {
                     div.style.margin = '10px 15px 10px 0';
 
                     let mediaThumbnail = '';
+                    let sPath = m.snippetPath || m.SnippetPath;
 
                     if (m.mediaType === 3) {
-                        // IMAGE: Standard render
                         mediaThumbnail = `<img src="${m.url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #444;">`;
                     }
                     else if (m.mediaType === 2) {
-                        // VIDEO: Use snippet path as thumbnail, layer a video icon over it
-                        const thumbSrc = (m.snippetPath && m.snippetPath !== "null") ? m.snippetPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
+                        const thumbSrc = (sPath && sPath !== "null") ? sPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
                         mediaThumbnail = `
                             <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #444; position: relative; overflow: hidden; background: #000;">
                                 <img src="${thumbSrc}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
@@ -366,7 +343,6 @@ window.FeedService.openEditModal = async (id) => {
                             </div>`;
                     }
                     else if (m.mediaType === 1) {
-                        // AUDIO: Render a sleek box with a music icon
                         mediaThumbnail = `
                             <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #444; background: #1a1a1a; display: flex; align-items: center; justify-content: center;">
                                 <i class="fas fa-music text-warning" style="font-size: 24px;"></i>
@@ -387,10 +363,7 @@ window.FeedService.openEditModal = async (id) => {
             }
         }
 
-        // 6. Check constraints to see if we should show/hide the Add File input
         window.checkEditImageLimit();
-
-        // 7. Show the Edit Modal
         const modal = document.getElementById('editPostModal');
         if (modal) modal.classList.add('active');
 
@@ -400,7 +373,6 @@ window.FeedService.openEditModal = async (id) => {
     }
 };
 
-// HANDLES NEW FILES (With Strict Constraints)
 window.previewEditImage = function (input) {
     if (input.files) {
         for (let i = 0; i < input.files.length; i++) {
@@ -418,7 +390,7 @@ window.previewEditImage = function (input) {
             window.editSelectedFiles.push(input.files[i]);
         }
     }
-    input.value = ''; // Reset so they can add more if allowed
+    input.value = '';
     window.renderEditImagePreviews();
     window.checkEditImageLimit();
 };
@@ -437,19 +409,16 @@ window.renderEditImagePreviews = function () {
         let previewHtml = '';
 
         if (file.type.startsWith('video/')) {
-            // Render a dark box with a video icon for new video files
             previewHtml = `
                 <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #000; display: flex; align-items: center; justify-content: center;">
                     <i class="fas fa-video text-white" style="font-size: 24px;"></i>
                 </div>`;
         } else if (file.type.startsWith('audio/')) {
-            // Render a dark box with a music icon for new audio files
             previewHtml = `
                 <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #1a1a1a; display: flex; align-items: center; justify-content: center;">
                     <i class="fas fa-music text-warning" style="font-size: 24px;"></i>
                 </div>`;
         } else {
-            // Standard image preview
             previewHtml = `<img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">`;
         }
 
@@ -463,6 +432,7 @@ window.renderEditImagePreviews = function () {
         previewContainer.appendChild(wrapper);
     });
 };
+
 window.removeEditImage = function (index) {
     window.editSelectedFiles.splice(index, 1);
     window.renderEditImagePreviews();
@@ -481,7 +451,6 @@ window.FeedService.submitEdit = async () => {
         let parsedPrice = null;
         let parsedQty = null;
 
-        // Collect Merch Data if applicable
         if (type === 'merch') {
             const rawPrice = document.getElementById('editPostPrice').value;
             const rawQty = document.getElementById('editPostQuantity').value;
@@ -489,7 +458,6 @@ window.FeedService.submitEdit = async () => {
             parsedQty = rawQty ? parseInt(rawQty) : null;
         }
 
-        // --- PROCESS DELETIONS FIRST ---
         if (window.pendingMediaDeletions && window.pendingMediaDeletions.length > 0) {
             for (let i = 0; i < window.pendingMediaDeletions.length; i++) {
                 btn.innerText = `Removing old media...`;
@@ -502,10 +470,16 @@ window.FeedService.submitEdit = async () => {
 
         let newAttachments = [];
 
-        // --- UPLOAD NEW MEDIA SEQUENTIALLY (WITH AUDIO/VIDEO SUPPORT) ---
         if (window.editSelectedFiles.length > 0) {
             for (let i = 0; i < window.editSelectedFiles.length; i++) {
-                const file = window.editSelectedFiles[i];
+                let file = window.editSelectedFiles[i];
+
+                if (file.type.startsWith('image/') && window.processImageUpload) {
+                    btn.innerText = `Compressing Image ${i + 1}...`;
+                    try { file = await window.processImageUpload(file, 1200); }
+                    catch (e) { console.warn("Compression failed", e); }
+                }
+
                 const uploadData = new FormData();
                 uploadData.append("file", file);
 
@@ -545,10 +519,12 @@ window.FeedService.submitEdit = async () => {
                 if (!uploadRes.ok) throw new Error(`Upload failed for media ${i + 1}`);
                 const mediaResult = await uploadRes.json();
 
+                // FIX: Ensure SnippetPath is captured and passed to SignalR
                 newAttachments.push({
                     MediaId: mediaResult.id,
                     MediaType: mediaResult.type,
-                    Url: mediaResult.url
+                    Url: mediaResult.url,
+                    SnippetPath: mediaResult.snippetPath || mediaResult.SnippetPath || null
                 });
             }
         }
@@ -560,7 +536,7 @@ window.FeedService.submitEdit = async () => {
             Text: document.getElementById('editPostText').value,
             Price: parsedPrice,
             Quantity: isNaN(parsedQty) ? null : parsedQty,
-            MediaAttachments: newAttachments // Send the array of newly uploaded media
+            MediaAttachments: newAttachments
         };
 
         const res = await fetch(`/api/posts/${id}`, {
@@ -575,7 +551,6 @@ window.FeedService.submitEdit = async () => {
         if (res.ok) {
             closeAllModals();
 
-            // 1. Get Context
             let currentType = 'global';
             let currentId = '0';
 
@@ -587,22 +562,17 @@ window.FeedService.submitEdit = async () => {
                 }
             }
 
-            // 2. CHECK WHICH PAGE WE ARE ON TO RELOAD CORRECTLY
             const storefrontContainer = document.getElementById('storefront-grid-container');
             const photoContainer = document.getElementById('photo-gallery-container');
             const videoContainer = document.getElementById('video-hub-container');
 
             if (storefrontContainer && window.loadStorefront) {
-                // SPA SEAMLESS RELOAD: We are on the dedicated Storefront page
                 window.loadStorefront(currentId);
             } else if (photoContainer && window.loadPhotoGallery) {
-                // SPA SEAMLESS RELOAD: Photo gallery page
                 window.loadPhotoGallery(currentId);
             } else if (videoContainer && window.loadVideoHub) {
-                // SPA SEAMLESS RELOAD: Video Hub page
                 window.loadVideoHub(currentId);
             } else if (window.loadFeedHistory) {
-                // SPA SEAMLESS RELOAD: We are on the Main Profile / Timeline page
                 window.loadFeedHistory(currentType, currentId);
             }
 
@@ -621,18 +591,12 @@ window.FeedService.submitEdit = async () => {
 };
 
 window.deleteMedia = function (postId, mediaId, btnElement) {
-    // 1. Visually remove the image from the DOM
     const wrapper = btnElement.parentElement;
     if (wrapper) wrapper.remove();
-
-    // 2. Add the mediaId to our deletion queue
     window.pendingMediaDeletions.push(mediaId);
-
-    // 3. Free up the visual limit so they can upload a replacement immediately
     window.currentEditExistingImagesCount = Math.max(0, window.currentEditExistingImagesCount - 1);
     window.checkEditImageLimit();
 
-    // 4. Show the "No media" message if empty
     const mediaContainer = document.getElementById('editMediaList');
     if (mediaContainer && mediaContainer.children.length === 0) {
         mediaContainer.innerHTML = '<span class="text-muted small">No media attached.</span>';
@@ -640,6 +604,30 @@ window.deleteMedia = function (postId, mediaId, btnElement) {
 };
 
 // --- GLOBAL MODAL CLOSER ---
+function closeAllModals() {
+    const modals = document.querySelectorAll('.modal.active, .commerce-modal-overlay.active');
+
+    modals.forEach(m => {
+        m.querySelectorAll('video, audio').forEach(media => {
+            if (!media.paused) media.pause();
+        });
+
+        m.classList.remove('active');
+        m.style.display = '';
+        m.style.opacity = '';
+    });
+
+    const spContainer = document.getElementById('singlePostContainer');
+    if (spContainer) {
+        setTimeout(() => {
+            const spm = document.getElementById('singlePostModal');
+            if (spm && !spm.classList.contains('active')) {
+                spContainer.innerHTML = '';
+            }
+        }, 300);
+    }
+}
+
 document.addEventListener('click', function (e) {
     if (e.target.matches('.btn-close') || e.target.matches('[data-bs-dismiss="modal"]') || e.target.closest('[data-bs-dismiss="modal"]')) {
         closeAllModals();
@@ -647,56 +635,58 @@ document.addEventListener('click', function (e) {
     if (e.target.classList.contains('modal') && e.target.classList.contains('active')) {
         closeAllModals();
     }
-
-    // Close Context Menus if clicking elsewhere
     if (!e.target.closest('.msg-options-btn') && !e.target.closest('.msg-context-menu')) {
         document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
     }
 });
 
-function closeAllModals() {
-    const modals = document.querySelectorAll('.modal.active, .commerce-modal-overlay.active');
-
-    modals.forEach(m => {
-        // 1. STRICT FIX: Pause any playing media before hiding the modal
-        m.querySelectorAll('video, audio').forEach(media => {
-            if (!media.paused) media.pause();
-        });
-
-        // 2. Hide the modal visually
-        m.classList.remove('active');
-        m.style.display = '';
-        m.style.opacity = '';
-    });
-
-    // 3. GHOST KILLER: Wipe the Single Post Modal HTML after it fades out 
-    // This permanently destroys the video element so it can't play in the background
-    const spContainer = document.getElementById('singlePostContainer');
-    if (spContainer) {
-        setTimeout(() => {
-            const spm = document.getElementById('singlePostModal');
-            // Only wipe it if the modal is actually closed
-            if (spm && !spm.classList.contains('active')) {
-                spContainer.innerHTML = '';
-            }
-        }, 300); // 300ms gives your CSS fade-out animation time to finish
-    }
-}
-
 // 4. POST RENDERING (Match Server HTML)
 function renderNewPost(post) {
-    // NEW: Route merch posts to the carousel
+    // 1. ROUTE MERCH POSTS
     if (post.type === 'merch') {
         const storeContainer = document.getElementById('store-carousel-container');
+        const storefrontGrid = document.getElementById('storefront-grid-container');
+
         if (storeContainer) {
+            if (storeContainer.innerHTML.includes("No products available")) storeContainer.innerHTML = '';
             const dummyContainer = document.createElement('div');
             renderMerchCard(post, dummyContainer);
-            // Insert at beginning of carousel
             storeContainer.insertBefore(dummyContainer.firstElementChild, storeContainer.firstChild);
+
+            // FIX: Smooth scroll back to start to reveal the newly appended item!
+            setTimeout(() => {
+                storeContainer.scrollTo({ left: 0, behavior: 'smooth' });
+            }, 50);
+        }
+
+        if (storefrontGrid) {
+            if (storefrontGrid.innerHTML.includes("No products available")) storefrontGrid.innerHTML = '';
+            const dummyContainer = document.createElement('div');
+            renderStorefrontCard(post, dummyContainer);
+            storefrontGrid.insertBefore(dummyContainer.firstElementChild, storefrontGrid.firstChild);
         }
         return;
     }
 
+    // 2. ROUTE PHOTO GALLERY
+    const photoGrid = document.getElementById('photo-gallery-container');
+    if (photoGrid && post.attachments && post.attachments.some(a => a.mediaType === 3)) {
+        if (photoGrid.innerHTML.includes("No images found")) photoGrid.innerHTML = '';
+        const dummyContainer = document.createElement('div');
+        renderPhotoCard(post, dummyContainer);
+        photoGrid.insertBefore(dummyContainer.firstElementChild, photoGrid.firstChild);
+    }
+
+    // 3. ROUTE VIDEO HUB
+    const videoGrid = document.getElementById('video-hub-container');
+    if (videoGrid && post.attachments && post.attachments.some(a => a.mediaType === 2)) {
+        if (videoGrid.innerHTML.includes("No videos found")) videoGrid.innerHTML = '';
+        const dummyContainer = document.createElement('div');
+        renderVideoCard(post, dummyContainer);
+        videoGrid.insertBefore(dummyContainer.firstElementChild, videoGrid.firstChild);
+    }
+
+    // 4. ROUTE STANDARD FEED
     const container = document.getElementById('feed-stream-container');
     if (!container) return;
 
@@ -706,7 +696,6 @@ function renderNewPost(post) {
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);
 
-    // UPDATED: Use TimeAgo helper
     const timeDisplay = (window.timeAgo && post.createdAt)
         ? window.timeAgo(post.createdAt)
         : 'Just now';
@@ -755,7 +744,7 @@ function renderNewPost(post) {
 
             <div class="post-footer">
                 <button class="btn-post-action btn-like" data-id="${post.id}">
-                    <i class="${post.isLiked ? 'fas text-danger' : 'far'} fa-heart"></i> Like ${post.likesCount > 0 ? `(${post.likesCount})` : ''}
+                    <i class="far fa-heart"></i> Like ${post.likesCount > 0 ? `(${post.likesCount})` : ''}
                 </button>
                 <button class="btn-post-action btn-comment-toggle" data-id="${post.id}">
                     <i class="far fa-comment"></i> Comment ${post.commentsCount > 0 ? `(${post.commentsCount})` : ''}
@@ -765,13 +754,10 @@ function renderNewPost(post) {
 
             <div id="comments-${post.id}" class="d-none border-top border-secondary p-3">
                 <div id="comments-list-${post.id}" class="mb-3"></div>
-                
                 <div class="d-flex align-items-center gap-2">
                     <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
                     <div class="comment-input-area">
-                        <input type="text" id="comment-input-${post.id}" 
-                               placeholder="Write a comment..." 
-                               autocomplete="off">
+                        <input type="text" id="comment-input-${post.id}" placeholder="Write a comment..." autocomplete="off">
                         <button class="btn-comment-post" onclick="submitReply('${post.id}', null)">Post</button>
                     </div>
                 </div>
@@ -781,18 +767,12 @@ function renderNewPost(post) {
     const postEl = div.firstElementChild;
     postEl.classList.add('feed-interactive');
 
-    // [FIX] - Click Listener Logic for Menu Closing
     postEl.addEventListener('click', (e) => {
-        // 1. Exclude clickable elements inside the card
         if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
-
-        // 2. [NEW] Check if ANY menu is currently open
-        if (document.querySelector('.post-options-menu.show')) {
-            return;
-        }
+        if (document.querySelector('.post-options-menu.show')) return;
 
         e.preventDefault();
         if (window.FeedService && window.FeedService.openPostModal) {
@@ -815,17 +795,17 @@ function renderAttachments(attachments) {
         html += `<div class="${colClass}">`;
 
         if (media.mediaType === 3) {
-            // IMAGE
             html += `
             <div class="post-media-container">
                 <img src="${media.url}" class="img-fluid full-media" loading="lazy">
             </div>`;
         }
         else if (media.mediaType === 2) {
-            // VIDEO
-            const hasThumb = media.snippetPath && media.snippetPath !== "null";
+            // FIX: Safely retrieve the newly assigned SnippetPath to display thumbnail instantly
+            let sPath = media.snippetPath || media.SnippetPath;
+            const hasThumb = sPath && sPath !== "null";
             const thumbClass = hasThumb ? "thumb-mode" : "";
-            const thumbStyle = hasThumb ? `style="background-image: url('${media.snippetPath.replace(/\\/g, '/')}')"` : "";
+            const thumbStyle = hasThumb ? `style="background-image: url('${sPath.replace(/\\/g, '/')}')"` : "";
             const srcAttr = hasThumb ? `data-src="${media.url}"` : `src="${media.url}"`;
             const videoClass = hasThumb ? "custom-video d-none" : "custom-video";
 
@@ -845,7 +825,6 @@ function renderAttachments(attachments) {
             </div>`;
         }
         else if (media.mediaType === 1) {
-            // AUDIO
             const trackTitle = "Track";
             const trackUrl = media.url;
             html += `
@@ -875,9 +854,7 @@ let activeFileInput = null;
 let activeMediaType = null;
 
 window.handleFileSelect = function (input, type) {
-    // Force input to only allow 1 file by removing 'multiple' attribute if it exists
     input.removeAttribute('multiple');
-
     document.querySelectorAll('input[type="file"]').forEach(el => {
         if (el !== input) el.value = '';
     });
@@ -887,7 +864,6 @@ window.handleFileSelect = function (input, type) {
     const titleInput = document.getElementById('postTitle');
 
     if (input.files && input.files[0]) {
-        // Only take the first file, even if the OS allowed selecting more
         const file = input.files[0];
         activeFileInput = input;
         activeMediaType = type;
@@ -971,8 +947,15 @@ document.addEventListener('submit', async function (e) {
             let attachments = [];
 
             if (hasFile) {
+                let file = activeFileInput.files[0];
+
+                if (activeMediaType === 'image' && window.processImageUpload) {
+                    submitBtn.innerText = "Compressing Image...";
+                    try { file = await window.processImageUpload(file, 1200); }
+                    catch (e) { console.warn("Compression failed", e); }
+                }
+
                 const uploadData = new FormData();
-                const file = activeFileInput.files[0];
                 uploadData.append("file", file);
 
                 let uploadEndpoint = "/api/upload/image";
@@ -1013,7 +996,8 @@ document.addEventListener('submit', async function (e) {
                     attachments.push({
                         MediaId: mediaResult.id,
                         MediaType: mediaResult.type,
-                        Url: mediaResult.url
+                        Url: mediaResult.url,
+                        SnippetPath: mediaResult.snippetPath || mediaResult.SnippetPath || null // FIX: Catch the thumbnail path
                     });
                 } else {
                     const errText = await uploadRes.text();
@@ -1064,7 +1048,6 @@ document.addEventListener('submit', async function (e) {
 // ============================================
 
 document.addEventListener('click', async (e) => {
-    // A. HAMBURGER MENU
     const optBtn = e.target.closest('.btn-post-options');
     if (optBtn) {
         e.stopPropagation();
@@ -1079,7 +1062,6 @@ document.addEventListener('click', async (e) => {
         document.querySelectorAll('.post-options-menu').forEach(el => el.classList.remove('show'));
     }
 
-    // B. LIKE BUTTON
     const likeBtn = e.target.closest('.btn-like');
     if (likeBtn) {
         const postId = likeBtn.dataset.id;
@@ -1087,7 +1069,6 @@ document.addEventListener('click', async (e) => {
             const res = await fetch(`/api/posts/${postId}/like`, { method: "POST", headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
             if (res.ok) {
                 const data = await res.json();
-                // UPDATED: Handle duplicate buttons (modal + feed)
                 const buttons = document.querySelectorAll(`.btn-like[data-id="${postId}"]`);
                 buttons.forEach(btn => {
                     const icon = btn.querySelector('i');
@@ -1101,22 +1082,16 @@ document.addEventListener('click', async (e) => {
         } catch (err) { console.error(err); }
     }
 
-    // C. COMMENT TOGGLE (UPDATED FOR MODAL CONTEXT)
     const commentBtn = e.target.closest('.btn-comment-toggle');
     if (commentBtn) {
         const postId = commentBtn.dataset.id;
-
-        // 1. Find the closest Card to ensure we toggle the correct section
         const card = commentBtn.closest('.post-card');
         if (!card) return;
 
-        // 2. Find the comment section WITHIN this card
         const section = card.querySelector(`#comments-${postId}`);
-
         if (section) {
             section.classList.toggle('d-none');
             if (!section.classList.contains('d-none')) {
-                // 3. Find the container WITHIN this card to load into
                 const listContainer = card.querySelector(`#comments-list-${postId}`);
                 loadComments(postId, listContainer);
             }
@@ -1129,7 +1104,6 @@ document.addEventListener('click', async (e) => {
 // ============================================
 
 async function loadComments(postId, targetContainer = null) {
-    // UPDATED: Use provided container, or fallback to default query (may find background one)
     const container = targetContainer || document.getElementById(`comments-list-${postId}`);
     if (!container) return;
 
@@ -1154,15 +1128,10 @@ function createCommentElement(c) {
     wrapper.id = `comment-${c.commentId}`;
     const picUrl = c.authorPic && c.authorPic !== "null" ? c.authorPic : "/img/profile_default.jpg";
 
-    // UPDATED: Check Ownership
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(c.userId);
-
-    // UPDATED: Use TimeAgo
     const timeDisplay = (window.timeAgo && c.createdAt)
         ? window.timeAgo(c.createdAt)
         : (c.createdAgo || 'Just now');
-
-    // RESTRICTION: Only show the "Reply" button if this is a top-level comment (parentId is null)
     const isTopLevel = !c.parentId;
 
     let html = `
@@ -1218,14 +1187,10 @@ function createCommentElement(c) {
     return wrapper;
 }
 
-// UPDATED: Toggle box based on visibility context
 window.toggleReplyBox = function (id) {
     const boxes = document.querySelectorAll(`#reply-box-${id}`);
     let box = null;
-
-    // 1. Prioritize visible one (e.g., in modal)
     box = [...boxes].find(b => b.offsetParent !== null);
-    // 2. Fallback to any
     if (!box && boxes.length > 0) box = boxes[0];
 
     if (box) {
@@ -1237,15 +1202,12 @@ window.toggleReplyBox = function (id) {
     }
 };
 
-// UPDATED: Find active input (modal vs feed)
 window.submitReply = async function (postId, parentId) {
     const inputId = parentId ? `reply-input-${parentId}` : `comment-input-${postId}`;
     const inputs = document.querySelectorAll(`#${inputId}`);
     let input = null;
 
-    // 1. Find the input that has user text
     input = [...inputs].find(el => el.value && el.value.trim().length > 0);
-    // 2. Or the visible one
     if (!input) input = [...inputs].find(el => el.offsetParent !== null);
 
     if (!input) return;
@@ -1261,15 +1223,10 @@ window.submitReply = async function (postId, parentId) {
         });
         if (res.ok) {
             input.value = '';
-
-            // Hide reply box if it was a reply
             if (parentId) {
-                // Find parent wrapper relative to input
                 const box = input.closest('.reply-input-wrapper');
                 if (box) box.classList.add('d-none');
             }
-
-            // Reload comments in the correct container
             const card = input.closest('.post-card');
             const listContainer = card ? card.querySelector(`#comments-list-${postId}`) : null;
             loadComments(postId, listContainer);
@@ -1285,7 +1242,6 @@ window.loadFeedHistory = async function (contextType, contextId) {
     const container = document.getElementById('feed-stream-container');
     const storeContainer = document.getElementById('store-carousel-container');
 
-    // If neither container exists on this page, abort cleanly
     if (!container && !storeContainer) return;
 
     try {
@@ -1296,7 +1252,6 @@ window.loadFeedHistory = async function (contextType, contextId) {
         if (res.ok) {
             const posts = await res.json();
 
-            // Clear existing elements
             if (container) container.innerHTML = '';
             if (storeContainer) storeContainer.innerHTML = '';
 
@@ -1319,20 +1274,17 @@ window.loadFeedHistory = async function (contextType, contextId) {
 };
 
 function appendHistoricalPost(post, container) {
-    // NEW: Route merch posts to the carousel instead of main feed
     if (post.type === 'merch') {
         const storeContainer = document.getElementById('store-carousel-container');
         if (storeContainer) renderMerchCard(post, storeContainer);
         return;
     }
 
-    // Safety check: If it's a standard post but no feed container exists, skip rendering
     if (!container) return;
 
     const authorPic = post.authorPic && post.authorPic !== "null" ? post.authorPic : "/img/profile_default.jpg";
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(post.authorId);
 
-    // UPDATED: Use TimeAgo
     const timeDisplay = (window.timeAgo && post.createdAt)
         ? window.timeAgo(post.createdAt)
         : (post.createdAgo || 'Just now');
@@ -1403,18 +1355,12 @@ function appendHistoricalPost(post, container) {
     const postEl = div.firstElementChild;
     postEl.classList.add('feed-interactive');
 
-    // [FIX] - Click Listener Logic for Menu Closing
     postEl.addEventListener('click', (e) => {
-        // 1. Exclude clickable elements inside the card
         if (e.target.closest('a, button, input, textarea, .custom-video-wrapper, .post-options-menu, .track-card')) {
             return;
         }
         if (window.getSelection().toString().length > 0) return;
-
-        // 2. [NEW] Check if ANY menu is currently open
-        if (document.querySelector('.post-options-menu.show')) {
-            return;
-        }
+        if (document.querySelector('.post-options-menu.show')) return;
 
         e.preventDefault();
         if (window.FeedService && window.FeedService.openPostModal) {
@@ -1458,7 +1404,6 @@ window.loadAudioPlaylist = async () => {
             const artist = post.authorName || 'Unknown Artist';
             const profileLink = `/creator/${post.authorId}`;
 
-            // UPDATED: Use TimeAgo
             const timeAgo = (window.timeAgo && post.createdAt)
                 ? window.timeAgo(post.createdAt)
                 : (post.createdAgo || 'Just now');
@@ -1596,7 +1541,7 @@ window.processVideoUpload = function (file) {
 // 12. COMMERCE MODAL (Multi-Image Support)
 // ============================================
 
-window.commerceSelectedFiles = []; // Global array to hold multiple files
+window.commerceSelectedFiles = [];
 
 window.openCommerceModal = function (contextType, contextId, postType) {
     document.getElementById('commerceContextType').value = contextType;
@@ -1604,7 +1549,7 @@ window.openCommerceModal = function (contextType, contextId, postType) {
     document.getElementById('commercePostType').value = postType;
 
     document.getElementById('createCommerceForm').reset();
-    window.clearCommerceImages(); // Clears the array and UI
+    window.clearCommerceImages();
 
     const modalEl = document.getElementById('commerceModal');
     if (modalEl) modalEl.classList.add('active');
@@ -1615,18 +1560,15 @@ window.closeCommerceModal = function () {
     if (modalEl) modalEl.classList.remove('active');
 };
 
-// Close modal if user clicks the dark background overlay
 document.addEventListener('click', function (e) {
     if (e.target && e.target.id === 'commerceModal') {
         window.closeCommerceModal();
     }
 });
 
-// Handles file selection and pushes to our custom array
 window.previewCommerceImage = function (input) {
     if (input.files) {
         for (let i = 0; i < input.files.length; i++) {
-            // Optional: Limit to 5 images so they don't crash the UI
             if (window.commerceSelectedFiles.length >= 5) {
                 alert("You can only upload up to 5 images per listing.");
                 break;
@@ -1634,14 +1576,10 @@ window.previewCommerceImage = function (input) {
             window.commerceSelectedFiles.push(input.files[i]);
         }
     }
-
-    // Clear the input value so the same file can be picked again if removed
     input.value = '';
-
     window.renderCommerceImagePreviews();
 };
 
-// Renders the grid of mini-thumbnails
 window.renderCommerceImagePreviews = function () {
     const previewContainer = document.getElementById('commerceImagePreview');
 
@@ -1678,19 +1616,17 @@ window.renderCommerceImagePreviews = function () {
     previewContainer.appendChild(gridDiv);
 };
 
-// Removes a specific image from the array based on its index
 window.removeCommerceImage = function (index) {
     window.commerceSelectedFiles.splice(index, 1);
     window.renderCommerceImagePreviews();
 };
 
-// Completely resets the form's images
 window.clearCommerceImages = function () {
     window.commerceSelectedFiles = [];
     window.renderCommerceImagePreviews();
 };
 
-// Handle Commerce Submission & Batch Uploading
+// Handle Commerce Submission
 document.addEventListener('submit', async function (e) {
     if (e.target && e.target.id === 'createCommerceForm') {
         e.preventDefault();
@@ -1709,12 +1645,19 @@ document.addEventListener('submit', async function (e) {
 
             let attachments = [];
 
-            // Loop through our array and upload them one by one
             for (let i = 0; i < window.commerceSelectedFiles.length; i++) {
+                let file = window.commerceSelectedFiles[i];
+
+                if (file.type.startsWith('image/') && window.processImageUpload) {
+                    submitBtn.innerText = `Compressing Image ${i + 1} of ${window.commerceSelectedFiles.length}...`;
+                    try { file = await window.processImageUpload(file, 1200); }
+                    catch (err) { console.warn("Compression failed", err); }
+                }
+
                 submitBtn.innerText = `Uploading Image ${i + 1} of ${window.commerceSelectedFiles.length}...`;
 
                 const uploadData = new FormData();
-                uploadData.append("file", window.commerceSelectedFiles[i]);
+                uploadData.append("file", file);
 
                 const uploadRes = await fetch("/api/upload/image", {
                     method: 'POST',
@@ -1729,10 +1672,12 @@ document.addEventListener('submit', async function (e) {
 
                 const mediaResult = await uploadRes.json();
 
+                // FIX: Ensure SnippetPath is captured
                 attachments.push({
                     MediaId: mediaResult.id,
                     MediaType: mediaResult.type,
-                    Url: mediaResult.url
+                    Url: mediaResult.url,
+                    SnippetPath: mediaResult.snippetPath || mediaResult.SnippetPath || null
                 });
             }
 
@@ -1748,7 +1693,7 @@ document.addEventListener('submit', async function (e) {
                 Text: document.getElementById('commerceDescription').value.trim(),
                 Price: parseFloat(document.getElementById('commercePrice').value),
                 Quantity: isNaN(parsedQty) ? null : parsedQty,
-                MediaAttachments: attachments // <--- Now passes the entire array of uploaded images!
+                MediaAttachments: attachments
             };
 
             const postRes = await fetch('/api/posts', {
@@ -1764,11 +1709,6 @@ document.addEventListener('submit', async function (e) {
                 window.closeCommerceModal();
                 form.reset();
                 window.clearCommerceImages();
-
-                // Reload the feed if the user is currently looking at it
-                if (window.loadFeedHistory) {
-                    window.loadFeedHistory(payload.ContextType, payload.ContextId);
-                }
             } else {
                 const errText = await postRes.text();
                 alert("Failed to create listing: " + errText);
@@ -1794,7 +1734,6 @@ function renderMerchCard(post, containerToAppend = null) {
     const imageUrl = post.attachments && post.attachments.length > 0 ? post.attachments[0].url : '/img/default_cover.jpg';
     const priceDisplay = post.price != null ? `$${post.price.toFixed(2)}` : 'Free';
 
-    // Quantity display logic
     let qtyText = '';
     let isSoldOut = false;
     if (post.quantity !== null && post.quantity !== undefined) {
@@ -1806,7 +1745,6 @@ function renderMerchCard(post, containerToAppend = null) {
         }
     }
 
-    // Notice the updated structure: .product-card__overlay acts as the transparent container
     const cardHtml = `
       <div class="product-card" id="post-${post.id}">
         <div class="product-card__image">
@@ -1841,8 +1779,6 @@ window.scrollStoreCarousel = function (direction) {
     const track = document.getElementById('store-carousel-container');
     if (!track) return;
 
-    // Calculates the scroll amount: width of one card + the gap (approx 295px)
-    // Multiplied by direction (1 for right, -1 for left)
     const scrollAmount = 295 * direction;
 
     track.scrollBy({
@@ -1863,19 +1799,16 @@ window.toggleInventoryMode = function () {
 
     if (btn) {
         if (window.isInventoryMode) {
-            // Swap to solid yellow warning colors
             btn.style.backgroundColor = '#ffc107';
             btn.style.color = '#000';
             btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
         } else {
-            // Swap back to transparent outline colors
             btn.style.backgroundColor = 'transparent';
             btn.style.color = '#ffc107';
             btn.innerHTML = '<i class="fas fa-boxes"></i> <span>Manage Inventory</span>';
         }
     }
 
-    // Toggle the visibility of all dark edit overlays on the grid cards
     document.querySelectorAll('.storefront-edit-overlay').forEach(el => {
         if (window.isInventoryMode) {
             el.classList.remove('d-none');
@@ -1890,7 +1823,6 @@ window.loadStorefront = async function (userId) {
     if (!container) return;
 
     try {
-        // NOTICE THE NEW postType=merch FILTER WE JUST ADDED TO THE BACKEND!
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
@@ -1931,10 +1863,8 @@ function renderStorefrontCard(post, container) {
         }
     }
 
-    // Reuse your beautiful product card CSS, but stretch it to fill the CSS Grid column
     const div = document.createElement('div');
     div.className = "storefront-card-wrapper position-relative";
-    // FIX: Force strict positioning so the absolute overlay is locked INSIDE this box
     div.style.position = "relative";
     div.style.display = "block";
     div.style.width = "100%";
@@ -2006,7 +1936,6 @@ window.loadPhotoGallery = async function (userId) {
     if (!container) return;
 
     try {
-        // Fetch only posts with mediaType=3 (Images)
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=3`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
@@ -2033,9 +1962,8 @@ window.loadPhotoGallery = async function (userId) {
 };
 
 function renderPhotoCard(post, container) {
-    // Find the image attachment
     const imgAttach = post.attachments && post.attachments.find(a => a.mediaType === 3);
-    if (!imgAttach) return; // Skip if no image found safely
+    if (!imgAttach) return;
 
     const imageUrl = imgAttach.url;
 
@@ -2043,7 +1971,7 @@ function renderPhotoCard(post, container) {
     div.style.position = "relative";
     div.style.display = "block";
     div.style.width = "100%";
-    div.style.aspectRatio = "1 / 1"; // Forces a perfect square like Instagram
+    div.style.aspectRatio = "1 / 1";
     div.style.borderRadius = "8px";
     div.style.overflow = "hidden";
     div.style.backgroundColor = "#111";
@@ -2100,7 +2028,6 @@ window.loadVideoHub = async function (userId) {
     if (!container) return;
 
     try {
-        // Fetch only posts with mediaType=2 (Videos)
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=2`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
@@ -2130,8 +2057,9 @@ function renderVideoCard(post, container) {
     const vidAttach = post.attachments && post.attachments.find(a => a.mediaType === 2);
     if (!vidAttach) return;
 
-    // Handle thumbnail fallback safely
-    const thumbSrc = (vidAttach.snippetPath && vidAttach.snippetPath !== "null") ? vidAttach.snippetPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
+    // FIX: Safely retrieve the newly assigned SnippetPath for video thumbnails
+    let sPath = vidAttach.snippetPath || vidAttach.SnippetPath;
+    const thumbSrc = (sPath && sPath !== "null") ? sPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
     const title = post.title || 'Untitled Video';
 
     const div = document.createElement('div');
