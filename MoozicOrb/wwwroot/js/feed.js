@@ -589,10 +589,18 @@ window.FeedService.submitEdit = async () => {
 
             // 2. CHECK WHICH PAGE WE ARE ON TO RELOAD CORRECTLY
             const storefrontContainer = document.getElementById('storefront-grid-container');
+            const photoContainer = document.getElementById('photo-gallery-container');
+            const videoContainer = document.getElementById('video-hub-container');
 
             if (storefrontContainer && window.loadStorefront) {
                 // SPA SEAMLESS RELOAD: We are on the dedicated Storefront page
                 window.loadStorefront(currentId);
+            } else if (photoContainer && window.loadPhotoGallery) {
+                // SPA SEAMLESS RELOAD: Photo gallery page
+                window.loadPhotoGallery(currentId);
+            } else if (videoContainer && window.loadVideoHub) {
+                // SPA SEAMLESS RELOAD: Video Hub page
+                window.loadVideoHub(currentId);
             } else if (window.loadFeedHistory) {
                 // SPA SEAMLESS RELOAD: We are on the Main Profile / Timeline page
                 window.loadFeedHistory(currentType, currentId);
@@ -727,7 +735,7 @@ function renderNewPost(post) {
 
             <div class="post-footer">
                 <button class="btn-post-action btn-like" data-id="${post.id}">
-                    <i class="far fa-heart"></i> Like ${post.likesCount > 0 ? `(${post.likesCount})` : ''}
+                    <i class="${post.isLiked ? 'fas text-danger' : 'far'} fa-heart"></i> Like ${post.likesCount > 0 ? `(${post.likesCount})` : ''}
                 </button>
                 <button class="btn-post-action btn-comment-toggle" data-id="${post.id}">
                     <i class="far fa-comment"></i> Comment ${post.commentsCount > 0 ? `(${post.commentsCount})` : ''}
@@ -1935,6 +1943,199 @@ function renderStorefrontCard(post, container) {
       <div class="storefront-edit-overlay ${window.isInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; border: 1px solid #ffc107;">
          <button class="btn btn-warning fw-bold" style="width: 75%;" onclick="window.FeedService.openEditModal('${post.id}')">
             <i class="fas fa-edit me-2"></i> Edit Listing
+         </button>
+         <button class="btn btn-danger fw-bold" style="width: 75%;" onclick="window.FeedService.deletePost('${post.id}')">
+            <i class="fas fa-trash me-2"></i> Delete
+         </button>
+      </div>
+    `;
+
+    container.appendChild(div);
+}
+
+// ============================================
+// 16. DEDICATED PHOTO GALLERY
+// ============================================
+
+window.isGalleryInventoryMode = false;
+
+window.toggleGalleryInventoryMode = function () {
+    window.isGalleryInventoryMode = !window.isGalleryInventoryMode;
+    const btn = document.getElementById('btnToggleGalleryInventory');
+
+    if (btn) {
+        if (window.isGalleryInventoryMode) {
+            btn.style.backgroundColor = '#ffc107';
+            btn.style.color = '#000';
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
+        } else {
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = '#ffc107';
+            btn.innerHTML = '<i class="fas fa-tasks"></i> <span>Manage Images</span>';
+        }
+    }
+
+    document.querySelectorAll('.gallery-edit-overlay').forEach(el => {
+        if (window.isGalleryInventoryMode) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+    });
+};
+
+window.loadPhotoGallery = async function (userId) {
+    const container = document.getElementById('photo-gallery-container');
+    if (!container) return;
+
+    try {
+        // Fetch only posts with mediaType=3 (Images)
+        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=3`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (res.ok) {
+            const posts = await res.json();
+            container.innerHTML = '';
+
+            if (posts.length === 0) {
+                container.innerHTML = '<div class="text-center w-100 text-muted p-5" style="grid-column: 1 / -1;"><h3>No images found.</h3><p>Upload some standard posts with images!</p></div>';
+                return;
+            }
+
+            posts.forEach(post => {
+                renderPhotoCard(post, container);
+            });
+        } else {
+            container.innerHTML = '<div class="text-danger text-center w-100 p-3">Failed to load gallery.</div>';
+        }
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="text-danger text-center w-100 p-3">Connection error.</div>';
+    }
+};
+
+function renderPhotoCard(post, container) {
+    // Find the image attachment
+    const imgAttach = post.attachments && post.attachments.find(a => a.mediaType === 3);
+    if (!imgAttach) return; // Skip if no image found safely
+
+    const imageUrl = imgAttach.url;
+
+    const div = document.createElement('div');
+    div.style.position = "relative";
+    div.style.display = "block";
+    div.style.width = "100%";
+    div.style.aspectRatio = "1 / 1"; // Forces a perfect square like Instagram
+    div.style.borderRadius = "8px";
+    div.style.overflow = "hidden";
+    div.style.backgroundColor = "#111";
+
+    div.innerHTML = `
+      <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.3s;" 
+           onmouseover="this.style.transform='scale(1.05)';" 
+           onmouseout="this.style.transform='scale(1)';"
+           onclick="window.FeedService.openPostModal('${post.id}')" alt="Photo">
+      
+      <div class="gallery-edit-overlay ${window.isGalleryInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; border: 1px solid #ffc107;">
+         <button class="btn btn-sm btn-warning fw-bold" style="width: 80%;" onclick="window.FeedService.openEditModal('${post.id}')">
+            <i class="fas fa-edit me-1"></i> Edit
+         </button>
+         <button class="btn btn-sm btn-danger fw-bold" style="width: 80%;" onclick="window.FeedService.deletePost('${post.id}')">
+            <i class="fas fa-trash me-1"></i> Delete
+         </button>
+      </div>
+    `;
+
+    container.appendChild(div);
+}
+
+// ============================================
+// 17. DEDICATED VIDEO HUB
+// ============================================
+
+window.isVideoInventoryMode = false;
+
+window.toggleVideoInventoryMode = function () {
+    window.isVideoInventoryMode = !window.isVideoInventoryMode;
+    const btn = document.getElementById('btnToggleVideoInventory');
+
+    if (btn) {
+        if (window.isVideoInventoryMode) {
+            btn.style.backgroundColor = '#ffc107';
+            btn.style.color = '#000';
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
+        } else {
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = '#ffc107';
+            btn.innerHTML = '<i class="fas fa-tasks"></i> <span>Manage Videos</span>';
+        }
+    }
+
+    document.querySelectorAll('.video-edit-overlay').forEach(el => {
+        if (window.isVideoInventoryMode) el.classList.remove('d-none');
+        else el.classList.add('d-none');
+    });
+};
+
+window.loadVideoHub = async function (userId) {
+    const container = document.getElementById('video-hub-container');
+    if (!container) return;
+
+    try {
+        // Fetch only posts with mediaType=2 (Videos)
+        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=2`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (res.ok) {
+            const posts = await res.json();
+            container.innerHTML = '';
+
+            if (posts.length === 0) {
+                container.innerHTML = '<div class="text-center w-100 text-muted p-5" style="grid-column: 1 / -1;"><h3>No videos found.</h3><p>Upload some videos!</p></div>';
+                return;
+            }
+
+            posts.forEach(post => {
+                renderVideoCard(post, container);
+            });
+        } else {
+            container.innerHTML = '<div class="text-danger text-center w-100 p-3">Failed to load videos.</div>';
+        }
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="text-danger text-center w-100 p-3">Connection error.</div>';
+    }
+};
+
+function renderVideoCard(post, container) {
+    const vidAttach = post.attachments && post.attachments.find(a => a.mediaType === 2);
+    if (!vidAttach) return;
+
+    // Handle thumbnail fallback safely
+    const thumbSrc = (vidAttach.snippetPath && vidAttach.snippetPath !== "null") ? vidAttach.snippetPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
+    const title = post.title || 'Untitled Video';
+
+    const div = document.createElement('div');
+    div.style.position = "relative";
+    div.style.display = "block";
+    div.style.width = "100%";
+    div.style.borderRadius = "8px";
+    div.style.overflow = "hidden";
+    div.style.backgroundColor = "#111";
+    div.style.border = "1px solid #333";
+
+    div.innerHTML = `
+      <div style="width: 100%; aspect-ratio: 16/9; position: relative; cursor: pointer;" onclick="window.FeedService.openPostModal('${post.id}')">
+          <img src="${thumbSrc}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: opacity 0.3s;" onmouseover="this.style.opacity='1';" onmouseout="this.style.opacity='0.8';">
+          <i class="fas fa-play-circle" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 3rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none;"></i>
+      </div>
+      <div style="padding: 12px;">
+          <div style="color: white; font-weight: bold; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
+          <div style="color: #888; font-size: 0.85rem; margin-top: 5px;"><i class="far fa-clock me-1"></i> ${post.createdAgo || 'Recently'}</div>
+      </div>
+      
+      <div class="video-edit-overlay ${window.isVideoInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; border: 1px solid #ffc107;">
+         <button class="btn btn-warning fw-bold" style="width: 75%;" onclick="window.FeedService.openEditModal('${post.id}')">
+            <i class="fas fa-edit me-2"></i> Edit
          </button>
          <button class="btn btn-danger fw-bold" style="width: 75%;" onclick="window.FeedService.deletePost('${post.id}')">
             <i class="fas fa-trash me-2"></i> Delete

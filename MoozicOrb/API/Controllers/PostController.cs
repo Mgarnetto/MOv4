@@ -152,7 +152,8 @@ namespace MoozicOrb.API.Controllers
             [FromQuery] string contextType,
             [FromQuery] string contextId,
             [FromQuery] int page = 1,
-            [FromQuery] string postType = null) // <-- NEW PARAMETER
+            [FromQuery] string postType = null,
+            [FromQuery] int? mediaType = null) // <-- NEW PARAMETER
         {
             try
             {
@@ -170,11 +171,10 @@ namespace MoozicOrb.API.Controllers
                 }
                 else
                 {
-                    // <-- PASS THE POSTTYPE TO IO HERE
-                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType);
+                    // <-- PASS MEDIATYPE TO IO
+                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType, mediaType);
                 }
 
-                // <--- SET VIEWER ID FOR ALL POSTS
                 if (posts != null)
                 {
                     foreach (var p in posts) p.ViewerId = viewerId;

@@ -119,13 +119,31 @@
                 window.loadAudioPlaylist();
             }
 
-            // F. Storefront Loader - NEW
+            // F. Storefront Loader
             const storefrontContainer = document.getElementById("storefront-grid-container");
             const storefrontUserIdEl = document.getElementById("storefront-user-id");
 
             if (storefrontContainer && storefrontUserIdEl && window.loadStorefront) {
                 const userId = storefrontUserIdEl.value;
                 window.loadStorefront(userId);
+            }
+
+            // G. Photo Gallery Loader - NEW
+            const photoContainer = document.getElementById("photo-gallery-container");
+            const galleryUserIdEl = document.getElementById("gallery-user-id");
+
+            if (photoContainer && galleryUserIdEl && window.loadPhotoGallery) {
+                const userId = galleryUserIdEl.value;
+                window.loadPhotoGallery(userId);
+            }
+
+            // H. Video Hub Loader - NEW
+            const videoContainer = document.getElementById("video-hub-container");
+            const videoUserIdEl = document.getElementById("video-user-id");
+
+            if (videoContainer && videoUserIdEl && window.loadVideoHub) {
+                const userId = videoUserIdEl.value;
+                window.loadVideoHub(userId);
             }
 
         } catch (err) {

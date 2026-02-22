@@ -31,23 +31,26 @@ namespace MoozicOrb.IO
             return post;
         }
 
-        // 2. GET FEED (UPDATED WITH POST TYPE FILTER)
-        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null)
+        // 2. GET FEED (UPDATED WITH POST TYPE & MEDIA TYPE FILTERS)
+        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null, int? mediaType = null)
         {
             var results = new List<PostDto>();
             int offset = (page - 1) * pageSize;
             string sql;
 
-            // NEW LOGIC: Inject type filter if provided (e.g., "merch")
+            // Existing post type filter
             string typeFilter = string.IsNullOrEmpty(postType) ? "" : " AND p.post_type = @postType";
+
+            // NEW: Media type filter (1 = Audio, 2 = Video, 3 = Image)
+            string mediaFilter = mediaType.HasValue ? " AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = @mediaType)" : "";
 
             if (contextType == "user" || contextType == "page_profile")
             {
-                sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter}{mediaFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
             else
             {
-                sql = GetBaseSql($"WHERE p.context_type = @ctype AND p.context_id = @cid{typeFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.context_type = @ctype AND p.context_id = @cid{typeFilter}{mediaFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
@@ -61,10 +64,14 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@limit", pageSize);
                     cmd.Parameters.AddWithValue("@offset", offset);
 
-                    // NEW LOGIC: Bind the parameter safely
                     if (!string.IsNullOrEmpty(postType))
                     {
                         cmd.Parameters.AddWithValue("@postType", postType);
+                    }
+
+                    if (mediaType.HasValue)
+                    {
+                        cmd.Parameters.AddWithValue("@mediaType", mediaType.Value);
                     }
 
                     using (var rdr = cmd.ExecuteReader())

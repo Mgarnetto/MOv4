@@ -213,5 +213,61 @@ namespace MoozicOrb.Controllers
             // Fallback for direct browser URL hits (Wrap it in the main layout)
             return RedirectToAction("Index", "Home");
         }
+
+        // ==========================================
+        // 6. Photo Gallery Destination Route (/creator/105/photos)
+        // ==========================================
+        [HttpGet("creator/{id:int}/photos")]
+        public IActionResult PhotoGallery(int id)
+        {
+            var user = _userQuery.GetUserById(id);
+            if (user == null || user.UserId == 0) return NotFound();
+
+            string sid = Request.Headers["X-Session-Id"].ToString();
+            var session = SessionStore.GetSession(sid);
+            bool isMe = ((session?.UserId ?? 0) == id);
+
+            var model = new CreatorViewModel
+            {
+                UserId = user.UserId,
+                DisplayName = user.DisplayName ?? user.UserName,
+                ProfilePic = user.ProfilePic,
+                IsCurrentUser = isMe,
+                SignalRGroup = $"user_{user.UserId}"
+            };
+
+            if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
+                return PartialView("_PhotoGalleryPartial", model);
+
+            return View("PhotoGallery", model);
+        }
+
+        // ==========================================
+        // 7. Video Hub Destination Route (/creator/105/videos)
+        // ==========================================
+        [HttpGet("creator/{id:int}/videos")]
+        public IActionResult VideoHub(int id)
+        {
+            var user = _userQuery.GetUserById(id);
+            if (user == null || user.UserId == 0) return NotFound();
+
+            string sid = Request.Headers["X-Session-Id"].ToString();
+            var session = SessionStore.GetSession(sid);
+            bool isMe = ((session?.UserId ?? 0) == id);
+
+            var model = new CreatorViewModel
+            {
+                UserId = user.UserId,
+                DisplayName = user.DisplayName ?? user.UserName,
+                ProfilePic = user.ProfilePic,
+                IsCurrentUser = isMe,
+                SignalRGroup = $"user_{user.UserId}"
+            };
+
+            if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
+                return PartialView("_VideoHubPartial", model);
+
+            return View("VideoHub", model);
+        }
     }
 }
