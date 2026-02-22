@@ -496,7 +496,7 @@ window.FeedService.submitEdit = async () => {
         if (res.ok) {
             closeAllModals();
 
-            // SPA SEAMLESS RELOAD FIX: Figure out what page context we are on to reload cleanly without hard refresh
+            // 1. Get Context
             let currentType = 'global';
             let currentId = '0';
 
@@ -508,9 +508,17 @@ window.FeedService.submitEdit = async () => {
                 }
             }
 
-            if (window.loadFeedHistory) {
+            // 2. CHECK WHICH PAGE WE ARE ON TO RELOAD CORRECTLY
+            const storefrontContainer = document.getElementById('storefront-grid-container');
+
+            if (storefrontContainer && window.loadStorefront) {
+                // SPA SEAMLESS RELOAD: We are on the dedicated Storefront page
+                window.loadStorefront(currentId);
+            } else if (window.loadFeedHistory) {
+                // SPA SEAMLESS RELOAD: We are on the Main Profile / Timeline page
                 window.loadFeedHistory(currentType, currentId);
             }
+
         } else {
             alert("Update failed.");
         }
@@ -1319,8 +1327,6 @@ function appendHistoricalPost(post, container) {
         if (window.getSelection().toString().length > 0) return;
 
         // 2. [NEW] Check if ANY menu is currently open
-        // If a menu is open, we assume this click was meant to close it (via the document handler).
-        // So we prevent the modal from opening on this specific click.
         if (document.querySelector('.post-options-menu.show')) {
             return;
         }
@@ -1759,3 +1765,125 @@ window.scrollStoreCarousel = function (direction) {
         behavior: 'smooth'
     });
 };
+
+// ============================================
+// 15. DEDICATED STOREFRONT PAGE & INVENTORY MODE
+// ============================================
+
+window.isInventoryMode = false;
+
+window.toggleInventoryMode = function () {
+    window.isInventoryMode = !window.isInventoryMode;
+    const btn = document.getElementById('btnToggleInventory');
+
+    if (btn) {
+        if (window.isInventoryMode) {
+            // Swap to solid yellow warning colors
+            btn.style.backgroundColor = '#ffc107';
+            btn.style.color = '#000';
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
+        } else {
+            // Swap back to transparent outline colors
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = '#ffc107';
+            btn.innerHTML = '<i class="fas fa-boxes"></i> <span>Manage Inventory</span>';
+        }
+    }
+
+    // Toggle the visibility of all dark edit overlays on the grid cards
+    document.querySelectorAll('.storefront-edit-overlay').forEach(el => {
+        if (window.isInventoryMode) {
+            el.classList.remove('d-none');
+        } else {
+            el.classList.add('d-none');
+        }
+    });
+};
+
+window.loadStorefront = async function (userId) {
+    const container = document.getElementById('storefront-grid-container');
+    if (!container) return;
+
+    try {
+        // NOTICE THE NEW postType=merch FILTER WE JUST ADDED TO THE BACKEND!
+        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (res.ok) {
+            const posts = await res.json();
+            container.innerHTML = '';
+
+            if (posts.length === 0) {
+                container.innerHTML = '<div class="text-center w-100 text-muted p-5" style="grid-column: 1 / -1;"><h3>No products available.</h3><p>Check back later!</p></div>';
+                return;
+            }
+
+            posts.forEach(post => {
+                renderStorefrontCard(post, container);
+            });
+        } else {
+            container.innerHTML = '<div class="text-danger text-center w-100 p-3">Failed to load storefront.</div>';
+        }
+    } catch (err) {
+        console.error(err);
+        container.innerHTML = '<div class="text-danger text-center w-100 p-3">Connection error.</div>';
+    }
+};
+
+function renderStorefrontCard(post, container) {
+    const imageUrl = post.attachments && post.attachments.length > 0 ? post.attachments[0].url : '/img/default_cover.jpg';
+    const priceDisplay = post.price != null ? `$${post.price.toFixed(2)}` : 'Free';
+
+    let qtyText = '';
+    let isSoldOut = false;
+    if (post.quantity !== null && post.quantity !== undefined) {
+        if (post.quantity > 0) {
+            qtyText = `${post.quantity} in stock`;
+        } else {
+            qtyText = `<span style="color: #ff4d4d;">Sold Out</span>`;
+            isSoldOut = true;
+        }
+    }
+
+    // Reuse your beautiful product card CSS, but stretch it to fill the CSS Grid column
+    const div = document.createElement('div');
+    div.className = "storefront-card-wrapper position-relative";
+    // FIX: Force strict positioning so the absolute overlay is locked INSIDE this box
+    div.style.position = "relative";
+    div.style.display = "block";
+    div.style.width = "100%";
+    div.style.height = "350px";
+
+    div.innerHTML = `
+      <div class="product-card" style="width: 100%; height: 100%; margin: 0;">
+        <div class="product-card__image">
+          <img src="${imageUrl}" alt="${post.title}">
+        </div>
+        <div class="product-card__overlay">
+          <div class="product-card__name">${post.title || 'Untitled Product'}</div>
+          <div class="product-card__price">
+              ${priceDisplay}
+              <span class="product-card__qty">${qtyText}</span>
+          </div>
+          <div class="product-card__actions">
+            <button class="product-card__add-to-cart" ${isSoldOut ? 'disabled style="opacity:0.5;"' : ''}>
+                ${isSoldOut ? 'Sold Out' : 'Buy Now'}
+            </button>
+            <button class="product-card__view-details" onclick="window.FeedService.openPostModal('${post.id}')">Details</button>
+          </div>
+        </div>
+      </div>
+      
+      <div class="storefront-edit-overlay ${window.isInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10; border-radius: 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; border: 1px solid #ffc107;">
+         <button class="btn btn-warning fw-bold" style="width: 75%;" onclick="window.FeedService.openEditModal('${post.id}')">
+            <i class="fas fa-edit me-2"></i> Edit Listing
+         </button>
+         <button class="btn btn-danger fw-bold" style="width: 75%;" onclick="window.FeedService.deletePost('${post.id}')">
+            <i class="fas fa-trash me-2"></i> Delete
+         </button>
+      </div>
+    `;
+
+    container.appendChild(div);
+}

@@ -70,50 +70,66 @@
             } else {
                 this.rootElement.innerHTML = "<div class='section'><h3>Error loading content.</h3></div>";
                 this.rootElement.style.opacity = "1";
+                this.rootElement.style.pointerEvents = "auto";
             }
         } catch (err) {
             console.error("Router Error:", err);
             this.rootElement.style.opacity = "1";
+            this.rootElement.style.pointerEvents = "auto";
         }
     }
 
     reinitScripts() {
-        // A. Globe
-        if (document.getElementById("chartdiv") && window.initGlobe) {
-            window.initGlobe();
-        }
-
-        // B. Calendar
-        if (document.querySelector(".calendar-box") && window.initCalendar) {
-            window.initCalendar();
-        }
-
-        // C. Settings Pages
-        if (window.location.pathname.includes("/settings") && window.initSettings) {
-            window.initSettings();
-        }
-
-        // D. Social Feed Loader (Standard Cards)
-        const feedContainer = document.getElementById("feed-stream-container");
-        const contextEl = document.getElementById("page-signalr-context");
-
-        if (feedContainer && window.loadFeedHistory && contextEl) {
-            const groupValue = contextEl.value; // e.g., "feed_global" or "user_105"
-
-            if (groupValue === 'feed_global') {
-                window.loadFeedHistory('global', '0');
+        // Wrapped in a try/catch so a failure on one page never breaks the router globally
+        try {
+            // A. Globe
+            if (document.getElementById("chartdiv") && window.initGlobe) {
+                window.initGlobe();
             }
-            else if (groupValue.startsWith('user_')) {
-                const userId = groupValue.split('_')[1];
-                window.loadFeedHistory('user', userId);
-            }
-        }
 
-        // E. Audio Discovery Loader (Playlist) - NEW
-        // Detects if the audio playlist container is present
-        const audioContainer = document.getElementById("audio-feed-list");
-        if (audioContainer && window.loadAudioPlaylist) {
-            window.loadAudioPlaylist();
+            // B. Calendar
+            if (document.querySelector(".calendar-box") && window.initCalendar) {
+                window.initCalendar();
+            }
+
+            // C. Settings Pages
+            if (window.location.pathname.includes("/settings") && window.initSettings) {
+                window.initSettings();
+            }
+
+            // D. Social Feed Loader (Standard Cards)
+            const feedContainer = document.getElementById("feed-stream-container");
+            const contextEl = document.getElementById("page-signalr-context");
+
+            if (feedContainer && window.loadFeedHistory && contextEl) {
+                const groupValue = contextEl.value; // e.g., "feed_global" or "user_105"
+
+                if (groupValue === 'feed_global') {
+                    window.loadFeedHistory('global', '0');
+                }
+                else if (groupValue && groupValue.startsWith('user_')) {
+                    const userId = groupValue.split('_')[1];
+                    window.loadFeedHistory('user', userId);
+                }
+            }
+
+            // E. Audio Discovery Loader (Playlist)
+            const audioContainer = document.getElementById("audio-feed-list");
+            if (audioContainer && window.loadAudioPlaylist) {
+                window.loadAudioPlaylist();
+            }
+
+            // F. Storefront Loader - NEW
+            const storefrontContainer = document.getElementById("storefront-grid-container");
+            const storefrontUserIdEl = document.getElementById("storefront-user-id");
+
+            if (storefrontContainer && storefrontUserIdEl && window.loadStorefront) {
+                const userId = storefrontUserIdEl.value;
+                window.loadStorefront(userId);
+            }
+
+        } catch (err) {
+            console.error("Initialization error in router:", err);
         }
     }
 }

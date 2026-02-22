@@ -31,20 +31,23 @@ namespace MoozicOrb.IO
             return post;
         }
 
-        // 2. GET FEED
-        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20)
+        // 2. GET FEED (UPDATED WITH POST TYPE FILTER)
+        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null)
         {
             var results = new List<PostDto>();
             int offset = (page - 1) * pageSize;
             string sql;
 
+            // NEW LOGIC: Inject type filter if provided (e.g., "merch")
+            string typeFilter = string.IsNullOrEmpty(postType) ? "" : " AND p.post_type = @postType";
+
             if (contextType == "user" || contextType == "page_profile")
             {
-                sql = GetBaseSql("WHERE p.user_id = @cid ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
             else
             {
-                sql = GetBaseSql("WHERE p.context_type = @ctype AND p.context_id = @cid ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.context_type = @ctype AND p.context_id = @cid{typeFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
@@ -57,6 +60,12 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     cmd.Parameters.AddWithValue("@limit", pageSize);
                     cmd.Parameters.AddWithValue("@offset", offset);
+
+                    // NEW LOGIC: Bind the parameter safely
+                    if (!string.IsNullOrEmpty(postType))
+                    {
+                        cmd.Parameters.AddWithValue("@postType", postType);
+                    }
 
                     using (var rdr = cmd.ExecuteReader())
                     {
@@ -171,7 +180,6 @@ namespace MoozicOrb.IO
 
         private string GetBaseSql(string whereClause)
         {
-            // Note: Added p.quantity
             return $@"
                 SELECT 
                     p.post_id, p.user_id, p.context_type, p.context_id,
@@ -186,16 +194,10 @@ namespace MoozicOrb.IO
                 {whereClause}";
         }
 
-        // ==========================================
-        // CRITICAL FIX: Media Attachment Logic
-        // ==========================================
         private void AttachMediaToPosts(MySqlConnection conn, List<PostDto> posts)
         {
             if (posts == null || posts.Count == 0) return;
             var ids = string.Join(",", posts.Select(p => p.Id));
-
-            // FIX: Uses 'vid.thumb_path' (Schema: thumb_path) instead of 'vid.img_path'
-            // FIX: Uses 'aud.snippet_path' (Schema: snippet_path)
 
             string sql = $@"
                 SELECT 
@@ -226,15 +228,14 @@ namespace MoozicOrb.IO
                             string dbPath = rdr["final_url"] == DBNull.Value ? "" : rdr["final_url"].ToString();
                             if (!string.IsNullOrEmpty(dbPath) && !dbPath.StartsWith("/")) dbPath = "/" + dbPath;
 
-                            // LOGIC: If Video, use thumb_url. If Audio, use snippet_url.
                             string extraPath = null;
                             int type = rdr.GetInt32("media_type");
 
-                            if (type == 2) // Video -> Thumbnail
+                            if (type == 2)
                             {
                                 extraPath = rdr["thumb_url"] == DBNull.Value ? null : rdr["thumb_url"].ToString();
                             }
-                            else if (type == 1) // Audio -> Snippet
+                            else if (type == 1)
                             {
                                 extraPath = rdr["snippet_url"] == DBNull.Value ? null : rdr["snippet_url"].ToString();
                             }
@@ -246,7 +247,7 @@ namespace MoozicOrb.IO
                                 MediaId = rdr.GetInt64("media_id"),
                                 MediaType = type,
                                 Url = dbPath,
-                                SnippetPath = extraPath // Mapped correctly
+                                SnippetPath = extraPath
                             });
                         }
                     }
@@ -256,7 +257,6 @@ namespace MoozicOrb.IO
 
         private PostDto MapReaderToDto(MySqlDataReader rdr)
         {
-            // FIX: Explicitly treat MySQL datetime as UTC so TimeAgo works correctly
             var createdAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc);
 
             return new PostDto
@@ -271,20 +271,15 @@ namespace MoozicOrb.IO
                 Title = rdr["title"] == DBNull.Value ? null : rdr["title"].ToString(),
                 Text = rdr["content_text"] == DBNull.Value ? null : rdr["content_text"].ToString(),
                 ImageUrl = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString(),
-
-                // UPDATED: Use the specific UTC kind
                 CreatedAt = createdAt,
-
                 Price = rdr["price"] == DBNull.Value ? null : (decimal?)rdr.GetDecimal("price"),
-                Quantity = rdr["quantity"] == DBNull.Value ? null : (int?)rdr.GetInt32("quantity"), // <-- ADDED QUANTITY
+                Quantity = rdr["quantity"] == DBNull.Value ? null : (int?)rdr.GetInt32("quantity"),
                 LocationLabel = rdr["location_label"] == DBNull.Value ? null : rdr["location_label"].ToString(),
                 DifficultyLevel = rdr["difficulty_level"] == DBNull.Value ? null : rdr["difficulty_level"].ToString(),
                 VideoUrl = rdr["video_url"] == DBNull.Value ? null : rdr["video_url"].ToString(),
                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
                 IsLiked = Convert.ToInt32(rdr["is_liked"]) > 0,
-
-                // UPDATED: Calculate relative time using the UTC object
                 CreatedAgo = TimeAgo(createdAt)
             };
         }

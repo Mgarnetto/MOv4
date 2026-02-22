@@ -116,13 +116,19 @@
                         }
                     else if (layoutItem == "store")
                     {
-                        <div class="mb-3">
-                            <h4 class="section-heading mb-2">Store</h4>
+                        <div style="margin-bottom: 15px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                                <h4 class="section-heading" style="margin: 0;">Store</h4>
+
+                                <a href="/creator/@Model.UserId/store" class="spa-route" style="background-color: transparent; color: #fff; padding: 6px 16px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid #555; transition: background-color 0.2s; display: flex; align-items: center; gap: 5px;">
+                                    Visit my Store <i class="fas fa-arrow-right"></i>
+                                </a>
+                            </div>
 
                             @if (Model.IsCurrentUser)
                             {
-                                <div class="mt-2">
-                                    <button class="commerce-btn-submit" style="font-size: 0.9em; padding: 6px 12px;" onclick="window.openCommerceModal('user', '@Model.UserId', 'merch')">
+                                <div style="margin-top: 10px;">
+                                    <button class="commerce-btn-submit" style="font-size: 0.9em; padding: 6px 12px; margin: 0;" onclick="window.openCommerceModal('user', '@Model.UserId', 'merch')">
                                         <i class="fas fa-plus" style="margin-right: 5px;"></i> Add Product
                                     </button>
                                 </div>

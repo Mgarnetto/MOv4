@@ -176,5 +176,42 @@ namespace MoozicOrb.Controllers
 
             return Ok(new { success });
         }
+
+        // ==========================================
+        // 5. Storefront Destination Route (/creator/105/store)
+        // ==========================================
+        [HttpGet("creator/{id:int}/store")]
+        public IActionResult Storefront(int id)
+        {
+            // 1. Fetch Profile Data (Needed for the header)
+            var user = _userQuery.GetUserById(id);
+            if (user == null || user.UserId == 0) return NotFound();
+
+            // 2. Determine Context
+            string sid = Request.Headers["X-Session-Id"].ToString();
+            var session = SessionStore.GetSession(sid);
+            int currentUserId = session?.UserId ?? 0;
+            bool isMe = (currentUserId == id);
+
+            // 3. Build Model
+            var model = new CreatorViewModel
+            {
+                UserId = user.UserId,
+                DisplayName = user.DisplayName ?? user.UserName,
+                UserName = user.UserName,
+                ProfilePic = user.ProfilePic,
+                IsCurrentUser = isMe,
+                SignalRGroup = $"user_{user.UserId}"
+            };
+
+            // If navigating via JS Router (SPA), return just the partial
+            if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
+            {
+                return PartialView("_StorefrontPartial", model);
+            }
+
+            // Fallback for direct browser URL hits (Wrap it in the main layout)
+            return RedirectToAction("Index", "Home");
+        }
     }
 }

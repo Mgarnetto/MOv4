@@ -151,7 +151,8 @@ namespace MoozicOrb.API.Controllers
         public IActionResult GetPosts(
             [FromQuery] string contextType,
             [FromQuery] string contextId,
-            [FromQuery] int page = 1)
+            [FromQuery] int page = 1,
+            [FromQuery] string postType = null) // <-- NEW PARAMETER
         {
             try
             {
@@ -169,7 +170,8 @@ namespace MoozicOrb.API.Controllers
                 }
                 else
                 {
-                    posts = io.Execute(contextType, contextId, viewerId, page);
+                    // <-- PASS THE POSTTYPE TO IO HERE
+                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType);
                 }
 
                 // <--- SET VIEWER ID FOR ALL POSTS
