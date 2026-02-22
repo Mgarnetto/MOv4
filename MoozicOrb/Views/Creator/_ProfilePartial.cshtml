@@ -121,7 +121,7 @@
                                 <h4 class="section-heading" style="margin: 0;">Store</h4>
 
                                 <a href="/creator/@Model.UserId/store" class="spa-route" style="background-color: transparent; color: #fff; padding: 6px 16px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid #555; transition: background-color 0.2s; display: flex; align-items: center; gap: 5px;">
-                                    Visit my Store <i class="fas fa-arrow-right"></i>
+                                    Visit My Store <i class="fas fa-arrow-right"></i>
                                 </a>
                             </div>
 
@@ -154,36 +154,46 @@
     </div>
 
     <aside class="side-column">
-        @* <div class="widget-card">
-            <h5 class="widget-title">About</h5>
-            <p class="widget-text text-muted">
-                @(string.IsNullOrEmpty(Model.Bio) ? "No bio information provided." : Model.Bio)
-            </p>
-            <div class="separator my-3" style="background: #333;"></div>
-            <div class="text-muted small">
-                <i class="far fa-calendar-alt me-2 text-accent"></i> Joined Jan 2026
-            </div>
-        </div> *@
 
         <div class="widget-card">
-            <h5 class="widget-title mb-3">Network</h5>
-            <div class="d-flex justify-content-between text-center mb-3">
-                <div>
-                    <strong id="profile-stat-followers" class="d-block text-white fs-5">@Model.FollowersCount</strong>
-                    <span class="text-muted small">Followers</span>
+            <h5 class="widget-title mb-3">Creator Details</h5>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    @if (!string.IsNullOrEmpty(Model.PrimaryRole))
+                    {
+                        <span style="background: #00AEEF; color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                            @Model.PrimaryRole
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.SecondaryRole))
+                    {
+                        <span style="background: #333; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #555; text-align: center;">
+                            @Model.SecondaryRole
+                        </span>
+                    }
                 </div>
-                <div>
-                    <strong id="profile-stat-following" class="d-block text-white fs-5">@Model.FollowingCount</strong>
-                    <span class="text-muted small">Following</span>
+
+                <div style="display: flex; flex-direction: column; gap: 12px; text-align: right;">
+                    <div>
+                        <strong id="profile-stat-followers" class="d-block text-white fs-5" style="line-height: 1;">@Model.FollowersCount</strong>
+                        <span class="text-muted small" style="text-transform: uppercase; font-weight: bold; font-size: 0.75rem;">Followers</span>
+                    </div>
+                    <div>
+                        <strong id="profile-stat-following" class="d-block text-white fs-5" style="line-height: 1;">@Model.FollowingCount</strong>
+                        <span class="text-muted small" style="text-transform: uppercase; font-weight: bold; font-size: 0.75rem;">Following</span>
+                    </div>
                 </div>
-                <div>
-                    Joined Jan 2026
-                </div>
+
+            </div>
+
+            <div class="text-center text-muted small pt-2" style="border-top: 1px solid #333;">
+                Joined Jan 2026
             </div>
         </div>
 
         <div style="display: flex; gap: 15px; margin-top: 15px; margin-bottom: 20px;">
-
             <a href="/creator/@Model.UserId/photos" class="spa-route" style="flex: 1; height: 75px; background: #1a1a1a; border: 1px solid #333; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; text-decoration: none; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"
                onmouseover="this.style.background='#222'; this.style.borderColor='#00AEEF'; this.style.transform='translateY(-2px)';"
                onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333'; this.style.transform='translateY(0)';">
@@ -197,7 +207,6 @@
                 <i class="fas fa-video" style="font-size: 1.6rem; margin-bottom: 5px; color: #00AEEF;"></i>
                 <span style="font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.5px;">Videos</span>
             </a>
-
         </div>
     </aside>
 </div>

@@ -90,7 +90,9 @@ namespace MoozicOrb.Controllers
                 // NEW DATA
                 FollowersCount = counts.Followers,
                 FollowingCount = counts.Following,
-                IsFollowing = isFollowing
+                IsFollowing = isFollowing,
+                PrimaryRole = user.AccountTypePrimaryName,
+                SecondaryRole = user.AccountTypeSecondaryName
             };
 
             if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")

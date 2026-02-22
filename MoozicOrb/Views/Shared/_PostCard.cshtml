@@ -1,152 +1,244 @@
 ﻿@using MoozicOrb.API.Models
 @model PostDto
 
-<div class="post-card" id="post-@Model.Id">
+@if (Model.Type == "merch")
+{
+    <div class="post-card merch-post-card" id="post-@Model.Id" style="padding: 0; background: transparent; border: none; box-shadow: none;">
+        <div style="display: flex; flex-wrap: wrap; background: #1a1a1a; border-radius: 12px; overflow: hidden; border: 1px solid #333; min-height: 400px; width: 100%;">
 
-    <div class="post-header">
-        <div class="d-flex align-items-center">
-            <a href="/creator/@Model.AuthorId" class="post-avatar-link">
-                <img src="@(string.IsNullOrEmpty(Model.AuthorPic) ? "/img/profile_default.jpg" : Model.AuthorPic)"
-                     class="post-avatar-img"
-                     alt="@Model.AuthorName"
-                     onerror="this.src='/img/profile_default.jpg'">
-            </a>
+            <div style="flex: 1 1 50%; min-width: 300px; background: #050505; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px;">
 
-            <div class="post-info-col">
-                <div class="d-flex align-items-center gap-2">
-                    <a href="/creator/@Model.AuthorId" class="post-author-name">@Model.AuthorName</a>
+                <div style="width: 100%; height: 350px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+                    <img id="main-merch-img-@Model.Id"
+                         src="@(Model.Attachments != null && Model.Attachments.Any() ? Model.Attachments.First().Url : "/img/default_cover.jpg")"
+                         style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px;" />
                 </div>
-                <div class="post-meta-line">
-                    <span class="live-timestamp" data-utc="@Model.CreatedAt.ToString("o")">
-                        @Model.CreatedAgo
-                    </span>
-                </div>
-            </div>
-        </div>
 
-        <div class="ms-auto position-relative">
-            <button class="btn btn-link text-muted p-0 btn-post-options" type="button">
-                <i class="fas fa-ellipsis-h"></i>
-            </button>
-            <ul class="post-options-menu">
-                <li><a href="#"><i class="fas fa-flag me-2"></i> Report Post</a></li>
-                <li><a href="#"><i class="fas fa-link me-2"></i> Copy Link</a></li>
-                @if (Model.AuthorId == Model.ViewerId)
+                @if (Model.Attachments != null && Model.Attachments.Count(a => a.MediaType == 3) > 1)
                 {
-                    <li>
-                        <a href="#" class="dropdown-item" onclick="window.FeedService.openEditModal(@Model.Id); return false;">
-                            <i class="fas fa-edit me-2"></i> Edit
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" class="dropdown-item text-danger" onclick="window.FeedService.deletePost(@Model.Id); return false;">
-                            <i class="fas fa-trash me-2"></i> Delete
-                        </a>
-                    </li>
-                }
-            </ul>
-        </div>
-    </div>
-
-    <div class="post-body">
-        @if (!string.IsNullOrEmpty(Model.Title))
-        {
-            <h5 class="post-title">@Model.Title</h5>
-        }
-        @if (!string.IsNullOrEmpty(Model.Text))
-        {
-            <div class="post-text text-break">@Html.Raw(Model.Text)</div>
-        }
-
-        @if (Model.Attachments != null && Model.Attachments.Count > 0)
-        {
-            <div class="row g-2 mt-3">
-                @foreach (var media in Model.Attachments)
-                {
-                    var colClass = Model.Attachments.Count == 1 ? "col-12" : "col-6";
-                    <div class="@colClass">
-                        @if (media.MediaType == 3) // IMAGE
+                    <div style="display: flex; gap: 10px; overflow-x: auto; max-width: 100%; padding-bottom: 5px;">
+                        @foreach (var img in Model.Attachments.Where(a => a.MediaType == 3))
                         {
-                            <div class="post-media-container">
-                                <img src="@media.Url" class="img-fluid full-media" loading="lazy">
-                            </div>
-                        }
-                        else if (media.MediaType == 2) // VIDEO (CUSTOM PLAYER)
-                        {
-                            <div class="custom-video-wrapper">
-                                <video src="@media.Url" class="custom-video" preload="metadata"></video>
-
-                                <div class="video-overlay-play">
-                                    <i class="fas fa-play"></i>
-                                </div>
-
-                                <div class="video-controls">
-                                    <button class="v-btn v-play-toggle"><i class="fas fa-play"></i></button>
-
-                                    <div class="v-progress-container">
-                                        <div class="v-progress-fill"></div>
-                                    </div>
-
-                                    <button class="v-btn v-fullscreen-toggle"><i class="fas fa-expand"></i></button>
-                                </div>
-                            </div>
-                        }
-                        else if (media.MediaType == 1) // AUDIO (Track Card)
-                        {
-                            var trackTitle = !string.IsNullOrEmpty(Model.Title) ? Model.Title : "Untitled Track";
-
-                            <div class="track-card">
-                                <button class="btn-track-play"
-                                        onclick="window.AudioPlayer.playTrack('@media.Url', { title: '@trackTitle', artist: '@Model.AuthorName' })">
-                                    <i class="fas fa-play"></i>
-                                </button>
-                                <div class="track-info">
-                                    <div class="track-title">@trackTitle</div>
-                                    <div class="track-artist">@Model.AuthorName</div>
-                                </div>
-                                <div class="track-wave">
-                                    <span></span><span></span><span></span><span></span><span></span>
-                                </div>
-                            </div>
+                            <img src="@img.Url"
+                                 style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s;"
+                                 onmouseover="this.style.borderColor='#00AEEF'"
+                                 onmouseout="this.style.borderColor='transparent'"
+                                 onclick="document.getElementById('main-merch-img-@Model.Id').src = this.src;" />
                         }
                     </div>
                 }
             </div>
-        }
-    </div>
 
-    <div class="post-footer">
-        <button class="btn-post-action btn-like" data-id="@Model.Id">
-            @if (Model.IsLiked)
-            {
-                <i class="fas fa-heart text-danger"></i>
-            }
-            else
-            {
-                <i class="far fa-heart"></i>
-            }
-            Like @(Model.LikesCount > 0 ? $"({Model.LikesCount})" : "")
-        </button>
-        <button class="btn-post-action btn-comment-toggle" data-id="@Model.Id">
-            <i class="far fa-comment"></i> Comment @(Model.CommentsCount > 0 ? $"({Model.CommentsCount})" : "")
-        </button>
-        <button class="btn-post-action"><i class="far fa-share-square"></i> Share</button>
-    </div>
+            <div style="flex: 1 1 50%; min-width: 300px; padding: 35px; display: flex; flex-direction: column; justify-content: flex-start;">
 
-    <div id="comments-@Model.Id" class="d-none border-top border-secondary p-3">
-        @* The comments list container handles the Parent/Child hierarchy visualization via JS *@
-        <div id="comments-list-@Model.Id" class="mb-3"></div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="@(string.IsNullOrEmpty(Model.AuthorPic) ? "/img/profile_default.jpg" : Model.AuthorPic)" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover;" />
+                        <a href="/creator/@Model.AuthorId" class="spa-route" style="color: #00AEEF; text-decoration: none; font-weight: bold; font-size: 1.1rem;">@Model.AuthorName</a>
+                    </div>
 
-        <div class="d-flex align-items-center gap-2">
-            <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+                    <div class="position-relative">
+                        <button class="btn btn-link text-muted p-0 btn-post-options" type="button">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </button>
+                        <ul class="post-options-menu">
+                            <li><a href="#"><i class="fas fa-flag me-2"></i> Report Post</a></li>
+                            <li><a href="#"><i class="fas fa-link me-2"></i> Copy Link</a></li>
+                            @if (Model.AuthorId == Model.ViewerId)
+                            {
+                                <li>
+                                    <a href="#" class="dropdown-item" onclick="window.FeedService.openEditModal(@Model.Id); return false;">
+                                        <i class="fas fa-edit me-2"></i> Edit Listing
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="#" class="dropdown-item text-danger" onclick="window.FeedService.deletePost(@Model.Id); return false;">
+                                        <i class="fas fa-trash me-2"></i> Delete
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
 
-            <div class="comment-input-area">
-                <input type="text" id="comment-input-@Model.Id"
-                       placeholder="Write a comment..."
-                       autocomplete="off">
-                @* Passing 'null' as the second parameter ensures this button only creates Parent comments *@
-                <button class="btn-comment-post" onclick="submitReply(@Model.Id, null)">Post</button>
+                <h2 style="margin: 0 0 10px 0; color: #fff; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 2.2rem; line-height: 1.2;">
+                    @(Model.Title ?? "Untitled Product")
+                </h2>
+                <h3 style="margin: 0 0 20px 0; color: #28a745; font-weight: bold; font-size: 1.6rem;">
+                    @(Model.Price.HasValue ? $"${Model.Price.Value:F2}" : "Free")
+                </h3>
+
+                <div style="color: #bbb; line-height: 1.6; margin-bottom: 30px; flex-grow: 1; font-size: 1rem; border-top: 1px solid #333; padding-top: 20px;">
+                    @Html.Raw(Model.Text)
+                </div>
+
+                <div style="margin-top: auto;">
+                    <button style="width: 100%; background: #00AEEF; color: #000; border: none; padding: 15px; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: background 0.2s;"
+                            @(Model.Quantity.HasValue && Model.Quantity.Value <= 0 ? "disabled style='opacity:0.5; cursor:not-allowed; background:#555; color:#fff;'" : "onmouseover=\"this.style.background='#008ac0';\" onmouseout=\"this.style.background='#00AEEF';\"")>
+                        <i class="fas fa-shopping-cart" style="margin-right: 8px;"></i>
+                        @(Model.Quantity.HasValue && Model.Quantity.Value <= 0 ? "Sold Out" : "Add to Cart")
+                    </button>
+
+                    @if (Model.Quantity.HasValue)
+                    {
+                        <div style="text-align: center; margin-top: 12px; font-size: 0.95rem; font-weight: bold; color: @(Model.Quantity.Value > 0 ? "#888" : "#ff4d4d");">
+                            @(Model.Quantity.Value > 0 ? $"{Model.Quantity.Value} items in stock" : "Currently unavailable")
+                        </div>
+                    }
+                </div>
             </div>
         </div>
     </div>
-</div>
+}
+else
+{
+    <div class="post-card" id="post-@Model.Id">
+
+        <div class="post-header">
+            <div class="d-flex align-items-center">
+                <a href="/creator/@Model.AuthorId" class="post-avatar-link">
+                    <img src="@(string.IsNullOrEmpty(Model.AuthorPic) ? "/img/profile_default.jpg" : Model.AuthorPic)"
+                         class="post-avatar-img"
+                         alt="@Model.AuthorName"
+                         onerror="this.src='/img/profile_default.jpg'">
+                </a>
+
+                <div class="post-info-col">
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="/creator/@Model.AuthorId" class="post-author-name">@Model.AuthorName</a>
+                    </div>
+                    <div class="post-meta-line">
+                        <span class="live-timestamp" data-utc="@Model.CreatedAt.ToString("o")">
+                            @Model.CreatedAgo
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ms-auto position-relative">
+                <button class="btn btn-link text-muted p-0 btn-post-options" type="button">
+                    <i class="fas fa-ellipsis-h"></i>
+                </button>
+                <ul class="post-options-menu">
+                    <li><a href="#"><i class="fas fa-flag me-2"></i> Report Post</a></li>
+                    <li><a href="#"><i class="fas fa-link me-2"></i> Copy Link</a></li>
+                    @if (Model.AuthorId == Model.ViewerId)
+                    {
+                        <li>
+                            <a href="#" class="dropdown-item" onclick="window.FeedService.openEditModal(@Model.Id); return false;">
+                                <i class="fas fa-edit me-2"></i> Edit
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="dropdown-item text-danger" onclick="window.FeedService.deletePost(@Model.Id); return false;">
+                                <i class="fas fa-trash me-2"></i> Delete
+                            </a>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        <div class="post-body">
+            @if (!string.IsNullOrEmpty(Model.Title))
+            {
+                <h5 class="post-title">@Model.Title</h5>
+            }
+            @if (!string.IsNullOrEmpty(Model.Text))
+            {
+                <div class="post-text text-break">@Html.Raw(Model.Text)</div>
+            }
+
+            @if (Model.Attachments != null && Model.Attachments.Count > 0)
+            {
+                <div class="row g-2 mt-3">
+                    @foreach (var media in Model.Attachments)
+                    {
+                        var colClass = Model.Attachments.Count == 1 ? "col-12" : "col-6";
+                        <div class="@colClass">
+                            @if (media.MediaType == 3) // IMAGE
+                            {
+                                <div class="post-media-container">
+                                    <img src="@media.Url" class="img-fluid full-media" loading="lazy">
+                                </div>
+                            }
+                            else if (media.MediaType == 2) // VIDEO (CUSTOM PLAYER)
+                            {
+                                <div class="custom-video-wrapper">
+                                    <video src="@media.Url" class="custom-video" preload="metadata"></video>
+
+                                    <div class="video-overlay-play">
+                                        <i class="fas fa-play"></i>
+                                    </div>
+
+                                    <div class="video-controls">
+                                        <button class="v-btn v-play-toggle"><i class="fas fa-play"></i></button>
+
+                                        <div class="v-progress-container">
+                                            <div class="v-progress-fill"></div>
+                                        </div>
+
+                                        <button class="v-btn v-fullscreen-toggle"><i class="fas fa-expand"></i></button>
+                                    </div>
+                                </div>
+                            }
+                            else if (media.MediaType == 1) // AUDIO (Track Card)
+                            {
+                                var trackTitle = !string.IsNullOrEmpty(Model.Title) ? Model.Title : "Untitled Track";
+
+                                <div class="track-card">
+                                    <button class="btn-track-play"
+                                            onclick="window.AudioPlayer.playTrack('@media.Url', { title: '@trackTitle', artist: '@Model.AuthorName' })">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <div class="track-info">
+                                        <div class="track-title">@trackTitle</div>
+                                        <div class="track-artist">@Model.AuthorName</div>
+                                    </div>
+                                    <div class="track-wave">
+                                        <span></span><span></span><span></span><span></span><span></span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="post-footer">
+            <button class="btn-post-action btn-like" data-id="@Model.Id">
+                @if (Model.IsLiked)
+                {
+                    <i class="fas fa-heart text-danger"></i>
+                }
+                else
+                {
+                    <i class="far fa-heart"></i>
+                }
+                Like @(Model.LikesCount > 0 ? $"({Model.LikesCount})" : "")
+            </button>
+            <button class="btn-post-action btn-comment-toggle" data-id="@Model.Id">
+                <i class="far fa-comment"></i> Comment @(Model.CommentsCount > 0 ? $"({Model.CommentsCount})" : "")
+            </button>
+            <button class="btn-post-action"><i class="far fa-share-square"></i> Share</button>
+        </div>
+
+        <div id="comments-@Model.Id" class="d-none border-top border-secondary p-3">
+            @* The comments list container handles the Parent/Child hierarchy visualization via JS *@
+            <div id="comments-list-@Model.Id" class="mb-3"></div>
+
+            <div class="d-flex align-items-center gap-2">
+                <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+
+                <div class="comment-input-area">
+                    <input type="text" id="comment-input-@Model.Id"
+                           placeholder="Write a comment..."
+                           autocomplete="off">
+                    @* Passing 'null' as the second parameter ensures this button only creates Parent comments *@
+                    <button class="btn-comment-post" onclick="submitReply(@Model.Id, null)">Post</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

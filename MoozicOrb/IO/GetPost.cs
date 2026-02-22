@@ -42,7 +42,18 @@ namespace MoozicOrb.IO
             string typeFilter = string.IsNullOrEmpty(postType) ? "" : " AND p.post_type = @postType";
 
             // NEW: Media type filter (1 = Audio, 2 = Video, 3 = Image)
-            string mediaFilter = mediaType.HasValue ? " AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = @mediaType)" : "";
+            // NEW: Media type filter (1 = Audio, 2 = Video, 3 = Image)
+            string mediaFilter = "";
+            if (mediaType.HasValue)
+            {
+                mediaFilter = " AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = @mediaType)";
+
+                // STRICT FIX: If we are specifically asking for the Photo/Video gallery, ban 'merch' posts
+                if (string.IsNullOrEmpty(postType))
+                {
+                    mediaFilter += " AND p.post_type != 'merch'";
+                }
+            }
 
             if (contextType == "user" || contextType == "page_profile")
             {

@@ -46,6 +46,8 @@ namespace MoozicOrb.Models
         public int FollowersCount { get; set; }
         public int FollowingCount { get; set; }
         public bool IsFollowing { get; set; } // True if the Viewer follows this Creator
+        public string PrimaryRole { get; set; }
+        public string SecondaryRole { get; set; }
     }
 
     public class PageViewModel : BaseSignalRViewModel
