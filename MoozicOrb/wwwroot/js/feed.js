@@ -256,27 +256,33 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 window.editSelectedFiles = []; // Track new files being added
 window.currentEditPostType = 'standard'; // Track what we are editing to enforce rules
 window.currentEditExistingImagesCount = 0; // Track how many DB images it already has
+window.pendingMediaDeletions = []; // Track items to delete on save
 
 // HELPER: Controls visibility of the file input based on strict constraints
 window.checkEditImageLimit = function () {
     const input = document.getElementById('editImageInput');
     if (!input) return;
 
+    const label = input.previousElementSibling;
     const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
     if (window.currentEditPostType !== 'merch') {
         input.removeAttribute('multiple'); // Standard posts: 1 at a time
         if (total >= 1) {
             input.style.display = 'none'; // Completely hide if they hit the 1 limit
+            if (label) label.style.display = 'none';
         } else {
             input.style.display = 'block';
+            if (label) label.style.display = 'block';
         }
     } else {
         input.setAttribute('multiple', 'multiple'); // Merch: Multi-select allowed
         if (total >= 5) {
             input.style.display = 'none';
+            if (label) label.style.display = 'none';
         } else {
             input.style.display = 'block';
+            if (label) label.style.display = 'block';
         }
     }
 };
@@ -296,6 +302,7 @@ window.FeedService.openEditModal = async (id) => {
         window.editSelectedFiles = [];
         window.currentEditPostType = 'standard';
         window.currentEditExistingImagesCount = 0;
+        window.pendingMediaDeletions = []; // Reset queue
 
         const preview = document.getElementById('editImagePreview');
         if (preview) preview.innerHTML = '';
@@ -328,39 +335,55 @@ window.FeedService.openEditModal = async (id) => {
             }
         }
 
-        // 5. Populate the Images Grid with fixed Delete Badges
+        // 5. Populate the Media Grid with fixed Delete Badges (UPDATED FOR ALL MEDIA)
         const mediaContainer = document.getElementById('editMediaList');
         if (mediaContainer) {
-            mediaContainer.innerHTML = ''; // Clear old images
+            mediaContainer.innerHTML = ''; // Clear old media
 
             if (post.attachments && post.attachments.length > 0) {
-                // Filter to only show Images (mediaType === 3)
-                const images = post.attachments.filter(m => m.mediaType === 3);
-                window.currentEditExistingImagesCount = images.length; // Track existing count
+                // Track total existing media attachments
+                window.currentEditExistingImagesCount = post.attachments.length;
 
-                if (images.length > 0) {
-                    images.forEach(m => {
-                        const div = document.createElement('div');
-                        // Use inline styles to create the positioning anchor
-                        div.style.position = 'relative';
-                        div.style.display = 'inline-block';
-                        div.style.margin = '10px 15px 10px 0'; // Give breathing room for the badge
+                post.attachments.forEach(m => {
+                    const div = document.createElement('div');
+                    div.style.position = 'relative';
+                    div.style.display = 'inline-block';
+                    div.style.margin = '10px 15px 10px 0';
 
-                        div.innerHTML = `
-                            <img src="${m.url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #444;">
-                            
-                            <button type="button" onclick="window.deleteMedia('${post.id}', '${m.mediaId}', this)" 
-                                    style="position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: 2px solid #1a1a1a; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 10; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                                &times;
-                            </button>
-                        `;
-                        mediaContainer.appendChild(div);
-                    });
-                } else {
-                    mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
-                }
+                    let mediaThumbnail = '';
+
+                    if (m.mediaType === 3) {
+                        // IMAGE: Standard render
+                        mediaThumbnail = `<img src="${m.url}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 1px solid #444;">`;
+                    }
+                    else if (m.mediaType === 2) {
+                        // VIDEO: Use snippet path as thumbnail, layer a video icon over it
+                        const thumbSrc = (m.snippetPath && m.snippetPath !== "null") ? m.snippetPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
+                        mediaThumbnail = `
+                            <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #444; position: relative; overflow: hidden; background: #000;">
+                                <img src="${thumbSrc}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.5;">
+                                <i class="fas fa-video" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);"></i>
+                            </div>`;
+                    }
+                    else if (m.mediaType === 1) {
+                        // AUDIO: Render a sleek box with a music icon
+                        mediaThumbnail = `
+                            <div style="width: 80px; height: 80px; border-radius: 8px; border: 1px solid #444; background: #1a1a1a; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-music text-warning" style="font-size: 24px;"></i>
+                            </div>`;
+                    }
+
+                    div.innerHTML = `
+                        ${mediaThumbnail}
+                        <button type="button" onclick="window.deleteMedia('${post.id}', '${m.mediaId}', this)" 
+                                style="position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: 2px solid #1a1a1a; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 10; padding: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
+                            &times;
+                        </button>
+                    `;
+                    mediaContainer.appendChild(div);
+                });
             } else {
-                mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
+                mediaContainer.innerHTML = '<span class="text-muted small">No media attached.</span>';
             }
         }
 
@@ -384,7 +407,7 @@ window.previewEditImage = function (input) {
             const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
             if (window.currentEditPostType !== 'merch' && total >= 1) {
-                alert("Standard posts can only have 1 image limit.");
+                alert("Standard posts can only have 1 media file limit.");
                 break;
             }
             if (window.currentEditPostType === 'merch' && total >= 5) {
@@ -411,8 +434,27 @@ window.renderEditImagePreviews = function () {
         wrapper.style.display = 'inline-block';
         wrapper.style.margin = '10px 15px 10px 0';
 
+        let previewHtml = '';
+
+        if (file.type.startsWith('video/')) {
+            // Render a dark box with a video icon for new video files
+            previewHtml = `
+                <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #000; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-video text-white" style="font-size: 24px;"></i>
+                </div>`;
+        } else if (file.type.startsWith('audio/')) {
+            // Render a dark box with a music icon for new audio files
+            previewHtml = `
+                <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #1a1a1a; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-music text-warning" style="font-size: 24px;"></i>
+                </div>`;
+        } else {
+            // Standard image preview
+            previewHtml = `<img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">`;
+        }
+
         wrapper.innerHTML = `
-            <img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">
+            ${previewHtml}
             <button type="button" onclick="window.removeEditImage(${index})" 
                     style="position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: 2px solid #1a1a1a; border-radius: 50%; width: 26px; height: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: bold; z-index: 10; padding: 0;">
                 &times;
@@ -421,7 +463,6 @@ window.renderEditImagePreviews = function () {
         previewContainer.appendChild(wrapper);
     });
 };
-
 window.removeEditImage = function (index) {
     window.editSelectedFiles.splice(index, 1);
     window.renderEditImagePreviews();
@@ -448,22 +489,60 @@ window.FeedService.submitEdit = async () => {
             parsedQty = rawQty ? parseInt(rawQty) : null;
         }
 
+        // --- PROCESS DELETIONS FIRST ---
+        if (window.pendingMediaDeletions && window.pendingMediaDeletions.length > 0) {
+            for (let i = 0; i < window.pendingMediaDeletions.length; i++) {
+                btn.innerText = `Removing old media...`;
+                await fetch(`/api/posts/${id}/media/${window.pendingMediaDeletions[i]}`, {
+                    method: 'DELETE',
+                    headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+                });
+            }
+        }
+
         let newAttachments = [];
 
-        // Upload new images sequentially
+        // --- UPLOAD NEW MEDIA SEQUENTIALLY (WITH AUDIO/VIDEO SUPPORT) ---
         if (window.editSelectedFiles.length > 0) {
             for (let i = 0; i < window.editSelectedFiles.length; i++) {
-                btn.innerText = `Uploading Image ${i + 1}...`;
+                const file = window.editSelectedFiles[i];
                 const uploadData = new FormData();
-                uploadData.append("file", window.editSelectedFiles[i]);
+                uploadData.append("file", file);
 
-                const uploadRes = await fetch("/api/upload/image", {
+                let uploadEndpoint = "/api/upload/image";
+
+                if (file.type.startsWith('video/')) {
+                    btn.innerText = `Processing Video ${i + 1}...`;
+                    uploadEndpoint = "/api/upload/video";
+                    try {
+                        const meta = await window.processVideoUpload(file);
+                        if (meta.thumbnailBlob) {
+                            uploadData.append("thumbnail", meta.thumbnailBlob, "thumbnail.jpg");
+                        }
+                        uploadData.append("duration", meta.duration);
+                        uploadData.append("width", meta.width);
+                        uploadData.append("height", meta.height);
+                    } catch (videoErr) {
+                        console.warn("Video Client Processing Failed", videoErr);
+                    }
+                    btn.innerText = `Uploading Video ${i + 1}...`;
+                }
+                else if (file.type.startsWith('audio/')) {
+                    btn.innerText = `Uploading Audio ${i + 1}...`;
+                    uploadEndpoint = "/api/upload/audio";
+                }
+                else {
+                    btn.innerText = `Uploading Image ${i + 1}...`;
+                    uploadEndpoint = "/api/upload/image";
+                }
+
+                const uploadRes = await fetch(uploadEndpoint, {
                     method: 'POST',
                     headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
                     body: uploadData
                 });
 
-                if (!uploadRes.ok) throw new Error(`Upload failed for image ${i + 1}`);
+                if (!uploadRes.ok) throw new Error(`Upload failed for media ${i + 1}`);
                 const mediaResult = await uploadRes.json();
 
                 newAttachments.push({
@@ -481,7 +560,7 @@ window.FeedService.submitEdit = async () => {
             Text: document.getElementById('editPostText').value,
             Price: parsedPrice,
             Quantity: isNaN(parsedQty) ? null : parsedQty,
-            MediaAttachments: newAttachments // Send the array of newly uploaded images
+            MediaAttachments: newAttachments // Send the array of newly uploaded media
         };
 
         const res = await fetch(`/api/posts/${id}`, {
@@ -533,44 +612,22 @@ window.FeedService.submitEdit = async () => {
     }
 };
 
-window.deleteMedia = async (postId, mediaId, btnElement) => {
-    if (!confirm("Remove this image? This cannot be undone.")) return;
-
-    // FIX: Safely grab the direct parent container holding the image
+window.deleteMedia = function (postId, mediaId, btnElement) {
+    // 1. Visually remove the image from the DOM
     const wrapper = btnElement.parentElement;
+    if (wrapper) wrapper.remove();
 
-    if (wrapper) {
-        wrapper.style.opacity = '0.5'; // Dim it while processing
-    }
+    // 2. Add the mediaId to our deletion queue
+    window.pendingMediaDeletions.push(mediaId);
 
-    try {
-        const res = await fetch(`/api/posts/${postId}/media/${mediaId}`, {
-            method: 'DELETE',
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
+    // 3. Free up the visual limit so they can upload a replacement immediately
+    window.currentEditExistingImagesCount = Math.max(0, window.currentEditExistingImagesCount - 1);
+    window.checkEditImageLimit();
 
-        if (res.ok) {
-            // Remove the image from the DOM entirely
-            if (wrapper) wrapper.remove();
-
-            // Free up the limit so they can upload a new image
-            window.currentEditExistingImagesCount = Math.max(0, window.currentEditExistingImagesCount - 1);
-            window.checkEditImageLimit();
-
-            // Check if there are any images left, if not, show the "No images" message
-            const mediaContainer = document.getElementById('editMediaList');
-            if (mediaContainer && mediaContainer.children.length === 0) {
-                mediaContainer.innerHTML = '<span class="text-muted small">No images attached.</span>';
-            }
-        } else {
-            const errText = await res.text();
-            alert("Failed to delete media: " + errText);
-            if (wrapper) wrapper.style.opacity = '1'; // Restore opacity if it failed
-        }
-    } catch (err) {
-        console.error(err);
-        alert("A network error occurred while deleting.");
-        if (wrapper) wrapper.style.opacity = '1';
+    // 4. Show the "No media" message if empty
+    const mediaContainer = document.getElementById('editMediaList');
+    if (mediaContainer && mediaContainer.children.length === 0) {
+        mediaContainer.innerHTML = '<span class="text-muted small">No media attached.</span>';
     }
 };
 
