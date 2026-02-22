@@ -156,23 +156,18 @@
     <aside class="side-column">
 
         <div class="widget-card">
-            <h5 class="widget-title mb-3">Creator Details</h5>
+            <h5 class="widget-title mb-3">Network</h5>
 
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    @if (!string.IsNullOrEmpty(Model.PrimaryRole))
-                    {
-                        <span style="background: #00AEEF; color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
-                            @Model.PrimaryRole
-                        </span>
-                    }
-                    @if (!string.IsNullOrEmpty(Model.SecondaryRole))
-                    {
-                        <span style="background: #333; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #555; text-align: center;">
-                            @Model.SecondaryRole
-                        </span>
-                    }
+                    <span style="background: #00AEEF; color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; text-align: center;">
+                        @(string.IsNullOrEmpty(Model.PrimaryRole) ? "Enthusiast" : Model.PrimaryRole)
+                    </span>
+
+                    <span style="background: #333; color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #555; text-align: center;">
+                        @(string.IsNullOrEmpty(Model.SecondaryRole) ? "I'm here for the music" : Model.SecondaryRole)
+                    </span>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 12px; text-align: right;">
