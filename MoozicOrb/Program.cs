@@ -1,16 +1,30 @@
 using Microsoft.AspNetCore.SignalR;
 using MoozicOrb.API.Services;
 using MoozicOrb.API.Services.Interfaces;
-using MoozicOrb.API.Services;
 using MoozicOrb.Hubs;
 using MoozicOrb.Infrastructure;
 using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
 using MoozicOrb.Services.Radio;
+using Amazon.S3;
 using StackExchange.Redis;
 using Microsoft.Extensions.FileProviders; // Required for PhysicalFileProvider
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- CLOUDFLARE R2 SETUP ---
+var r2AccountId = builder.Configuration["CloudflareR2:AccountId"];
+var r2AccessKey = builder.Configuration["CloudflareR2:AccessKey"];
+var r2SecretKey = builder.Configuration["CloudflareR2:SecretKey"];
+
+var s3Config = new AmazonS3Config
+{
+    ServiceURL = $"https://{r2AccountId}.r2.cloudflarestorage.com",
+    ForcePathStyle = true,
+};
+
+// Register the S3 client as a Singleton so the whole app can use it
+builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client(r2AccessKey, r2SecretKey, s3Config));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
