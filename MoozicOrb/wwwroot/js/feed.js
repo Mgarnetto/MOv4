@@ -1830,6 +1830,11 @@ window.loadStorefront = async function (userId) {
     const container = document.getElementById('storefront-grid-container');
     if (!container) return;
 
+    // BUG FIX: Reset the global states so overlays don't get stuck!
+    window.isInventoryMode = false;
+    window.isStoreCarouselManagerActive = false;
+    window.storeCarouselDockItems = [];
+
     try {
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
@@ -1953,6 +1958,9 @@ window.loadPhotoGallery = async function (userId) {
     const container = document.getElementById('photo-gallery-container');
     if (!container) return;
 
+    // BUG FIX: Reset gallery state
+    window.isGalleryInventoryMode = false;
+
     try {
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=3`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
@@ -2046,6 +2054,9 @@ window.toggleVideoInventoryMode = function () {
 window.loadVideoHub = async function (userId) {
     const container = document.getElementById('video-hub-container');
     if (!container) return;
+
+    // BUG FIX: Reset video state
+    window.isVideoInventoryMode = false;
 
     try {
         const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=2`, {
