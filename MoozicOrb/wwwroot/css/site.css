@@ -4535,6 +4535,90 @@ textarea.form-control {
     }
 }
 
+/* NATIVE FLEXBOX HEADER (No Bootstrap) */
+.store-carousel-dock-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #333;
+    margin-bottom: 15px;
+}
+
+.store-carousel-dock-title {
+    color: #ffffff;
+    font-weight: bold;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+}
+
+/* The Dock Save Button */
+.btn-dock-save {
+    background: linear-gradient(135deg, #00AEEF, #007bff);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 24px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 10px rgba(0, 174, 239, 0.3);
+}
+
+    .btn-dock-save:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(0, 174, 239, 0.5);
+        filter: brightness(1.1);
+    }
+
+    .btn-dock-save:disabled {
+        background: #555;
+        color: #999;
+        box-shadow: none;
+        transform: none;
+        cursor: not-allowed;
+    }
+
+/* The Main Toggle Button */
+.btn-carousel-manage {
+    background-color: transparent;
+    color: #00AEEF;
+    border: 1px solid #00AEEF;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 10px;
+    box-shadow: 0 2px 8px rgba(0, 174, 239, 0.1);
+}
+
+    .btn-carousel-manage i {
+        margin-right: 6px;
+    }
+
+    .btn-carousel-manage:hover {
+        background-color: rgba(0, 174, 239, 0.1);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 174, 239, 0.2);
+    }
+
+    .btn-carousel-manage.is-active {
+        background-color: #00AEEF;
+        color: #000;
+        box-shadow: 0 4px 15px rgba(0, 174, 239, 0.4);
+    }
+
+/* Slot Containers (Your Original Code) */
 .store-carousel-dock-slots-container {
     display: flex;
     gap: 15px;
@@ -4542,7 +4626,6 @@ textarea.form-control {
     padding-bottom: 5px;
 }
 
-/* Individual Slots */
 .store-carousel-dock-slot {
     flex: 0 0 80px;
     height: 80px;
@@ -4593,7 +4676,6 @@ textarea.form-control {
     opacity: 1;
 }
 
-/* Grid Overlay when Active */
 .store-carousel-select-overlay {
     position: absolute;
     top: 0;

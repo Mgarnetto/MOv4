@@ -165,11 +165,11 @@
 // Start Engine
 window.AppRouter = new SpaRouter();
 
-// NEW: Guarantee the loaders fire even on a hard refresh of the browser
-document.addEventListener("DOMContentLoaded", () => {
-    setTimeout(() => {
-        if (window.AppRouter) {
-            window.AppRouter.reinitScripts();
-        }
-    }, 200);
-});
+// NEW: Guarantee the loaders fire on a hard refresh of the browser
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => window.AppRouter.reinitScripts(), 100);
+    });
+} else {
+    setTimeout(() => window.AppRouter.reinitScripts(), 100);
+}

@@ -35,8 +35,24 @@ namespace MoozicOrb.API.Controllers
             try
             {
                 int userId = GetUserId();
-                long collectionId = new InsertCollection().Execute(userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
+                long collectionId = 0;
 
+                // If it's a dedicated 1-to-1 context (like a profile carousel), we UPSERT.
+                // This prevents duplicate rows and stops the ID column from exploding.
+                if (req.DisplayContext == "store" || req.DisplayContext == "video" || req.DisplayContext == "image")
+                {
+                    collectionId = new UpsertContextCollection().Execute(userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
+
+                    // Wipe the old list of items inside this collection
+                    new ClearCollectionItems().Execute(collectionId);
+                }
+                else
+                {
+                    // Standard insert for generic playlists/albums where a user can have infinite amounts
+                    collectionId = new InsertCollection().Execute(userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
+                }
+
+                // Insert the fresh items with their new sort order
                 if (req.Items != null && req.Items.Count > 0)
                 {
                     var itemIo = new InsertCollectionItem();
