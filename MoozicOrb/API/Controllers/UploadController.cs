@@ -38,84 +38,102 @@ namespace MoozicOrb.API.Controllers
         }
 
         // ==========================================
-        // 1. IMAGE UPLOAD (Standard)
+        // 1. IMAGE UPLOAD (Hybrid Pipeline)
         // ==========================================
         [HttpPost("image")]
         public async Task<IActionResult> UploadImage([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("No file provided");
-
             int uid = GetUserId();
             if (uid == 0) return Unauthorized("User not logged in");
 
             try
             {
-                // Save File
+                string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
+                // FLATTENED: No user ID in the path
+                string cloudKey = $"image/{uniqueName}";
+
                 string relativePath = await _fileService.SaveFileAsync(file, "Image");
                 string physPath = _fileService.GetPhysicalPath(relativePath);
                 int width = 0, height = 0;
 
-                // Server-Side Metadata (Fast for images)
                 try
                 {
                     var meta = await _processor.ProcessImageAsync(physPath, relativePath);
                     width = meta.Width;
                     height = meta.Height;
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"[Upload] Image metadata failed: {ex.Message}. Continuing...");
-                }
+                catch (Exception ex) { Console.WriteLine($"[Upload] Image metadata failed: {ex.Message}"); }
 
-                string webUrl = "/" + relativePath.Replace("\\", "/");
-                long newId = new InsertImage().Execute(uid, file.FileName, webUrl, width, height);
+                // Upload to Vault and Wipe Local
+                await _fileService.UploadToCloudAsync(physPath, cloudKey);
+                await _fileService.DeleteLocalFileAsync(physPath);
 
-                return Ok(new { id = newId, type = 3, url = webUrl });
+                // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
+                long newId = new InsertImage().Execute(uid, file.FileName, cloudKey, width, height);
+
+                return Ok(new { id = newId, type = 3, url = cloudKey });
             }
             catch (Exception ex) { return BadRequest($"Image Upload Error: {ex.Message}"); }
         }
 
         // ==========================================
-        // 2. AUDIO UPLOAD (Standard)
+        // 2. AUDIO UPLOAD (Hybrid Pipeline)
         // ==========================================
         [HttpPost("audio")]
         public async Task<IActionResult> UploadAudio([FromForm] IFormFile file)
         {
             if (file == null || file.Length == 0) return BadRequest("No file provided");
-
             int uid = GetUserId();
             if (uid == 0) return Unauthorized("User not logged in");
 
             try
             {
-                // Save File
+                string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
+                string snippetName = $"{Path.GetFileNameWithoutExtension(uniqueName)}_snippet.wav";
+
+                // FLATTENED
+                string cloudKey = $"audio/{uniqueName}";
+                string cloudSnippetKey = $"audio/{snippetName}";
+
                 string dbPath = await _fileService.SaveFileAsync(file, "Audio");
                 string physPath = _fileService.GetPhysicalPath(dbPath);
                 string snippetPath = "";
                 int duration = 0;
 
-                // Server-Side Processing (Waveform/Duration)
                 try
                 {
                     var meta = await _processor.ProcessAudioAsync(physPath, dbPath);
                     snippetPath = meta.SnippetPath;
                     duration = (int)meta.DurationSeconds;
                 }
-                catch (Exception ex)
+                catch (Exception ex) { Console.WriteLine($"[Upload] Audio processing failed: {ex.Message}"); }
+
+                // Upload Main File
+                await _fileService.UploadToCloudAsync(physPath, cloudKey);
+
+                // Upload Snippet (if successful)
+                if (!string.IsNullOrEmpty(snippetPath))
                 {
-                    Console.WriteLine($"[Upload] Audio processing failed: {ex.Message}. Continuing...");
+                    string physSnippet = _fileService.GetPhysicalPath(snippetPath);
+                    if (System.IO.File.Exists(physSnippet))
+                    {
+                        await _fileService.UploadToCloudAsync(physSnippet, cloudSnippetKey);
+                        await _fileService.DeleteLocalFileAsync(physSnippet);
+                    }
                 }
+                await _fileService.DeleteLocalFileAsync(physPath);
 
-                string webUrl = "/" + dbPath.Replace("MoozicOrb/", "").Replace("\\", "/");
-                long newId = new InsertAudio().Execute(uid, file.FileName, webUrl, snippetPath, duration);
+                // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
+                long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, cloudSnippetKey, duration);
 
-                return Ok(new { id = newId, type = 1, url = webUrl, snippetPath = snippetPath });
+                return Ok(new { id = newId, type = 1, url = cloudKey, snippetPath = cloudSnippetKey });
             }
             catch (Exception ex) { return BadRequest($"Audio Upload Error: {ex.Message}"); }
         }
 
         // ==========================================
-        // 3. VIDEO UPLOAD (Client-Side Optimized)
+        // 3. VIDEO UPLOAD (Direct Stream to Edge)
         // ==========================================
         [HttpPost("video")]
         public async Task<IActionResult> UploadVideo(
@@ -126,35 +144,32 @@ namespace MoozicOrb.API.Controllers
             [FromForm] int height = 0)
         {
             if (file == null || file.Length == 0) return BadRequest("No file provided");
-
             int uid = GetUserId();
             if (uid == 0) return Unauthorized("User not logged in");
 
             try
             {
-                // 1. Save Main Video File
-                string dbPath = await _fileService.SaveFileAsync(file, "Video");
+                string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
+                // FLATTENED
+                string cloudKey = $"video/{uniqueName}";
+                string thumbKey = "";
 
-                // 2. Handle Client-Side Thumbnail (If provided)
-                string thumbPath = "";
+                // Stream video straight to Cloudflare
+                await _fileService.UploadStreamToCloudAsync(file.OpenReadStream(), cloudKey, file.ContentType);
+
                 if (thumbnail != null && thumbnail.Length > 0)
                 {
-                    // Reuse file service to save the thumb (force "Image" type)
-                    string rawThumbPath = await _fileService.SaveFileAsync(thumbnail, "Image");
-                    thumbPath = rawThumbPath;
+                    string thumbExt = Path.GetExtension(thumbnail.FileName).ToLower();
+                    if (string.IsNullOrEmpty(thumbExt)) thumbExt = ".jpg";
+                    thumbKey = $"video/{Guid.NewGuid()}{thumbExt}";
+
+                    await _fileService.UploadStreamToCloudAsync(thumbnail.OpenReadStream(), thumbKey, thumbnail.ContentType);
                 }
 
-                // 3. Prepare URLs
-                string webUrl = "/" + dbPath.Replace("MoozicOrb/", "").Replace("\\", "/");
-                string webThumbUrl = string.IsNullOrEmpty(thumbPath)
-                    ? ""
-                    : "/" + thumbPath.Replace("MoozicOrb/", "").Replace("\\", "/");
+                // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
+                long newId = new InsertVideo().Execute(uid, file.FileName, cloudKey, thumbKey, duration, width, height);
 
-                // 4. Insert Record (Trusting client metadata)
-                // We skip server-side _processor.ProcessVideoAsync() entirely here.
-                long newId = new InsertVideo().Execute(uid, file.FileName, webUrl, webThumbUrl, duration, width, height);
-
-                return Ok(new { id = newId, type = 2, url = webUrl, snippetPath = webThumbUrl });
+                return Ok(new { id = newId, type = 2, url = cloudKey, snippetPath = thumbKey });
             }
             catch (Exception ex) { return BadRequest($"Video Upload Error: {ex.Message}"); }
         }

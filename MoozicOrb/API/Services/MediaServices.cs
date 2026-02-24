@@ -2,10 +2,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
-using SixLabors.ImageSharp;
 using NAudio.Wave;
-
-// REMOVED: FFMediaToolkit namespaces (Video processing is now Client-Side)
 
 namespace MoozicOrb.API.Services
 {
@@ -25,13 +22,11 @@ namespace MoozicOrb.API.Services
             {
                 await Task.Run(() =>
                 {
-                    // Duration using NAudio
                     using (var reader = new AudioFileReader(physicalPath))
                     {
                         meta.DurationSeconds = (int)reader.TotalTime.TotalSeconds;
                     }
 
-                    // 30s Snippet using NAudio
                     string snippetName = Path.GetFileNameWithoutExtension(physicalPath) + "_snippet.wav";
                     string snippetPhys = Path.Combine(Path.GetDirectoryName(physicalPath), snippetName);
 
@@ -47,16 +42,12 @@ namespace MoozicOrb.API.Services
             return meta;
         }
 
-        // UPDATED: Now a lightweight stub. 
-        // The Client sends us Duration/Dimensions/Thumbnail, so we don't need FFmpeg here.
         public Task<MediaMetadata> ProcessVideoAsync(string physicalPath, string relativePath)
         {
-            // We return a basic object to satisfy the interface.
-            // All heavy lifting is now done in feed.js or the mobile app.
             return Task.FromResult(new MediaMetadata
             {
                 RelativePath = relativePath,
-                DurationSeconds = 0, // Fallback/Default
+                DurationSeconds = 0,
                 Width = 0,
                 Height = 0
             });
@@ -67,38 +58,67 @@ namespace MoozicOrb.API.Services
             var meta = new MediaMetadata { RelativePath = relativePath };
             try
             {
-                using (var image = await Image.LoadAsync(physicalPath))
+                // Disambiguated Image Load
+                using (var image = await SixLabors.ImageSharp.Image.LoadAsync(physicalPath))
                 {
                     meta.Width = image.Width;
                     meta.Height = image.Height;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Image Processor Error]: {ex.Message}");
+            }
             return meta;
         }
     }
 
-    // Helper for NAudio clipping
+    // Refactored with strict BlockAlignment to prevent audio corruption
     public class TrimWavStream : WaveStream
     {
-        private readonly WaveStream _source;
-        private readonly long _start;
-        private readonly long _end;
-        public TrimWavStream(WaveStream source, TimeSpan start, TimeSpan end)
+        private readonly WaveStream _sourceStream;
+        private readonly long _startPosition;
+        private readonly long _endPosition;
+
+        public TrimWavStream(WaveStream sourceStream, TimeSpan startTime, TimeSpan endTime)
         {
-            _source = source;
-            _start = (long)(start.TotalSeconds * source.WaveFormat.AverageBytesPerSecond);
-            _end = (long)(end.TotalSeconds * source.WaveFormat.AverageBytesPerSecond);
-            _source.Position = _start;
+            _sourceStream = sourceStream;
+
+            long rawStart = (long)(startTime.TotalSeconds * sourceStream.WaveFormat.AverageBytesPerSecond);
+            long rawEnd = (long)(endTime.TotalSeconds * sourceStream.WaveFormat.AverageBytesPerSecond);
+
+            // Align strictly to Block Boundaries
+            _startPosition = rawStart - (rawStart % sourceStream.WaveFormat.BlockAlign);
+            _endPosition = rawEnd - (rawEnd % sourceStream.WaveFormat.BlockAlign);
+
+            _sourceStream.Position = _startPosition;
         }
-        public override WaveFormat WaveFormat => _source.WaveFormat;
-        public override long Length => _end - _start;
-        public override long Position { get => _source.Position - _start; set => _source.Position = value + _start; }
+
+        public override WaveFormat WaveFormat => _sourceStream.WaveFormat;
+        public override long Length => _endPosition - _startPosition;
+
+        public override long Position
+        {
+            get => _sourceStream.Position - _startPosition;
+            set => _sourceStream.Position = value + _startPosition;
+        }
+
         public override int Read(byte[] buffer, int offset, int count)
         {
-            long remaining = _end - _source.Position;
-            if (remaining <= 0) return 0;
-            return _source.Read(buffer, offset, (int)Math.Min(count, remaining));
+            long bytesRemaining = _endPosition - _sourceStream.Position;
+            if (bytesRemaining <= 0) return 0;
+
+            int bytesToRead = (int)Math.Min(count, bytesRemaining);
+            return _sourceStream.Read(buffer, offset, bytesToRead);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _sourceStream?.Dispose();
+            }
+            base.Dispose(disposing);
         }
     }
 }
