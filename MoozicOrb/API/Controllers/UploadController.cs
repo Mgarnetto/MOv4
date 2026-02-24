@@ -16,12 +16,14 @@ namespace MoozicOrb.API.Controllers
         private readonly IMediaFileService _fileService;
         private readonly IMediaProcessor _processor;
         private readonly IHttpContextAccessor _http;
+        private readonly IMediaResolverService _resolver;
 
-        public UploadController(IMediaFileService f, IMediaProcessor p, IHttpContextAccessor http)
+        public UploadController(IMediaFileService f, IMediaProcessor p, IHttpContextAccessor http, IMediaResolverService resolver)
         {
             _fileService = f;
             _processor = p;
             _http = http;
+            _resolver = resolver;
         }
 
         private int GetUserId()
@@ -72,7 +74,10 @@ namespace MoozicOrb.API.Controllers
                 // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
                 long newId = new InsertImage().Execute(uid, file.FileName, cloudKey, width, height);
 
-                return Ok(new { id = newId, type = 3, url = cloudKey });
+                // Resolve the URL before handing it back to the frontend for instant preview
+                string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
+
+                return Ok(new { id = newId, type = 3, url = previewUrl });
             }
             catch (Exception ex) { return BadRequest($"Image Upload Error: {ex.Message}"); }
         }
@@ -127,7 +132,11 @@ namespace MoozicOrb.API.Controllers
                 // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
                 long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, cloudSnippetKey, duration);
 
-                return Ok(new { id = newId, type = 1, url = cloudKey, snippetPath = cloudSnippetKey });
+                // Resolve the URLs before handing them back to the frontend
+                string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
+                string previewSnippet = _resolver.ResolveUrl(cloudSnippetKey, 1);
+
+                return Ok(new { id = newId, type = 1, url = previewUrl, snippetPath = previewSnippet });
             }
             catch (Exception ex) { return BadRequest($"Audio Upload Error: {ex.Message}"); }
         }
@@ -169,7 +178,11 @@ namespace MoozicOrb.API.Controllers
                 // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
                 long newId = new InsertVideo().Execute(uid, file.FileName, cloudKey, thumbKey, duration, width, height);
 
-                return Ok(new { id = newId, type = 2, url = cloudKey, snippetPath = thumbKey });
+                // Resolve the URLs before handing them back to the frontend
+                string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
+                string previewThumb = _resolver.ResolveUrl(thumbKey, 1);
+
+                return Ok(new { id = newId, type = 2, url = previewUrl, snippetPath = previewThumb });
             }
             catch (Exception ex) { return BadRequest($"Video Upload Error: {ex.Message}"); }
         }

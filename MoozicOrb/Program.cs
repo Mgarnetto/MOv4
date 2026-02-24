@@ -30,6 +30,8 @@ builder.Services.AddSingleton<IAmazonS3>(new AmazonS3Client(r2AccessKey, r2Secre
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
 
+builder.Services.AddScoped<IMediaResolverService, MediaResolverService>();
+
 builder.Services.AddScoped<IGroupMessageService, GroupMessageService>();
 builder.Services.AddScoped<IDirectMessageService, DirectMessageService>();
 builder.Services.AddScoped<IUserService, UserService>();

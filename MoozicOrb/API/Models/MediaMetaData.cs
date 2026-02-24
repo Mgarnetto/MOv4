@@ -7,5 +7,6 @@
         public int DurationSeconds { get; set; }
         public int Width { get; set; }
         public int Height { get; set; }
+        public int StorageProvider { get; set; } = 0;
     }
 }

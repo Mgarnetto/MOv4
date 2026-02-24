@@ -1,4 +1,4 @@
-﻿using MoozicOrb.API.Models; // For MediaMetadata
+﻿using MoozicOrb.API.Models;
 using MySql.Data.MySqlClient;
 using System;
 
@@ -9,7 +9,7 @@ namespace MoozicOrb.IO
     {
         public MediaMetadata Execute(long id)
         {
-            string sql = "SELECT file_path, duration_sec FROM media_audio WHERE audio_id = @id";
+            string sql = "SELECT file_path, duration_sec, storage_provider FROM media_audio WHERE audio_id = @id";
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
@@ -21,7 +21,8 @@ namespace MoozicOrb.IO
                         if (r.Read()) return new MediaMetadata
                         {
                             RelativePath = r["file_path"].ToString(),
-                            DurationSeconds = Convert.ToInt32(r["duration_sec"])
+                            DurationSeconds = Convert.ToInt32(r["duration_sec"]),
+                            StorageProvider = Convert.ToInt32(r["storage_provider"]) // Added
                         };
                     }
                 }
@@ -35,7 +36,7 @@ namespace MoozicOrb.IO
     {
         public MediaMetadata Execute(long id)
         {
-            string sql = "SELECT file_path, thumb_path, duration_sec, width, height FROM media_video WHERE video_id = @id";
+            string sql = "SELECT file_path, thumb_path, duration_sec, width, height, storage_provider FROM media_video WHERE video_id = @id";
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
@@ -50,7 +51,8 @@ namespace MoozicOrb.IO
                             SnippetPath = r["thumb_path"].ToString(),
                             DurationSeconds = Convert.ToInt32(r["duration_sec"]),
                             Width = Convert.ToInt32(r["width"]),
-                            Height = Convert.ToInt32(r["height"])
+                            Height = Convert.ToInt32(r["height"]),
+                            StorageProvider = Convert.ToInt32(r["storage_provider"]) // Added
                         };
                     }
                 }
@@ -64,7 +66,7 @@ namespace MoozicOrb.IO
     {
         public MediaMetadata Execute(long id)
         {
-            string sql = "SELECT file_path, width, height FROM media_images WHERE image_id = @id";
+            string sql = "SELECT file_path, width, height, storage_provider FROM media_images WHERE image_id = @id";
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
@@ -77,7 +79,8 @@ namespace MoozicOrb.IO
                         {
                             RelativePath = r["file_path"].ToString(),
                             Width = Convert.ToInt32(r["width"]),
-                            Height = Convert.ToInt32(r["height"])
+                            Height = Convert.ToInt32(r["height"]),
+                            StorageProvider = Convert.ToInt32(r["storage_provider"]) // Added
                         };
                     }
                 }
