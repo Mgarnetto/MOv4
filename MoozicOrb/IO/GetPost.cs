@@ -1,4 +1,5 @@
 ﻿using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,7 @@ namespace MoozicOrb.IO
     public class GetPost
     {
         // 1. GET SINGLE POST
-        public PostDto Execute(long postId, int viewerId)
+        public PostDto Execute(long postId, int viewerId, IMediaResolverService resolver = null)
         {
             PostDto post = null;
             string sql = GetBaseSql("WHERE p.post_id = @pid");
@@ -26,29 +27,25 @@ namespace MoozicOrb.IO
                         if (rdr.Read()) post = MapReaderToDto(rdr);
                     }
                 }
-                if (post != null) AttachMediaToPosts(conn, new List<PostDto> { post });
+                if (post != null) AttachMediaToPosts(conn, new List<PostDto> { post }, resolver);
             }
             return post;
         }
 
-        // 2. GET FEED (UPDATED WITH POST TYPE & MEDIA TYPE FILTERS)
-        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null, int? mediaType = null)
+        // 2. GET FEED
+        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null, int? mediaType = null, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
             int offset = (page - 1) * pageSize;
             string sql;
 
-            // Existing post type filter
             string typeFilter = string.IsNullOrEmpty(postType) ? "" : " AND p.post_type = @postType";
-
-            // NEW: Media type filter (1 = Audio, 2 = Video, 3 = Image)
-            // NEW: Media type filter (1 = Audio, 2 = Video, 3 = Image)
             string mediaFilter = "";
+
             if (mediaType.HasValue)
             {
                 mediaFilter = " AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = @mediaType)";
 
-                // STRICT FIX: If we are specifically asking for the Photo/Video gallery, ban 'merch' posts
                 if (string.IsNullOrEmpty(postType))
                 {
                     mediaFilter += " AND p.post_type != 'merch'";
@@ -90,13 +87,13 @@ namespace MoozicOrb.IO
                         while (rdr.Read()) results.Add(MapReaderToDto(rdr));
                     }
                 }
-                if (results.Count > 0) AttachMediaToPosts(conn, results);
+                if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results;
         }
 
         // 3. SOCIAL FEED
-        public List<PostDto> GetDiscoveryFeed(int viewerId, int count = 20)
+        public List<PostDto> GetDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
             int freshCount = (int)(count * 0.75);
@@ -106,7 +103,6 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // Fresh
                 string freshSql = GetBaseSql("WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
                 using (var cmd = new MySqlCommand(freshSql, conn))
                 {
@@ -115,7 +111,6 @@ namespace MoozicOrb.IO
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
                 }
 
-                // Vintage
                 if (vintageCount > 0)
                 {
                     string vintageSql = GetBaseSql("WHERE p.created_at < DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
@@ -127,7 +122,6 @@ namespace MoozicOrb.IO
                     }
                 }
 
-                // Fallback
                 if (results.Count < count)
                 {
                     var existingIds = results.Select(p => p.Id).ToList();
@@ -142,13 +136,13 @@ namespace MoozicOrb.IO
                     }
                 }
 
-                if (results.Count > 0) AttachMediaToPosts(conn, results);
+                if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results.OrderBy(x => Guid.NewGuid()).ToList();
         }
 
         // 4. AUDIO FEED
-        public List<PostDto> GetAudioDiscoveryFeed(int viewerId, int count = 20)
+        public List<PostDto> GetAudioDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
             string sql = GetBaseSql(@"WHERE EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY RAND() LIMIT @limit");
@@ -162,23 +156,23 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@limit", count);
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
                 }
-                if (results.Count > 0) AttachMediaToPosts(conn, results);
+                if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results;
         }
 
         // 5. SEARCH
-        public List<PostDto> SearchPosts(string term, int viewerId)
+        public List<PostDto> SearchPosts(string term, int viewerId, IMediaResolverService resolver = null)
         {
-            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) ORDER BY p.created_at DESC LIMIT 20");
+            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) ORDER BY p.created_at DESC LIMIT 20", resolver);
         }
 
-        public List<PostDto> SearchAudio(string term, int viewerId)
+        public List<PostDto> SearchAudio(string term, int viewerId, IMediaResolverService resolver = null)
         {
-            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY p.created_at DESC LIMIT 20");
+            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY p.created_at DESC LIMIT 20", resolver);
         }
 
-        private List<PostDto> ExecuteSearch(string term, int viewerId, string whereClause)
+        private List<PostDto> ExecuteSearch(string term, int viewerId, string whereClause, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
             string sql = GetBaseSql(whereClause);
@@ -191,7 +185,7 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
                 }
-                if (results.Count > 0) AttachMediaToPosts(conn, results);
+                if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results;
         }
@@ -212,11 +206,12 @@ namespace MoozicOrb.IO
                 {whereClause}";
         }
 
-        private void AttachMediaToPosts(MySqlConnection conn, List<PostDto> posts)
+        private void AttachMediaToPosts(MySqlConnection conn, List<PostDto> posts, IMediaResolverService resolver = null)
         {
             if (posts == null || posts.Count == 0) return;
             var ids = string.Join(",", posts.Select(p => p.Id));
 
+            // FIX: Added COALESCE to get the correct storage provider for the media type attached
             string sql = $@"
                 SELECT 
                     pm.post_id, 
@@ -225,7 +220,8 @@ namespace MoozicOrb.IO
                     pm.sort_order,
                     COALESCE(img.file_path, vid.file_path, aud.file_path) AS final_url,
                     vid.thumb_path AS thumb_url,
-                    aud.snippet_path AS snippet_url
+                    aud.snippet_path AS snippet_url,
+                    COALESCE(img.storage_provider, vid.storage_provider, aud.storage_provider) AS storage_provider
                 FROM post_media pm
                 LEFT JOIN media_images img ON pm.media_id = img.image_id AND pm.media_type = 3
                 LEFT JOIN media_video vid ON pm.media_id = vid.video_id AND pm.media_type = 2
@@ -243,9 +239,10 @@ namespace MoozicOrb.IO
                         var post = posts.FirstOrDefault(p => p.Id == pId);
                         if (post != null)
                         {
-                            string dbPath = rdr["final_url"] == DBNull.Value ? "" : rdr["final_url"].ToString();
-                            if (!string.IsNullOrEmpty(dbPath) && !dbPath.StartsWith("/")) dbPath = "/" + dbPath;
+                            // FIX: Safely retrieve the storage provider flag
+                            int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
 
+                            string dbPath = rdr["final_url"] == DBNull.Value ? "" : rdr["final_url"].ToString();
                             string extraPath = null;
                             int type = rdr.GetInt32("media_type");
 
@@ -258,7 +255,21 @@ namespace MoozicOrb.IO
                                 extraPath = rdr["snippet_url"] == DBNull.Value ? null : rdr["snippet_url"].ToString();
                             }
 
-                            if (!string.IsNullOrEmpty(extraPath) && !extraPath.StartsWith("/")) extraPath = "/" + extraPath;
+                            // FIX: URL Resolution Logic
+                            if (resolver != null && storageProv == 1)
+                            {
+                                dbPath = resolver.ResolveUrl(dbPath, 1);
+                                if (!string.IsNullOrEmpty(extraPath))
+                                {
+                                    extraPath = resolver.ResolveUrl(extraPath, 1);
+                                }
+                            }
+                            else
+                            {
+                                // Fallback for local files
+                                if (!string.IsNullOrEmpty(dbPath) && !dbPath.StartsWith("/") && !dbPath.StartsWith("http")) dbPath = "/" + dbPath;
+                                if (!string.IsNullOrEmpty(extraPath) && !extraPath.StartsWith("/") && !extraPath.StartsWith("http")) extraPath = "/" + extraPath;
+                            }
 
                             post.Attachments.Add(new MediaAttachmentDto
                             {

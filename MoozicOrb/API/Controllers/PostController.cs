@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED
 using MoozicOrb.Hubs;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
@@ -21,17 +22,20 @@ namespace MoozicOrb.API.Controllers
         private readonly IHttpContextAccessor _http;
         private readonly IUserService _userService;
         private readonly NotificationService _notify;
+        private readonly IMediaResolverService _resolver; // <-- ADDED
 
         public PostController(
             IHubContext<PostHub> hub,
             IHttpContextAccessor http,
             IUserService userService,
-            NotificationService notify)
+            NotificationService notify,
+            IMediaResolverService resolver) // <-- ADDED
         {
             _hub = hub;
             _http = http;
             _userService = userService;
             _notify = notify;
+            _resolver = resolver; // <-- ADDED
         }
 
         // --- HELPERS ----------------------------------------------------
@@ -156,7 +160,7 @@ namespace MoozicOrb.API.Controllers
             [FromQuery] string contextId,
             [FromQuery] int page = 1,
             [FromQuery] string postType = null,
-            [FromQuery] int? mediaType = null) // <-- NEW PARAMETER
+            [FromQuery] int? mediaType = null)
         {
             try
             {
@@ -166,16 +170,15 @@ namespace MoozicOrb.API.Controllers
 
                 if (contextType == "global" || contextType == "feed_global")
                 {
-                    posts = io.GetDiscoveryFeed(viewerId);
+                    posts = io.GetDiscoveryFeed(viewerId, 20, _resolver); // <-- PASSED RESOLVER
                 }
                 else if (contextType == "discover")
                 {
-                    posts = io.GetAudioDiscoveryFeed(viewerId);
+                    posts = io.GetAudioDiscoveryFeed(viewerId, 20, _resolver); // <-- PASSED RESOLVER
                 }
                 else
                 {
-                    // <-- PASS MEDIATYPE TO IO
-                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType, mediaType);
+                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType, mediaType, _resolver); // <-- PASSED RESOLVER
                 }
 
                 if (posts != null)
@@ -195,7 +198,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int viewerId = GetViewerId();
                 var io = new GetPost();
-                var post = io.Execute(id, viewerId);
+                var post = io.Execute(id, viewerId, _resolver); // <-- PASSED RESOLVER
 
                 if (post == null) return NotFound("Post not found");
 
@@ -215,7 +218,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int viewerId = GetViewerId();
                 var io = new GetPost();
-                var post = io.Execute(id, viewerId);
+                var post = io.Execute(id, viewerId, _resolver); // <-- PASSED RESOLVER
 
                 if (post == null) return NotFound("Post not found");
 
@@ -242,8 +245,6 @@ namespace MoozicOrb.API.Controllers
                     var commentsIo = new GetComments();
                     var allComments = commentsIo.Execute(req.PostId);
 
-                    // Logic: Find the intended parent. If the parent already has a ParentId, it is a reply.
-                    // We block replies to replies.
                     bool isParentAReply = false;
                     foreach (var root in allComments)
                     {
@@ -266,7 +267,7 @@ namespace MoozicOrb.API.Controllers
 
                 // NOTIFY POST AUTHOR
                 var postIo = new GetPost();
-                var post = postIo.Execute(req.PostId, userId);
+                var post = postIo.Execute(req.PostId, userId, _resolver); // <-- PASSED RESOLVER
 
                 if (post != null && post.AuthorId != userId)
                 {
@@ -307,7 +308,7 @@ namespace MoozicOrb.API.Controllers
                 if (liked)
                 {
                     var postIo = new GetPost();
-                    var post = postIo.Execute(id, userId);
+                    var post = postIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
 
                     if (post != null && post.AuthorId != userId)
                     {
@@ -347,7 +348,7 @@ namespace MoozicOrb.API.Controllers
 
                 // 3. Get updated post to broadcast via SignalR
                 var getIo = new GetPost();
-                var updatedPost = getIo.Execute(id, userId);
+                var updatedPost = getIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
 
                 if (updatedPost != null)
                 {
@@ -375,7 +376,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int userId = GetUserId();
                 var getIo = new GetPost();
-                var existing = getIo.Execute(id, userId);
+                var existing = getIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
                 if (existing == null) return NotFound();
 
                 var delIo = new DeletePost();
@@ -426,7 +427,7 @@ namespace MoozicOrb.API.Controllers
                 if (!success) return BadRequest("Could not edit comment (Access Denied or Not Found)");
 
                 // Get Post to find the correct SignalR group
-                var post = new GetPost().Execute(id, userId);
+                var post = new GetPost().Execute(id, userId, _resolver); // <-- PASSED RESOLVER
                 if (post != null)
                 {
                     string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);
@@ -461,7 +462,7 @@ namespace MoozicOrb.API.Controllers
                 if (!success) return BadRequest("Could not delete comment (Access Denied or Not Found)");
 
                 // Get Post to find the correct SignalR group
-                var post = new GetPost().Execute(id, userId);
+                var post = new GetPost().Execute(id, userId, _resolver); // <-- PASSED RESOLVER
                 if (post != null)
                 {
                     string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);

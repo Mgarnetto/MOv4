@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED
 using MoozicOrb.IO;
-using MoozicOrb.Services; // Assuming SessionStore is here
+using MoozicOrb.Services;
 using System.Collections.Generic;
 
 namespace MoozicOrb.ViewComponents
@@ -10,10 +11,12 @@ namespace MoozicOrb.ViewComponents
     public class PostFeedViewComponent : ViewComponent
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IMediaResolverService _resolver; // <-- ADDED
 
-        public PostFeedViewComponent(IHttpContextAccessor httpContextAccessor)
+        public PostFeedViewComponent(IHttpContextAccessor httpContextAccessor, IMediaResolverService resolver)
         {
             _httpContextAccessor = httpContextAccessor;
+            _resolver = resolver; // <-- ADDED
         }
 
         public IViewComponentResult Invoke(string contextType, string contextId, bool allowPosting = true, string inputType = "standard")
@@ -30,8 +33,9 @@ namespace MoozicOrb.ViewComponents
 
             // 2. Fetch Data with Viewer Context
             var postIo = new GetPost();
-            // Calls the NEW overload we created in GetPost.cs
-            var posts = postIo.Execute(contextType, contextId, viewerId, 1);
+
+            // <-- FIX: Pass _resolver into the Execute method
+            var posts = postIo.Execute(contextType, contextId, viewerId, 1, 20, inputType, null, _resolver);
 
             // 3. Build Model
             var model = new PostFeedViewModel
@@ -41,7 +45,7 @@ namespace MoozicOrb.ViewComponents
                 AllowPosting = allowPosting,
                 InputType = inputType,
                 InitialPosts = posts ?? new List<PostDto>(),
-                ViewerId = viewerId 
+                ViewerId = viewerId
             };
 
             return View(model);

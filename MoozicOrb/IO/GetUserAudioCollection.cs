@@ -1,12 +1,14 @@
 ﻿using MoozicOrb.Models;
+using MoozicOrb.API.Services; // <-- ADDED for resolver
 using MySql.Data.MySqlClient;
+using System; // <-- ADDED for Convert.ToInt32
 using System.Collections.Generic;
 
 namespace MoozicOrb.IO
 {
     public class GetUserAudioCollection
     {
-        public CollectionDto Execute(int userId)
+        public CollectionDto Execute(int userId, IMediaResolverService resolver = null) // <-- ADDED resolver
         {
             var collection = new CollectionDto
             {
@@ -17,6 +19,7 @@ namespace MoozicOrb.IO
                 Items = new List<CollectionItemDto>()
             };
 
+            // ADDED ma.storage_provider to query
             string sql = @"
                 SELECT 
                     pm.media_id, 
@@ -24,7 +27,8 @@ namespace MoozicOrb.IO
                     ma.file_path, 
                     p.image_url AS post_art,
                     p.title AS post_title,
-                    u.display_name
+                    u.display_name,
+                    ma.storage_provider
                 FROM posts p
                 JOIN post_media pm ON p.post_id = pm.post_id
                 JOIN media_audio ma ON pm.media_id = ma.audio_id
@@ -46,8 +50,15 @@ namespace MoozicOrb.IO
                             string art = rdr["post_art"]?.ToString();
                             string rawPath = rdr["file_path"]?.ToString();
 
-                            // --- FIX START: Ensure path has leading slash ---
-                            if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/"))
+                            // Get storage provider to know if it's local or cloud
+                            int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
+
+                            // --- FIX START: Cloudflare resolution vs local file fallback ---
+                            if (resolver != null && storageProv == 1)
+                            {
+                                rawPath = resolver.ResolveUrl(rawPath, 1);
+                            }
+                            else if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/") && !rawPath.StartsWith("http"))
                             {
                                 rawPath = "/" + rawPath;
                             }
