@@ -822,6 +822,7 @@ function renderAttachments(attachments) {
         else if (mType === 1) {
             const trackTitle = "Track";
             const trackUrl = mUrl;
+            // NEW SAVE BUTTON ADDED HERE FOR DYNAMIC AUDIO CARDS
             html += `
             <div class="track-card">
                 <button class="btn-track-play" 
@@ -832,6 +833,9 @@ function renderAttachments(attachments) {
                     <div class="track-title">${trackTitle}</div>
                     <div class="track-artist">Audio</div>
                 </div>
+                <button class="btn-save-track" onclick="window.OrbSavePanel.open('${mId}', 1, 'audio'); event.stopPropagation();" title="Save to Playlist">
+                    <i class="far fa-bookmark"></i>
+                </button>
                 <div class="track-wave"><span></span><span></span><span></span><span></span><span></span></div>
             </div>`;
         }
@@ -1427,6 +1431,10 @@ window.loadAudioPlaylist = async () => {
     <div class="audio-time-stamp text-muted small d-none d-md-block">
         <i class="far fa-clock me-1"></i> ${timeAgo}
     </div>
+
+    <button class="btn-save-track" onclick="window.OrbSavePanel.open('${audio.mediaId || audio.MediaId}', 1, 'audio'); event.stopPropagation();" title="Save to Playlist">
+        <i class="far fa-bookmark"></i>
+    </button>
 
     <div class="audio-right-artwork">
         <a href="${profileLink}">

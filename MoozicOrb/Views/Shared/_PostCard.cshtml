@@ -195,6 +195,11 @@ else
                                         <div class="track-title">@trackTitle</div>
                                         <div class="track-artist">@Model.AuthorName</div>
                                     </div>
+
+                                    <button class="btn-save-track" onclick="window.OrbSavePanel.open(@media.MediaId, 1, 'audio'); event.stopPropagation();" title="Save to Playlist">
+                                        <i class="far fa-bookmark"></i>
+                                    </button>
+
                                     <div class="track-wave">
                                         <span></span><span></span><span></span><span></span><span></span>
                                     </div>

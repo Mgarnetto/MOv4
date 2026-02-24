@@ -1,12 +1,14 @@
 ﻿using MoozicOrb.API.Models;
+using MoozicOrb.API.Services;
 using MySql.Data.MySqlClient;
+using System;
 using System.Collections.Generic;
 
 namespace MoozicOrb.IO
 {
     public class GetCollectionDetails
     {
-        public CollectionDto Execute(long collectionId)
+        public CollectionDto Execute(long collectionId, IMediaResolverService resolver = null)
         {
             CollectionDto collection = null;
 
@@ -37,7 +39,7 @@ namespace MoozicOrb.IO
 
                 if (collection == null) return null;
 
-                // 2. Fetch raw item IDs (NO dangerous LEFT JOINS!)
+                // 2. Fetch raw item IDs
                 string sqlItems = "SELECT link_id, target_id, target_type FROM collection_items WHERE collection_id = @cid ORDER BY sort_order ASC";
                 using (var cmd = new MySqlCommand(sqlItems, conn))
                 {
@@ -52,6 +54,95 @@ namespace MoozicOrb.IO
                                 TargetId = rdr.GetInt64("target_id"),
                                 TargetType = rdr.GetInt32("target_type")
                             });
+                        }
+                    }
+                }
+
+                // 3. Hydrate Media Details & Fallbacks
+                if (collection.Items.Count > 0)
+                {
+                    foreach (var item in collection.Items)
+                    {
+                        string hydrateSql = "";
+
+                        if (item.TargetType == 1) // Audio
+                        {
+                            hydrateSql = @"SELECT ma.file_path, ma.title AS media_title, ma.storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title 
+                                           FROM media_audio ma 
+                                           LEFT JOIN post_media pm ON ma.audio_id = pm.media_id AND pm.media_type = 1 
+                                           LEFT JOIN posts p ON pm.post_id = p.post_id 
+                                           LEFT JOIN `user` u ON p.user_id = u.user_id 
+                                           WHERE ma.audio_id = @tid LIMIT 1";
+                        }
+                        else if (item.TargetType == 2) // Video
+                        {
+                            hydrateSql = @"SELECT mv.file_path, p.title AS media_title, mv.storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title 
+                                           FROM media_video mv 
+                                           LEFT JOIN post_media pm ON mv.video_id = pm.media_id AND pm.media_type = 2 
+                                           LEFT JOIN posts p ON pm.post_id = p.post_id 
+                                           LEFT JOIN `user` u ON p.user_id = u.user_id 
+                                           WHERE mv.video_id = @tid LIMIT 1";
+                        }
+                        else if (item.TargetType == 3) // Image
+                        {
+                            hydrateSql = @"SELECT mi.file_path, p.title AS media_title, mi.storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title 
+                                           FROM media_images mi 
+                                           LEFT JOIN post_media pm ON mi.image_id = pm.media_id AND pm.media_type = 3 
+                                           LEFT JOIN posts p ON pm.post_id = p.post_id 
+                                           LEFT JOIN `user` u ON p.user_id = u.user_id 
+                                           WHERE mi.image_id = @tid LIMIT 1";
+                        }
+
+                        if (!string.IsNullOrEmpty(hydrateSql))
+                        {
+                            using (var cmd = new MySqlCommand(hydrateSql, conn))
+                            {
+                                cmd.Parameters.AddWithValue("@tid", item.TargetId);
+                                using (var rdr = cmd.ExecuteReader())
+                                {
+                                    if (rdr.Read())
+                                    {
+                                        string titleFromMedia = rdr["media_title"] == DBNull.Value ? null : rdr["media_title"].ToString();
+                                        string titleFromPost = rdr["post_title"] == DBNull.Value ? null : rdr["post_title"].ToString();
+
+                                        item.Title = !string.IsNullOrEmpty(titleFromMedia) ? titleFromMedia : (!string.IsNullOrEmpty(titleFromPost) ? titleFromPost : "Unknown Track");
+                                        item.ArtistName = rdr["display_name"] == DBNull.Value ? "Unknown Artist" : rdr["display_name"].ToString();
+
+                                        // SMART FALLBACK LOGIC
+                                        string postImg = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString();
+                                        string profPic = rdr["profile_pic"] == DBNull.Value ? null : rdr["profile_pic"].ToString();
+
+                                        if (!string.IsNullOrEmpty(postImg))
+                                        {
+                                            item.ArtUrl = postImg;
+                                        }
+                                        else if (!string.IsNullOrEmpty(profPic) && profPic != "null")
+                                        {
+                                            item.ArtUrl = profPic;
+                                        }
+                                        else
+                                        {
+                                            item.ArtUrl = ""; // Empty string tells the JS to use the Generic Icon
+                                        }
+
+                                        string rawPath = rdr["file_path"] == DBNull.Value ? "" : rdr["file_path"].ToString();
+                                        int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
+
+                                        if (resolver != null && storageProv == 1 && !string.IsNullOrEmpty(rawPath))
+                                        {
+                                            item.Url = resolver.ResolveUrl(rawPath, 1);
+                                        }
+                                        else if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/") && !rawPath.StartsWith("http"))
+                                        {
+                                            item.Url = "/" + rawPath;
+                                        }
+                                        else
+                                        {
+                                            item.Url = rawPath;
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

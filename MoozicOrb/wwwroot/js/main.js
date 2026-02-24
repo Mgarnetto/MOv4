@@ -496,130 +496,338 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// UNIVERSAL COLLECTIONS MANAGER
+// UNIVERSAL COLLECTIONS MANAGER (Sliding Panel)
 // ============================================
+window.OrbSavePanel = {
+    currentPlayingUrl: null,
+    currentPlayingLinkId: null,
+    currentPlayingCollectionId: null, // Tracks which folder is playing
+    currentlyViewingCollectionId: null, // Tracks which folder we are currently looking inside
 
-window.openSaveToCollectionModal = async function (targetId, targetType, displayContext) {
-    // targetType: 1=Audio, 2=Video, 3=Image, 4=Post
-    // displayContext: "audio", "video", "image", "store", "showcase"
+    open: async function (targetId, targetType, displayContext) {
+        const isViewMode = !targetId;
 
-    document.getElementById('collectionTargetId').value = targetId;
-    document.getElementById('collectionTargetType').value = targetType;
-    document.getElementById('collectionTargetContext').value = displayContext;
-    document.getElementById('newCollectionTitle').value = '';
+        document.getElementById('collectionTargetId').value = targetId || '';
+        document.getElementById('collectionTargetType').value = targetType || 1;
+        document.getElementById('collectionTargetContext').value = displayContext || 'audio';
+        document.getElementById('newCollectionTitle').value = '';
 
-    const modal = document.getElementById('saveToCollectionModal');
-    if (modal) modal.classList.add('active'); // Or use Bootstrap modal triggers if preferred
+        let fetchType = 5;
+        let tType = targetType || 1;
+        if (tType == 1) fetchType = 2; // Audio = Playlist
+        if (tType == 2) fetchType = 3; // Video = Series
+        if (tType == 3) fetchType = 4; // Image = Gallery
 
-    const listContainer = document.getElementById('existingCollectionsList');
-    listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+        const titleMap = { 'audio': 'My Playlists', 'video': 'My Watchlists', 'image': 'My Galleries', 'store': 'My Showcases' };
+        const saveTitleMap = { 'audio': 'Save to Playlist', 'video': 'Save to Watchlist', 'image': 'Save to Gallery', 'store': 'Save to Showcase' };
 
-    try {
+        document.getElementById('orbSavePanelTitle').innerText = isViewMode
+            ? (titleMap[displayContext || 'audio'] || 'My Collections')
+            : (saveTitleMap[displayContext] || 'Save Media');
+
+        document.getElementById('orbSaveOverlay').classList.remove('d-none');
+        document.getElementById('orbSavePanel').classList.add('active');
+
+        const listContainer = document.getElementById('existingCollectionsList');
+        const footer = document.getElementById('orbSavePanelFooter');
+
+        listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+
         const userId = window.AuthState?.userId;
-        if (!userId) throw new Error("Not logged in");
+        if (!userId) {
+            listContainer.innerHTML = '<div class="text-muted small text-center mt-4">Please log in to organize your media.</div>';
+            if (footer) footer.style.display = 'none';
+            return;
+        }
 
-        // Fetch user's collections that match this specific context
-        const res = await fetch(`/api/collections/user/${userId}/context/${displayContext}`, {
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
+        if (footer) footer.style.display = 'flex';
 
-        if (res.ok) {
-            const collections = await res.json();
-            listContainer.innerHTML = '';
-
-            if (collections.length === 0) {
-                listContainer.innerHTML = '<div class="text-muted small">No folders yet. Create one below!</div>';
-                return;
-            }
-
-            collections.forEach(c => {
-                listContainer.innerHTML += `
-                    <button class="btn btn-outline-secondary text-start text-white border-secondary w-100 d-flex align-items-center" onclick="window.saveItemToCollection('${c.id}')">
-                        <img src="${c.coverImageUrl}" style="width:30px; height:30px; object-fit:cover; border-radius:4px; margin-right:10px;">
-                        <span class="flex-grow-1 text-truncate">${c.title}</span>
-                        <i class="fas fa-plus"></i>
-                    </button>
-                `;
+        try {
+            const res = await fetch(`/api/collections/mine?type=${fetchType}`, {
+                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
             });
+
+            if (res.ok) {
+                const collections = await res.json();
+                listContainer.innerHTML = '';
+
+                if (collections.length === 0) {
+                    listContainer.innerHTML = '<div class="text-muted small text-center mt-3">No folders yet. Create one below!</div>';
+                    return;
+                }
+
+                collections.forEach(c => {
+                    // Check if this specific playlist is currently spinning
+                    const isActiveFolder = (String(c.id) === String(this.currentPlayingCollectionId));
+                    const folderClass = isActiveFolder ? 'active-track' : '';
+                    const folderIcon = isActiveFolder ? '<i class="fas fa-volume-up text-info ms-2"></i>' : '';
+
+                    if (isViewMode) {
+                        listContainer.innerHTML += `
+                            <div class="orb-save-panel-item ${folderClass}" onclick="window.OrbSavePanel.viewCollection('${c.id}')">
+                                <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
+                                <span class="text-truncate" style="flex-grow: 1;">${c.title} ${folderIcon}</span>
+                                <button class="orb-panel-play-btn" onclick="window.OrbSavePanel.playCollection('${c.id}'); event.stopPropagation();" title="Play Playlist">
+                                    <i class="fas fa-play" style="margin-left: 2px;"></i>
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        listContainer.innerHTML += `
+                            <div class="orb-save-panel-item" onclick="window.OrbSavePanel.saveItem('${c.id}')">
+                                <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
+                                <span class="text-truncate">${c.title}</span>
+                                <i class="fas fa-plus text-muted" style="margin-left: auto;"></i>
+                            </div>
+                        `;
+                    }
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            listContainer.innerHTML = '<div class="text-danger small text-center mt-3">Error loading folders.</div>';
         }
-    } catch (err) {
-        console.error(err);
-        listContainer.innerHTML = '<div class="text-danger small">Error loading folders.</div>';
-    }
-};
+    },
 
-window.closeCollectionModal = function () {
-    const modal = document.getElementById('saveToCollectionModal');
-    if (modal) modal.classList.remove('active');
-};
+    viewCollection: async function (collectionId) {
+        this.currentlyViewingCollectionId = collectionId; // Track where we are
 
-window.saveItemToCollection = async function (collectionId) {
-    const targetId = document.getElementById('collectionTargetId').value;
-    const targetType = document.getElementById('collectionTargetType').value;
+        const listContainer = document.getElementById('existingCollectionsList');
+        const footer = document.getElementById('orbSavePanelFooter');
 
-    try {
-        const res = await fetch(`/api/collections/${collectionId}/add-item`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Id': window.AuthState?.sessionId || ''
-            },
-            body: JSON.stringify({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) })
+        if (footer) footer.style.display = 'none';
+
+        listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+
+        try {
+            const res = await fetch(`/api/collections/${collectionId}`, {
+                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+            });
+
+            if (res.ok) {
+                const collection = await res.json();
+                const items = collection.items || collection.Items || [];
+
+                document.getElementById('orbSavePanelTitle').innerText = collection.title || collection.Title || 'Playlist';
+
+                let html = `<button class="orb-panel-back-btn" onclick="window.OrbSavePanel.open(null, 1, 'audio')">
+                                <i class="fas fa-arrow-left"></i> Back to Playlists
+                            </button>`;
+
+                if (items.length === 0) {
+                    html += `<div class="text-muted small text-center mt-3">This playlist is empty.</div>`;
+                } else {
+                    let urlMatchedOnce = false;
+
+                    items.forEach((item) => {
+                        const title = item.title || item.Title || 'Unknown Track';
+                        const artist = item.artistName || item.ArtistName || 'Unknown Artist';
+                        const cover = item.artUrl || item.ArtUrl || '';
+                        const url = item.url || item.Url;
+                        const linkId = item.linkId || item.LinkId;
+
+                        const safeTitle = title.replace(/'/g, "\\'");
+                        const safeArtist = artist.replace(/'/g, "\\'");
+
+                        // --- ART FALLBACK RENDERER ---
+                        let coverHtml = '';
+                        if (cover && cover.trim() !== '') {
+                            coverHtml = `<img src="${cover}" alt="cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                         <div class="orb-panel-fallback-icon" style="display:none;"><i class="fas fa-music"></i></div>`;
+                        } else {
+                            coverHtml = `<div class="orb-panel-fallback-icon"><i class="fas fa-music"></i></div>`;
+                        }
+
+                        // --- ACTIVE TRACK CHECK ---
+                        let isActive = false;
+
+                        if (this.currentPlayingLinkId && String(this.currentPlayingLinkId) === String(linkId)) {
+                            isActive = true;
+                            urlMatchedOnce = true;
+                        } else if (this.currentPlayingUrl === url && !urlMatchedOnce && !this.currentPlayingLinkId) {
+                            isActive = true;
+                            urlMatchedOnce = true;
+                        }
+
+                        const activeClass = isActive ? 'active-track' : '';
+                        const iconClass = isActive ? 'fa-volume-up text-info' : 'fa-play text-muted';
+
+                        html += `
+                            <div class="orb-save-panel-item track-item ${activeClass}" id="playlist-track-${linkId}" data-track-url="${url}" onclick="window.OrbSavePanel.playTrack('${url}', '${safeTitle}', '${safeArtist}', '${cover}', '${linkId}')">
+                                ${coverHtml}
+                                <div style="flex-grow: 1; overflow: hidden; text-align: left;">
+                                    <div class="text-truncate" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${title}</div>
+                                    <div class="text-truncate" style="font-size: 0.8rem; color: #aaa;">${artist}</div>
+                                </div>
+                                <i class="track-icon fas ${iconClass}" style="margin-left: auto;"></i>
+                            </div>
+                        `;
+                    });
+                }
+
+                listContainer.innerHTML = html;
+            }
+        } catch (err) {
+            console.error(err);
+            listContainer.innerHTML = '<div class="text-danger small text-center mt-3">Error loading playlist.</div>';
+        }
+    },
+
+    playTrack: function (url, title, artist, cover, linkId = null) {
+        this.currentPlayingUrl = url;
+        this.currentPlayingLinkId = linkId;
+
+        // Tie the track back to the folder we are currently viewing
+        this.currentPlayingCollectionId = this.currentlyViewingCollectionId;
+
+        // Visual UI Update inside list
+        const allTracks = document.querySelectorAll('.orb-save-panel-item.track-item');
+        allTracks.forEach(el => {
+            el.classList.remove('active-track');
+            const icon = el.querySelector('.track-icon');
+            if (icon) icon.className = 'track-icon fas fa-play text-muted';
         });
 
-        if (res.ok) {
-            alert("Saved to collection!");
-            window.closeCollectionModal();
+        if (linkId) {
+            const activeEl = document.getElementById(`playlist-track-${linkId}`);
+            if (activeEl) {
+                activeEl.classList.add('active-track');
+                const icon = activeEl.querySelector('.track-icon');
+                if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
+            }
         } else {
-            alert("Failed to save.");
+            const activeEl = document.querySelector(`.orb-save-panel-item.track-item[data-track-url="${url}"]`);
+            if (activeEl) {
+                activeEl.classList.add('active-track');
+                const icon = activeEl.querySelector('.track-icon');
+                if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
+            }
         }
-    } catch (err) {
-        console.error(err);
+
+        if (window.AudioPlayer) {
+            // Prevent the player from breaking if it tries to load a null cover
+            const safeCover = (cover && cover.trim() !== '') ? cover : '/img/default_cover.jpg';
+            window.AudioPlayer.playTrack(url, { title: title, artist: artist, cover: safeCover });
+        }
+    },
+
+    playCollection: async function (collectionId) {
+        // Set the active folder immediately
+        this.currentPlayingCollectionId = collectionId;
+
+        try {
+            const res = await fetch(`/api/collections/${collectionId}`, {
+                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+            });
+
+            if (res.ok) {
+                const collection = await res.json();
+                const items = collection.items || collection.Items || [];
+
+                if (items.length > 0) {
+                    const firstTrack = items[0];
+                    const url = firstTrack.url || firstTrack.Url;
+                    const linkId = firstTrack.linkId || firstTrack.LinkId;
+                    const title = firstTrack.title || firstTrack.Title;
+                    const artist = firstTrack.artistName || firstTrack.ArtistName;
+                    const cover = firstTrack.artUrl || firstTrack.ArtUrl;
+
+                    await this.viewCollection(collectionId);
+                    this.playTrack(url, title, artist, cover, linkId);
+
+                } else {
+                    alert("This playlist is empty.");
+                }
+            }
+        } catch (err) { console.error(err); }
+    },
+
+    close: function () {
+        document.getElementById('orbSaveOverlay').classList.add('d-none');
+        document.getElementById('orbSavePanel').classList.remove('active');
+    },
+
+    saveItem: async function (collectionId) {
+        const targetId = document.getElementById('collectionTargetId').value;
+        const targetType = document.getElementById('collectionTargetType').value;
+
+        if (!targetId) return;
+
+        try {
+            const res = await fetch(`/api/collections/${collectionId}/add-item`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': window.AuthState?.sessionId || ''
+                },
+                body: JSON.stringify({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) })
+            });
+
+            if (res.ok) {
+                alert("Saved to collection!");
+                this.close();
+            } else {
+                alert("Failed to save.");
+            }
+        } catch (err) { console.error(err); }
+    },
+
+    createNew: async function () {
+        if (!window.AuthState?.userId) {
+            alert("You must be logged in to do this.");
+            return;
+        }
+
+        const title = document.getElementById('newCollectionTitle').value.trim();
+        if (!title) return;
+
+        const targetId = document.getElementById('collectionTargetId').value;
+        const targetType = document.getElementById('collectionTargetType').value;
+        const displayContext = document.getElementById('collectionTargetContext').value;
+
+        let colType = 5;
+        if (targetType == 1) colType = 2;
+        if (targetType == 2) colType = 3;
+        if (targetType == 3) colType = 4;
+
+        let itemsPayload = [];
+        if (targetId) {
+            itemsPayload.push({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) });
+        }
+
+        try {
+            const payload = {
+                Title: title,
+                Description: "",
+                Type: colType,
+                DisplayContext: displayContext,
+                CoverImageId: 0,
+                Items: itemsPayload
+            };
+
+            const res = await fetch('/api/collections/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-Id': window.AuthState?.sessionId || ''
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                alert(targetId ? "Folder created and item saved!" : "Playlist created!");
+
+                if (!targetId) {
+                    this.open(null, targetType, displayContext);
+                } else {
+                    this.close();
+                }
+            } else {
+                alert("Failed to create folder.");
+            }
+        } catch (err) { console.error(err); }
     }
 };
 
-window.createNewCollectionInline = async function () {
-    const title = document.getElementById('newCollectionTitle').value.trim();
-    if (!title) return;
-
-    const targetId = document.getElementById('collectionTargetId').value;
-    const targetType = document.getElementById('collectionTargetType').value;
-    const displayContext = document.getElementById('collectionTargetContext').value;
-
-    // Map UI context to database Collection Type
-    let colType = 5; // Default Custom
-    if (displayContext === 'audio') colType = 2; // Playlist
-    if (displayContext === 'video') colType = 3; // Series
-    if (displayContext === 'image') colType = 4; // Gallery
-
-    try {
-        const payload = {
-            Title: title,
-            Description: "",
-            Type: colType,
-            DisplayContext: displayContext,
-            CoverImageId: 0,
-            Items: [
-                { TargetId: parseInt(targetId), TargetType: parseInt(targetType) } // Add the item immediately!
-            ]
-        };
-
-        const res = await fetch('/api/collections/create', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Session-Id': window.AuthState?.sessionId || ''
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (res.ok) {
-            alert("Folder created and item saved!");
-            window.closeCollectionModal();
-        } else {
-            alert("Failed to create folder.");
-        }
-    } catch (err) {
-        console.error(err);
-    }
-};
+window.closeCollectionModal = window.OrbSavePanel.close;
+window.openSaveToCollectionModal = window.OrbSavePanel.open;

@@ -115,6 +115,10 @@ namespace MoozicOrb.API.Models
         public int TargetType { get; set; }
         public string Title { get; set; }
         public string Url { get; set; }
+
+        // --- ADDED: Required for the UI Player to render track data ---
+        public string ArtUrl { get; set; }
+        public string ArtistName { get; set; }
     }
 
     public class CommentDto

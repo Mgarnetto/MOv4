@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED MediaResolverService namespace
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
@@ -14,10 +15,12 @@ namespace MoozicOrb.API.Controllers
     public class CollectionsController : ControllerBase
     {
         private readonly IHttpContextAccessor _http;
+        private readonly IMediaResolverService _resolver; // <-- ADDED
 
-        public CollectionsController(IHttpContextAccessor http)
+        public CollectionsController(IHttpContextAccessor http, IMediaResolverService resolver) // <-- INJECTED
         {
             _http = http;
+            _resolver = resolver;
         }
 
         private int GetUserId()
@@ -74,7 +77,8 @@ namespace MoozicOrb.API.Controllers
         {
             try
             {
-                var collection = new GetCollectionDetails().Execute(id);
+                // <-- PASSED _resolver here to hydrate Cloudflare URLs
+                var collection = new GetCollectionDetails().Execute(id, _resolver);
                 if (collection == null) return NotFound("Collection not found.");
 
                 return Ok(collection);
@@ -128,6 +132,22 @@ namespace MoozicOrb.API.Controllers
 
                 return Ok(results);
             }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpGet("mine")]
+        public IActionResult GetMyCollections([FromQuery] int type)
+        {
+            try
+            {
+                // Require the user to be logged in to pull "mine"
+                int userId = GetUserId();
+
+                var results = new GetUserCollectionsByType().Execute(userId, type);
+
+                return Ok(results);
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
 
