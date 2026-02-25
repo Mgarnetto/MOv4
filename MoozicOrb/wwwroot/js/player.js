@@ -15,6 +15,9 @@ const AudioPlayer = {
     mode: 'IDLE', // 'IDLE', 'LIVE', 'TRACK'
     isPlaying: false,
 
+    // --- PLAYLIST QUEUE ---
+    currentQueue: [], // Array of track objects { url, title, artist, cover, linkId }
+
     // --- LIVE CONFIG ---
     audioCtx: null,
     connection: null,
@@ -68,7 +71,15 @@ const AudioPlayer = {
 
         // Track Listeners
         this.trackAudio.addEventListener('timeupdate', () => this.updateScrubber());
-        this.trackAudio.addEventListener('ended', () => this.stopTrack());
+
+        // --- NEW: QUEUE PROGRESSION ON TRACK END ---
+        this.trackAudio.addEventListener('ended', () => {
+            if (this.currentQueue.length > 0) {
+                this.playNextInQueue();
+            } else {
+                this.stopTrack(); // Only stop if queue is empty
+            }
+        });
 
         // Controls
         this.ui.playBtn.onclick = () => this.togglePlay();
@@ -77,6 +88,32 @@ const AudioPlayer = {
         }
 
         console.log("Audio Player Initialized");
+    },
+
+    // =========================================
+    // QUEUE LOGIC
+    // =========================================
+
+    setQueue(trackArray) {
+        this.currentQueue = trackArray || [];
+    },
+
+    playNextInQueue() {
+        if (this.currentQueue.length === 0) return;
+
+        // Shift pulls the first item out of the array
+        const nextTrack = this.currentQueue.shift();
+
+        // Tell the Sidebar to highlight the new track
+        if (window.OrbSavePanel && window.OrbSavePanel.syncActiveTrackUI) {
+            window.OrbSavePanel.syncActiveTrackUI(nextTrack.linkId);
+        }
+
+        this.playTrack(nextTrack.url, {
+            title: nextTrack.title,
+            artist: nextTrack.artist,
+            cover: nextTrack.cover
+        });
     },
 
     // =========================================
@@ -275,6 +312,7 @@ const AudioPlayer = {
         this.trackAudio.currentTime = 0;
         this.isPlaying = false;
         this.updateUIState(false);
+        this.currentQueue = []; // Clear queue on hard stop
 
         if (alternatingInterval) clearInterval(alternatingInterval);
         if (this.ui.displayText) this.ui.displayText.innerText = "Ready to Play";
@@ -306,11 +344,10 @@ const AudioPlayer = {
 
         if (playing) {
             this.ui.playIcon.classList.remove('fa-play');
-            this.ui.playIcon.classList.add('fa-pause'); // Changed from 'fa-stop' for more intuitive track control
+            this.ui.playIcon.classList.add('fa-pause');
             this.ui.playBtn.style.boxShadow = "0 0 30px #00ff88";
         } else {
             this.ui.playIcon.classList.remove('fa-pause');
-            this.ui.playIcon.classList.remove('fa-stop');
             this.ui.playIcon.classList.add('fa-play');
             this.ui.playBtn.style.boxShadow = "";
         }
@@ -324,7 +361,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /* =========================================
 DISCOGRAPHY UI HELPERS
-(Required because ViewComponents injected via SPA cannot run inline scripts)
 ========================================= */
 
 window.toggleCollection = function (header) {

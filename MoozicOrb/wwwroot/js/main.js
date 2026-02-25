@@ -507,7 +507,7 @@ window.OrbSavePanel = {
 
     // Memory Management
     cachedItems: {}, // Level 2 Cache (Items)
-    removeStates: {}, // Tracks 2-step delete states
+    removeStates: {}, // (Kept for legacy compat, but superseded by DOM menu checks)
 
     open: async function (targetId, targetType, displayContext) {
         const isViewMode = !targetId;
@@ -537,7 +537,6 @@ window.OrbSavePanel = {
         const footer = document.getElementById('orbSavePanelFooter');
 
         // --- UNAUTHENTICATED SAFETY CHECK ---
-        // If they are not logged in, show a message and halt execution entirely.
         if (!window.AuthState?.userId) {
             listContainer.innerHTML = '<div class="text-muted small text-center mt-4">Please log in to organize your media.</div>';
             if (footer) footer.style.display = 'none';
@@ -549,7 +548,6 @@ window.OrbSavePanel = {
         // 1. Level 1 Cache Read
         let collections = [];
         if (window.AuthState?.userCollections && window.AuthState.userCollections.length > 0) {
-            // Filter cache by required type
             collections = window.AuthState.userCollections.filter(c => c.type === fetchType || fetchType === 5);
         }
 
@@ -660,7 +658,7 @@ window.OrbSavePanel = {
                 if (tType === 4) {
                     html += `
                         <div class="orb-save-panel-item track-item" onclick="window.OrbSavePanel.viewCollection('${item.targetId}')">
-                            <i class="fas fa-folder text-info" style="font-size: 1.5rem; flex-shrink: 0;"></i>
+                            <i class="fas fa-folder text-info" style="font-size: 1.5rem; flex-shrink: 0; margin-right: 15px;"></i>
                             <div style="flex-grow: 1;">
                                 <div class="text-truncate" style="font-weight: 600; color: #fff;">${title}</div>
                                 <div class="text-truncate" style="font-size: 0.8rem; color: #aaa;">Collection</div>
@@ -673,10 +671,9 @@ window.OrbSavePanel = {
                 // Active Track Logic
                 let isActive = (this.currentPlayingLinkId && String(this.currentPlayingLinkId) === String(linkId));
                 const activeClass = isActive ? 'active-track' : '';
-                const iconClass = isActive ? 'fa-volume-up' : 'fa-play'; // Removed text-muted since button is solid cyan now
+                const iconClass = isActive ? 'fa-volume-up' : 'fa-play';
 
                 // Video Thumb Logic & Cover Art (Moved to the right)
-                // Fallbacks to fa-video, fa-image, or fa-music if the cover art fails to load
                 let iconFallback = tType === 2 ? 'fa-video' : (tType === 3 ? 'fa-image' : 'fa-music');
                 let coverHtml = `
                     <div style="flex-shrink: 0; width: 40px; height: 40px;">
@@ -689,9 +686,8 @@ window.OrbSavePanel = {
                     <div class="orb-save-panel-item track-item draggable-item ${activeClass}" 
                          draggable="true" 
                          data-link-id="${linkId}"
-                         id="playlist-track-${linkId}">
-                        
-                        <div class="drag-handle text-muted" style="cursor: grab; font-size: 1.1rem; padding: 5px;"><i class="fas fa-ellipsis-v"></i></div>
+                         id="playlist-track-${linkId}"
+                         style="padding-right: 10px;">
                         
                         <div style="display:flex; flex-grow:1; align-items:center; cursor: pointer; gap: 15px;" onclick="window.OrbSavePanel.playTrack('${url}', '${title.replace(/'/g, "\\'")}', '${artist.replace(/'/g, "\\'")}', '${cover}', '${linkId}')">
                             
@@ -707,9 +703,17 @@ window.OrbSavePanel = {
                             ${coverHtml}
                         </div>
 
-                        <button class="btn btn-sm btn-outline-danger" id="remove-btn-${linkId}" onclick="window.OrbSavePanel.initiateRemove(event, '${linkId}', '${collectionId}')" title="Remove" style="flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div style="position: relative; flex-shrink: 0; display: flex; align-items: center; padding-left: 10px;">
+                            <button onclick="window.OrbSavePanel.toggleTrackMenu(event, '${linkId}')" style="background: transparent; border: none; outline: none; box-shadow: none; color: #ccc; padding: 5px 10px; cursor: pointer;">
+                                <i class="fas fa-ellipsis-v" style="font-size: 1.1rem;"></i>
+                            </button>
+                            
+                            <div id="menu-dropdown-${linkId}" class="shadow" style="display: none; position: absolute; right: 0; top: 100%; background: #222; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; z-index: 100; white-space: nowrap; overflow: hidden;">
+                                <button style="padding: 12px 15px; text-align: left; background: transparent; border: none; outline: none; color: #ff4d4d; width: 100%; cursor: pointer; font-size: 0.9rem;" onclick="window.OrbSavePanel.executeRemove(event, '${linkId}', '${collectionId}', this)">
+                                    <i class="fas fa-trash-alt me-2"></i> Remove
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
             });
@@ -719,36 +723,34 @@ window.OrbSavePanel = {
         this.initDragAndDrop(collectionId);
     },
 
-    // --- 2-STEP DELETE LOGIC ---
-    initiateRemove: function (event, linkId, collectionId) {
+    // --- NEW: 3 DOTS MENU TOGGLE ---
+    toggleTrackMenu: function (event, linkId) {
         event.stopPropagation();
-        const btn = document.getElementById(`remove-btn-${linkId}`);
+        const menu = document.getElementById(`menu-dropdown-${linkId}`);
+        const isCurrentlyOpen = menu.style.display === 'block';
 
-        // If already in confirm state, execute the deletion
-        if (this.removeStates[linkId]) {
-            this.executeRemove(linkId, collectionId, btn);
-            return;
+        // Close all menus first
+        document.querySelectorAll('[id^="menu-dropdown-"]').forEach(el => el.style.display = 'none');
+
+        // If it wasn't open, open it and listen for outside clicks to close it
+        if (!isCurrentlyOpen) {
+            menu.style.display = 'block';
+
+            const resetFn = () => {
+                menu.style.display = 'none';
+                document.removeEventListener('click', resetFn);
+            };
+            setTimeout(() => document.addEventListener('click', resetFn), 10);
         }
-
-        // Change to Step 2 (Confirm)
-        this.removeStates[linkId] = true;
-        btn.innerHTML = '<i class="fas fa-check"></i>';
-        btn.classList.replace('btn-outline-danger', 'btn-danger');
-
-        // Reset if they click anywhere else
-        const resetFn = () => {
-            this.removeStates[linkId] = false;
-            if (btn) {
-                btn.innerHTML = '<i class="fas fa-times"></i>';
-                btn.classList.replace('btn-danger', 'btn-outline-danger');
-            }
-            document.removeEventListener('click', resetFn);
-        };
-        setTimeout(() => document.addEventListener('click', resetFn), 10); // slight delay to avoid immediate trigger
     },
 
-    executeRemove: async function (linkId, collectionId, btn) {
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    // --- UPDATED: EXECUTE MENU REMOVAL ---
+    executeRemove: async function (event, linkId, collectionId, btn) {
+        event.stopPropagation();
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Removing...';
+        btn.disabled = true;
+
         try {
             const res = await fetch(`/api/collections/items/${linkId}?collectionId=${collectionId}`, {
                 method: 'DELETE',
@@ -765,11 +767,14 @@ window.OrbSavePanel = {
                 }
             } else {
                 alert("Failed to remove. Collection might be locked for sale.");
-                btn.innerHTML = '<i class="fas fa-times"></i>';
-                btn.classList.replace('btn-danger', 'btn-outline-danger');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-        } catch (e) { console.error(e); }
-        this.removeStates[linkId] = false;
+        } catch (e) {
+            console.error(e);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     },
 
     // --- DRAG AND DROP REORDER LOGIC ---
@@ -780,17 +785,30 @@ window.OrbSavePanel = {
         let draggedItem = null;
 
         container.addEventListener('dragstart', e => {
-            if (!e.target.classList.contains('draggable-item')) return;
-            draggedItem = e.target;
-            e.target.style.opacity = 0.5;
+            // Check if they are grabbing the item row
+            const targetItem = e.target.closest('.draggable-item');
+            if (!targetItem) return;
+            draggedItem = targetItem;
+            targetItem.style.opacity = 0.5;
         });
 
         container.addEventListener('dragend', e => {
-            if (!e.target.classList.contains('draggable-item')) return;
-            e.target.style.opacity = "";
+            const targetItem = e.target.closest('.draggable-item');
+            if (!targetItem) return;
+            targetItem.style.opacity = "";
 
             // Gather new order
             const newOrder = Array.from(container.querySelectorAll('.draggable-item')).map(el => parseInt(el.dataset.linkId));
+
+            // This ensures if you close and reopen the modal, it stays sorted locally
+            const cache = window.OrbSavePanel.cachedItems[collectionId];
+            if (cache && cache.items) {
+                cache.items.sort((a, b) => {
+                    const idA = parseInt(a.linkId || a.LinkId);
+                    const idB = parseInt(b.linkId || b.LinkId);
+                    return newOrder.indexOf(idA) - newOrder.indexOf(idB);
+                });
+            }
 
             // Fire background update API (Fire & Forget)
             fetch(`/api/collections/${collectionId}/reorder`, {
@@ -807,9 +825,9 @@ window.OrbSavePanel = {
             e.preventDefault();
             const afterElement = this.getDragAfterElement(container, e.clientY);
             if (afterElement == null) {
-                container.appendChild(draggedItem);
+                if (draggedItem) container.appendChild(draggedItem);
             } else {
-                container.insertBefore(draggedItem, afterElement);
+                if (draggedItem) container.insertBefore(draggedItem, afterElement);
             }
         });
     },
@@ -827,27 +845,71 @@ window.OrbSavePanel = {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     },
 
-    playTrack: function (url, title, artist, cover, linkId = null) {
-        this.currentPlayingUrl = url;
-        this.currentPlayingLinkId = linkId;
-        this.currentPlayingCollectionId = this.currentlyViewingCollectionId;
+    // --- HELPER: Keeps UI in sync when player auto-advances ---
+    syncActiveTrackUI: function (newLinkId) {
+        this.currentPlayingLinkId = newLinkId;
 
+        // Remove highlight from all rows
         const allTracks = document.querySelectorAll('.orb-save-panel-item.track-item');
         allTracks.forEach(el => {
             el.classList.remove('active-track');
             const icon = el.querySelector('.track-icon');
-            if (icon) icon.className = 'track-icon fas fa-play text-muted';
+            if (icon) icon.className = 'track-icon fas fa-play';
         });
 
-        const activeEl = document.getElementById(`playlist-track-${linkId}`);
+        // Add highlight to new row
+        const activeEl = document.getElementById(`playlist-track-${newLinkId}`);
         if (activeEl) {
             activeEl.classList.add('active-track');
             const icon = activeEl.querySelector('.track-icon');
-            if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
+            if (icon) icon.className = 'track-icon fas fa-volume-up';
         }
+    },
+
+    playTrack: function (url, title, artist, cover, linkId = null) {
+        // --- SAFETY CHECK: Block Playback if a menu is open ---
+        let isMenuOpen = false;
+        document.querySelectorAll('[id^="menu-dropdown-"]').forEach(el => {
+            if (el.style.display === 'block') isMenuOpen = true;
+        });
+        if (isMenuOpen) return;
+
+        this.currentPlayingUrl = url;
+        this.currentPlayingLinkId = linkId;
+        this.currentPlayingCollectionId = this.currentlyViewingCollectionId;
+
+        // Trigger visual highlight instantly on click
+        this.syncActiveTrackUI(linkId);
 
         if (window.AudioPlayer) {
             const safeCover = (cover && cover.trim() !== '') ? cover : '/img/default_cover.jpg';
+
+            // --- QUEUE LOGIC ---
+            // Build the queue from this track onwards
+            const currentCollectionData = this.cachedItems[this.currentlyViewingCollectionId];
+            if (currentCollectionData && currentCollectionData.items) {
+                const items = currentCollectionData.items || currentCollectionData.Items;
+
+                // Find the index of the clicked track
+                let startIndex = items.findIndex(i => String(i.linkId || i.LinkId) === String(linkId));
+
+                if (startIndex !== -1 && startIndex < items.length - 1) {
+                    // Build queue from the NEXT track to the end of the array
+                    const queueArray = items.slice(startIndex + 1).map(item => {
+                        const iTitle = item.title || item.Title || 'Unknown Track';
+                        const iArtist = item.artistName || item.ArtistName || 'Unknown Artist';
+                        const iCover = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+                        const iUrl = item.url || item.Url;
+                        const iLinkId = item.linkId || item.LinkId;
+                        return { url: iUrl, title: iTitle, artist: iArtist, cover: iCover, linkId: iLinkId };
+                    });
+                    window.AudioPlayer.setQueue(queueArray);
+                } else {
+                    window.AudioPlayer.setQueue([]); // Clear if it's the last track
+                }
+            }
+
+            // Tell the AudioPlayer to play the clicked track
             window.AudioPlayer.playTrack(url, { title: title, artist: artist, cover: safeCover });
         }
     },
@@ -856,11 +918,17 @@ window.OrbSavePanel = {
         this.currentPlayingCollectionId = collectionId;
         await this.viewCollection(collectionId);
 
-        // Grab first item from cache
+        // Grab first item from cache and let playTrack handle building the queue for the rest
         const items = this.cachedItems[collectionId]?.items || [];
         if (items.length > 0) {
             const first = items[0];
-            this.playTrack(first.url, first.title, first.artistName, first.artUrl, first.linkId);
+            const safeUrl = first.url || first.Url;
+            const safeTitle = first.title || first.Title;
+            const safeArtist = first.artistName || first.ArtistName;
+            const safeArt = first.artUrl || first.ArtUrl;
+            const safeId = first.linkId || first.LinkId;
+
+            this.playTrack(safeUrl, safeTitle, safeArtist, safeArt, safeId);
         } else {
             alert("This playlist is empty.");
         }

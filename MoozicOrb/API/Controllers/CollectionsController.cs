@@ -225,5 +225,31 @@ namespace MoozicOrb.API.Controllers
             catch (UnauthorizedAccessException) { return Unauthorized(); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
+
+        [HttpPut("{id}/reorder")]
+        public IActionResult ReorderCollectionItems(long id, [FromBody] List<long> linkIds)
+        {
+            try
+            {
+                int userId = GetUserId();
+
+                // APPLICATION-LEVEL SECURITY PRE-CHECK
+                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+
+                if (linkIds == null || linkIds.Count == 0) return Ok(new { success = true });
+
+                var updateSortIo = new UpdateCollectionItemSort();
+
+                // Loop through the array. The index (i) becomes the new sort_order.
+                for (int i = 0; i < linkIds.Count; i++)
+                {
+                    updateSortIo.Execute(linkIds[i], i);
+                }
+
+                return Ok(new { success = true });
+            }
+            catch (UnauthorizedAccessException) { return Unauthorized(); }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
     }
 }
