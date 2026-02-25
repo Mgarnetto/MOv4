@@ -1,5 +1,5 @@
 ﻿using MoozicOrb.API.Models;
-using MoozicOrb.API.Services; // <-- ADDED
+using MoozicOrb.API.Services;
 using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
@@ -9,6 +9,14 @@ namespace MoozicOrb.IO
 {
     public class GetPost
     {
+        // HELPER: Safely resolve Cloudflare URLs while ignoring local paths
+        private string SafeResolve(string urlOrKey, IMediaResolverService resolver)
+        {
+            if (string.IsNullOrEmpty(urlOrKey) || urlOrKey == "null") return null;
+            if (urlOrKey.StartsWith("/") || urlOrKey.StartsWith("http")) return urlOrKey;
+            return resolver != null ? resolver.ResolveUrl(urlOrKey, 1) : urlOrKey;
+        }
+
         // 1. GET SINGLE POST
         public PostDto Execute(long postId, int viewerId, IMediaResolverService resolver = null)
         {
@@ -24,7 +32,8 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     using (var rdr = cmd.ExecuteReader())
                     {
-                        if (rdr.Read()) post = MapReaderToDto(rdr);
+                        // PASSED RESOLVER
+                        if (rdr.Read()) post = MapReaderToDto(rdr, resolver);
                     }
                 }
                 if (post != null) AttachMediaToPosts(conn, new List<PostDto> { post }, resolver);
@@ -84,7 +93,8 @@ namespace MoozicOrb.IO
 
                     using (var rdr = cmd.ExecuteReader())
                     {
-                        while (rdr.Read()) results.Add(MapReaderToDto(rdr));
+                        // PASSED RESOLVER
+                        while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver));
                     }
                 }
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
@@ -108,7 +118,8 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     cmd.Parameters.AddWithValue("@limit", freshCount);
-                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
+                    // PASSED RESOLVER
+                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
 
                 if (vintageCount > 0)
@@ -118,7 +129,8 @@ namespace MoozicOrb.IO
                     {
                         cmd.Parameters.AddWithValue("@vid", viewerId);
                         cmd.Parameters.AddWithValue("@limit", vintageCount);
-                        using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
+                        // PASSED RESOLVER
+                        using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                     }
                 }
 
@@ -132,7 +144,8 @@ namespace MoozicOrb.IO
                     {
                         cmd.Parameters.AddWithValue("@vid", viewerId);
                         cmd.Parameters.AddWithValue("@limit", count - results.Count);
-                        using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
+                        // PASSED RESOLVER
+                        using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                     }
                 }
 
@@ -154,7 +167,8 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     cmd.Parameters.AddWithValue("@limit", count);
-                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
+                    // PASSED RESOLVER
+                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
@@ -183,7 +197,8 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@term", "%" + term + "%");
                     cmd.Parameters.AddWithValue("@vid", viewerId);
-                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr)); }
+                    // PASSED RESOLVER
+                    using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
@@ -211,7 +226,6 @@ namespace MoozicOrb.IO
             if (posts == null || posts.Count == 0) return;
             var ids = string.Join(",", posts.Select(p => p.Id));
 
-            // FIX: Added COALESCE to get the correct storage provider for the media type attached
             string sql = $@"
                 SELECT 
                     pm.post_id, 
@@ -239,7 +253,6 @@ namespace MoozicOrb.IO
                         var post = posts.FirstOrDefault(p => p.Id == pId);
                         if (post != null)
                         {
-                            // FIX: Safely retrieve the storage provider flag
                             int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
 
                             string dbPath = rdr["final_url"] == DBNull.Value ? "" : rdr["final_url"].ToString();
@@ -255,7 +268,6 @@ namespace MoozicOrb.IO
                                 extraPath = rdr["snippet_url"] == DBNull.Value ? null : rdr["snippet_url"].ToString();
                             }
 
-                            // FIX: URL Resolution Logic
                             if (resolver != null && storageProv == 1)
                             {
                                 dbPath = resolver.ResolveUrl(dbPath, 1);
@@ -266,7 +278,6 @@ namespace MoozicOrb.IO
                             }
                             else
                             {
-                                // Fallback for local files
                                 if (!string.IsNullOrEmpty(dbPath) && !dbPath.StartsWith("/") && !dbPath.StartsWith("http")) dbPath = "/" + dbPath;
                                 if (!string.IsNullOrEmpty(extraPath) && !extraPath.StartsWith("/") && !extraPath.StartsWith("http")) extraPath = "/" + extraPath;
                             }
@@ -284,22 +295,29 @@ namespace MoozicOrb.IO
             }
         }
 
-        private PostDto MapReaderToDto(MySqlDataReader rdr)
+        // PASSED RESOLVER TO DTO MAPPER
+        private PostDto MapReaderToDto(MySqlDataReader rdr, IMediaResolverService resolver)
         {
             var createdAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc);
+
+            // Raw DB Values
+            string rawProfPic = rdr["profile_pic"] == DBNull.Value ? null : rdr["profile_pic"].ToString();
+            string rawImgUrl = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString();
 
             return new PostDto
             {
                 Id = rdr.GetInt64("post_id"),
                 AuthorId = rdr.GetInt32("user_id"),
                 AuthorName = rdr["display_name"].ToString(),
-                AuthorPic = rdr["profile_pic"] == DBNull.Value ? "/img/profile_default.jpg" : rdr["profile_pic"].ToString(),
+                // RESOLVED: Profile Picture
+                AuthorPic = SafeResolve(rawProfPic, resolver) ?? "/img/profile_default.jpg",
                 ContextType = rdr["context_type"].ToString(),
                 ContextId = rdr["context_id"].ToString(),
                 Type = rdr["post_type"].ToString(),
                 Title = rdr["title"] == DBNull.Value ? null : rdr["title"].ToString(),
                 Text = rdr["content_text"] == DBNull.Value ? null : rdr["content_text"].ToString(),
-                ImageUrl = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString(),
+                // RESOLVED: Legacy image URLs (if any exist)
+                ImageUrl = SafeResolve(rawImgUrl, resolver),
                 CreatedAt = createdAt,
                 Price = rdr["price"] == DBNull.Value ? null : (decimal?)rdr.GetDecimal("price"),
                 Quantity = rdr["quantity"] == DBNull.Value ? null : (int?)rdr.GetInt32("quantity"),

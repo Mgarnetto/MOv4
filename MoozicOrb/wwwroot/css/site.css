@@ -4853,7 +4853,7 @@ textarea.form-control {
     padding: 15px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px; /* Increased gap between rows */
     overscroll-behavior: contain; /* Traps the scroll inside the list */
 }
 
@@ -4862,25 +4862,26 @@ textarea.form-control {
     align-items: center;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 10px;
-    border-radius: 8px;
+    padding: 12px 15px; /* Slightly thicker padding for breathing room */
+    border-radius: 10px; /* Softer rounded edges */
     cursor: pointer;
     transition: all 0.2s;
     color: #fff;
     text-align: left;
+    gap: 15px; /* PERFECT SPACING: Pushes img, text, and buttons apart uniformly */
 }
 
     .orb-save-panel-item:hover {
         background: rgba(0, 174, 239, 0.1);
-        border-color: var(--accent-secondary);
+        border-color: var(--accent-secondary, #00d2ff);
     }
 
     .orb-save-panel-item img {
-        width: 35px;
-        height: 35px;
+        width: 40px;
+        height: 40px;
         object-fit: cover;
-        border-radius: 4px;
-        margin-right: 12px;
+        border-radius: 6px;
+        flex-shrink: 0;
     }
 
     .orb-save-panel-item span {
@@ -4913,36 +4914,37 @@ textarea.form-control {
     background: rgba(0, 210, 255, 0.1) !important;
 }
 
-.orb-panel-play-btn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+/* PLAY BUTTONS: Now Solid and Prominent */
+.orb-panel-play-btn, .prominent-play-btn {
+    background: var(--accent-secondary, #00d2ff); /* Solid Background */
+    border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--accent-secondary, #00d2ff);
+    color: #000; /* Dark icon for contrast */
     cursor: pointer;
+    flex-shrink: 0;
     transition: all 0.2s;
     margin-left: auto;
+    box-shadow: 0 4px 10px rgba(0, 210, 255, 0.3); /* Subtle Glow */
 }
 
-    .orb-panel-play-btn:hover {
-        background: var(--accent-secondary, #00d2ff);
-        color: #000;
+    .orb-panel-play-btn:hover, .prominent-play-btn:hover {
         transform: scale(1.1);
+        box-shadow: 0 6px 15px rgba(0, 210, 255, 0.5);
     }
 
 .orb-panel-fallback-icon {
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
     background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 12px;
     color: var(--accent-secondary, #00d2ff);
     border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
@@ -4950,7 +4952,7 @@ textarea.form-control {
 
 .orb-save-panel-footer {
     padding: 20px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom)); /* Accounts for iOS home bar */
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     gap: 10px;
@@ -4981,19 +4983,18 @@ textarea.form-control {
     padding: 10px 15px;
     cursor: pointer;
 }
-/* =========================================
-   UNIVERSAL TRACK SAVE BUTTON
-   ========================================= */
+
+/* Universal Track Save Button */
 .btn-save-track {
     background: transparent;
     border: none;
     color: #888;
     font-size: 1.1rem;
-    padding: 10px 15px; /* Large hit area for mobile */
-    margin-right: 10px; /* Space from the meter/artwork */
+    padding: 10px 15px;
+    margin-right: 10px;
     cursor: pointer;
     transition: color 0.2s, transform 0.2s;
-    z-index: 10; /* Keeps it above the playable row */
+    z-index: 10;
 }
 
     .btn-save-track:hover {

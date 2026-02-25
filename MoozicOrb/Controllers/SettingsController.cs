@@ -4,6 +4,7 @@ using MoozicOrb.Models;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
+using MoozicOrb.API.Services; // NEW: Added to use IMediaResolverService
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using System.Collections.Generic;
@@ -15,11 +16,13 @@ namespace MoozicOrb.Controllers
     {
         private readonly UserQuery _userQuery;
         private readonly IUserAuthService _authService;
+        private readonly IMediaResolverService _resolver; // NEW: Injecting the resolver
 
-        public SettingsController(IUserAuthService authService)
+        public SettingsController(IUserAuthService authService, IMediaResolverService resolver)
         {
             _userQuery = new UserQuery();
             _authService = authService;
+            _resolver = resolver;
         }
 
         private int GetUserId()
@@ -27,6 +30,14 @@ namespace MoozicOrb.Controllers
             string sid = Request.Headers["X-Session-Id"].ToString();
             var session = SessionStore.GetSession(sid);
             return session?.UserId ?? HttpContext.Session.GetInt32("UserId") ?? 0;
+        }
+
+        // Helper to prevent resolving local/default images via Cloudflare
+        private string SafeResolve(string urlOrKey)
+        {
+            if (string.IsNullOrEmpty(urlOrKey)) return urlOrKey;
+            if (urlOrKey.StartsWith("/") || urlOrKey.StartsWith("http")) return urlOrKey;
+            return _resolver.ResolveUrl(urlOrKey, 1);
         }
 
         // ------------------------------------
@@ -41,14 +52,13 @@ namespace MoozicOrb.Controllers
             var user = _userQuery.GetUserById(userId);
             if (user == null) return NotFound();
 
-            // Populate Dropdowns
             ViewBag.AccountTypes = _userQuery.GetAccountTypes();
             ViewBag.Genres = _userQuery.GetGenres();
 
             var model = new PageSettingsViewModel
             {
                 Bio = user.Bio,
-                CoverImage = user.CoverImageUrl,
+                CoverImage = SafeResolve(user.CoverImageUrl), // NEW: Resolving Cover Art
                 BookingEmail = user.BookingEmail,
                 LayoutOrder = user.LayoutOrder,
                 PhoneBooking = user.PhoneBooking,
@@ -77,7 +87,7 @@ namespace MoozicOrb.Controllers
             bool success = updateIo.UpdatePageSettings(
                 userId,
                 model.Bio,
-                model.CoverImage,
+                model.CoverImage, // Receives the raw cloudKey from JS
                 model.BookingEmail,
                 json,
                 model.PhoneBooking,
@@ -102,15 +112,8 @@ namespace MoozicOrb.Controllers
 
             var user = _userQuery.GetUserById(userId);
 
-            // --- CRITICAL ADDITION: Populate Location Dropdowns ---
-            // Note: You need to ensure _userQuery has these methods or create a LocationIO helper.
-            // Assuming _userQuery can now fetch locations based on our previous discussions.
-            // If not, you'll need to add GetCountries() to UserQuery.cs
-
-            // 1. Always get countries
             ViewBag.Countries = new MoozicOrb.IO.LocationIO().GetCountries();
 
-            // 2. Only get states if a country is selected
             if (user.CountryId.HasValue)
             {
                 ViewBag.States = new MoozicOrb.IO.LocationIO().GetStates(user.CountryId.Value);
@@ -120,13 +123,10 @@ namespace MoozicOrb.Controllers
             {
                 DisplayName = user.DisplayName,
                 Email = user.Email,
-                ProfilePic = user.ProfilePic,
+                ProfilePic = SafeResolve(user.ProfilePic), // NEW: Resolving Profile Pic
                 Dob = user.Dob,
-
-                // Updated Mapping
                 CountryId = user.CountryId,
                 StateId = user.StateId,
-
                 PhoneMain = user.PhoneMain,
                 VisibilityId = user.VisibilityId
             };
@@ -143,13 +143,12 @@ namespace MoozicOrb.Controllers
 
             var updateIo = new UpdateUser();
 
-            // Updated to pass Country and State separately
             bool success = updateIo.UpdateAccountSettings(
                 userId,
                 model.DisplayName,
                 model.Dob,
-                model.CountryId, // Changed from LocationId
-                model.StateId,   // Added StateId
+                model.CountryId,
+                model.StateId,
                 model.PhoneMain,
                 model.VisibilityId
             );
@@ -157,14 +156,13 @@ namespace MoozicOrb.Controllers
             return Ok(new { success = success });
         }
 
-        // ... (Avatar Update remains unchanged) ...
         [HttpPost("update-avatar")]
         public IActionResult UpdateAvatar([FromBody] dynamic req)
         {
             int userId = GetUserId();
             if (userId == 0) return Unauthorized();
 
-            string url = req.GetProperty("url").ToString();
+            string url = req.GetProperty("url").ToString(); // Receives raw cloudKey from JS
             var updateIo = new UpdateUser();
             bool success = updateIo.UpdateProfilePic(userId, url);
 

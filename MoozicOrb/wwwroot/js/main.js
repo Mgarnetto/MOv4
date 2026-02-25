@@ -497,13 +497,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// UNIVERSAL COLLECTIONS MANAGER (Sliding Panel)
+// UNIVERSAL COLLECTIONS MANAGER (Phase 4 Upgrade)
 // ============================================
 window.OrbSavePanel = {
     currentPlayingUrl: null,
     currentPlayingLinkId: null,
-    currentPlayingCollectionId: null, // Tracks which folder is playing
-    currentlyViewingCollectionId: null, // Tracks which folder we are currently looking inside
+    currentPlayingCollectionId: null,
+    currentlyViewingCollectionId: null,
+
+    // Memory Management
+    cachedItems: {}, // Level 2 Cache (Items)
+    removeStates: {}, // Tracks 2-step delete states
 
     open: async function (targetId, targetType, displayContext) {
         const isViewMode = !targetId;
@@ -532,10 +536,9 @@ window.OrbSavePanel = {
         const listContainer = document.getElementById('existingCollectionsList');
         const footer = document.getElementById('orbSavePanelFooter');
 
-        listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
-
-        const userId = window.AuthState?.userId;
-        if (!userId) {
+        // --- UNAUTHENTICATED SAFETY CHECK ---
+        // If they are not logged in, show a message and halt execution entirely.
+        if (!window.AuthState?.userId) {
             listContainer.innerHTML = '<div class="text-muted small text-center mt-4">Please log in to organize your media.</div>';
             if (footer) footer.style.display = 'none';
             return;
@@ -543,145 +546,292 @@ window.OrbSavePanel = {
 
         if (footer) footer.style.display = 'flex';
 
-        try {
-            const res = await fetch(`/api/collections/mine?type=${fetchType}`, {
-                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-            });
-
-            if (res.ok) {
-                const collections = await res.json();
-                listContainer.innerHTML = '';
-
-                if (collections.length === 0) {
-                    listContainer.innerHTML = '<div class="text-muted small text-center mt-3">No folders yet. Create one below!</div>';
-                    return;
-                }
-
-                collections.forEach(c => {
-                    // Check if this specific playlist is currently spinning
-                    const isActiveFolder = (String(c.id) === String(this.currentPlayingCollectionId));
-                    const folderClass = isActiveFolder ? 'active-track' : '';
-                    const folderIcon = isActiveFolder ? '<i class="fas fa-volume-up text-info ms-2"></i>' : '';
-
-                    if (isViewMode) {
-                        listContainer.innerHTML += `
-                            <div class="orb-save-panel-item ${folderClass}" onclick="window.OrbSavePanel.viewCollection('${c.id}')">
-                                <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
-                                <span class="text-truncate" style="flex-grow: 1;">${c.title} ${folderIcon}</span>
-                                <button class="orb-panel-play-btn" onclick="window.OrbSavePanel.playCollection('${c.id}'); event.stopPropagation();" title="Play Playlist">
-                                    <i class="fas fa-play" style="margin-left: 2px;"></i>
-                                </button>
-                            </div>
-                        `;
-                    } else {
-                        listContainer.innerHTML += `
-                            <div class="orb-save-panel-item" onclick="window.OrbSavePanel.saveItem('${c.id}')">
-                                <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
-                                <span class="text-truncate">${c.title}</span>
-                                <i class="fas fa-plus text-muted" style="margin-left: auto;"></i>
-                            </div>
-                        `;
-                    }
-                });
-            }
-        } catch (err) {
-            console.error(err);
-            listContainer.innerHTML = '<div class="text-danger small text-center mt-3">Error loading folders.</div>';
+        // 1. Level 1 Cache Read
+        let collections = [];
+        if (window.AuthState?.userCollections && window.AuthState.userCollections.length > 0) {
+            // Filter cache by required type
+            collections = window.AuthState.userCollections.filter(c => c.type === fetchType || fetchType === 5);
         }
+
+        // If cache is empty, fetch immediately. Otherwise, render instantly.
+        if (collections.length === 0) {
+            listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            try {
+                const res = await fetch(`/api/collections/mine?type=${fetchType}`, {
+                    headers: { "X-Session-Id": window.AuthState.sessionId }
+                });
+                if (res.ok) collections = await res.json();
+            } catch (err) { console.error(err); }
+        }
+
+        listContainer.innerHTML = '';
+        if (collections.length === 0) {
+            listContainer.innerHTML = '<div class="text-muted small text-center mt-3">No folders yet. Create one below!</div>';
+            return;
+        }
+
+        // 2. Async Pre-Loader (Top 10)
+        const top10 = collections.slice(0, 10);
+        top10.forEach(c => {
+            if (!this.cachedItems[c.id]) {
+                fetch(`/api/collections/${c.id}`, { headers: { "X-Session-Id": window.AuthState.sessionId } })
+                    .then(r => r.ok ? r.json() : null)
+                    .then(data => { if (data) this.cachedItems[c.id] = data; })
+                    .catch(e => console.error("Preload error", e));
+            }
+        });
+
+        // 3. Render Level 1
+        collections.forEach(c => {
+            const isActiveFolder = (String(c.id) === String(this.currentPlayingCollectionId));
+            const folderClass = isActiveFolder ? 'active-track' : '';
+            const folderIcon = isActiveFolder ? '<i class="fas fa-volume-up text-info ms-2"></i>' : '';
+
+            if (isViewMode) {
+                listContainer.innerHTML += `
+                    <div class="orb-save-panel-item ${folderClass}" onclick="window.OrbSavePanel.viewCollection('${c.id}')">
+                        <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
+                        <span class="text-truncate" style="flex-grow: 1;">${c.title} ${folderIcon}</span>
+                        <button class="orb-panel-play-btn" onclick="window.OrbSavePanel.playCollection('${c.id}'); event.stopPropagation();" title="Play Playlist">
+                            <i class="fas fa-play" style="margin-left: 2px;"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML += `
+                    <div class="orb-save-panel-item" onclick="window.OrbSavePanel.saveItem('${c.id}')">
+                        <img src="${c.coverImageUrl}" alt="cover" onerror="this.src='/img/default_cover.jpg'">
+                        <span class="text-truncate">${c.title}</span>
+                        <i class="fas fa-plus text-muted" style="margin-left: auto;"></i>
+                    </div>
+                `;
+            }
+        });
     },
 
     viewCollection: async function (collectionId) {
-        this.currentlyViewingCollectionId = collectionId; // Track where we are
-
+        this.currentlyViewingCollectionId = collectionId;
         const listContainer = document.getElementById('existingCollectionsList');
         const footer = document.getElementById('orbSavePanelFooter');
-
         if (footer) footer.style.display = 'none';
 
-        listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+        let collectionData = this.cachedItems[collectionId];
 
-        try {
-            const res = await fetch(`/api/collections/${collectionId}`, {
-                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-            });
+        // Level 2 Cache check
+        if (!collectionData) {
+            listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+            try {
+                const res = await fetch(`/api/collections/${collectionId}`, {
+                    headers: { "X-Session-Id": window.AuthState.sessionId }
+                });
+                if (res.ok) {
+                    collectionData = await res.json();
+                    this.cachedItems[collectionId] = collectionData; // Save to cache
+                }
+            } catch (err) { console.error(err); }
+        }
 
-            if (res.ok) {
-                const collection = await res.json();
-                const items = collection.items || collection.Items || [];
+        if (!collectionData) {
+            listContainer.innerHTML = '<div class="text-danger small text-center mt-3">Error loading playlist.</div>';
+            return;
+        }
 
-                document.getElementById('orbSavePanelTitle').innerText = collection.title || collection.Title || 'Playlist';
+        const items = collectionData.items || collectionData.Items || [];
+        document.getElementById('orbSavePanelTitle').innerText = collectionData.title || collectionData.Title || 'Playlist';
 
-                let html = `<button class="orb-panel-back-btn" onclick="window.OrbSavePanel.open(null, 1, 'audio')">
-                                <i class="fas fa-arrow-left"></i> Back to Playlists
-                            </button>`;
+        let html = `<button class="orb-panel-back-btn" onclick="window.OrbSavePanel.open(null, 1, 'audio')">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>`;
 
-                if (items.length === 0) {
-                    html += `<div class="text-muted small text-center mt-3">This playlist is empty.</div>`;
-                } else {
-                    let urlMatchedOnce = false;
+        if (items.length === 0) {
+            html += `<div class="text-muted small text-center mt-3">This folder is empty.</div>`;
+        } else {
+            html += `<div id="drag-drop-container" style="display: flex; flex-direction: column; gap: 5px;">`;
 
-                    items.forEach((item) => {
-                        const title = item.title || item.Title || 'Unknown Track';
-                        const artist = item.artistName || item.ArtistName || 'Unknown Artist';
-                        const cover = item.artUrl || item.ArtUrl || '';
-                        const url = item.url || item.Url;
-                        const linkId = item.linkId || item.LinkId;
+            items.forEach((item, index) => {
+                const title = item.title || item.Title || 'Unknown Track';
+                const artist = item.artistName || item.ArtistName || 'Unknown Artist';
+                const cover = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+                const url = item.url || item.Url;
+                const linkId = item.linkId || item.LinkId;
+                const tType = item.targetType || item.TargetType;
 
-                        const safeTitle = title.replace(/'/g, "\\'");
-                        const safeArtist = artist.replace(/'/g, "\\'");
-
-                        // --- ART FALLBACK RENDERER ---
-                        let coverHtml = '';
-                        if (cover && cover.trim() !== '') {
-                            coverHtml = `<img src="${cover}" alt="cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                         <div class="orb-panel-fallback-icon" style="display:none;"><i class="fas fa-music"></i></div>`;
-                        } else {
-                            coverHtml = `<div class="orb-panel-fallback-icon"><i class="fas fa-music"></i></div>`;
-                        }
-
-                        // --- ACTIVE TRACK CHECK ---
-                        let isActive = false;
-
-                        if (this.currentPlayingLinkId && String(this.currentPlayingLinkId) === String(linkId)) {
-                            isActive = true;
-                            urlMatchedOnce = true;
-                        } else if (this.currentPlayingUrl === url && !urlMatchedOnce && !this.currentPlayingLinkId) {
-                            isActive = true;
-                            urlMatchedOnce = true;
-                        }
-
-                        const activeClass = isActive ? 'active-track' : '';
-                        const iconClass = isActive ? 'fa-volume-up text-info' : 'fa-play text-muted';
-
-                        html += `
-                            <div class="orb-save-panel-item track-item ${activeClass}" id="playlist-track-${linkId}" data-track-url="${url}" onclick="window.OrbSavePanel.playTrack('${url}', '${safeTitle}', '${safeArtist}', '${cover}', '${linkId}')">
-                                ${coverHtml}
-                                <div style="flex-grow: 1; overflow: hidden; text-align: left;">
-                                    <div class="text-truncate" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${title}</div>
-                                    <div class="text-truncate" style="font-size: 0.8rem; color: #aaa;">${artist}</div>
-                                </div>
-                                <i class="track-icon fas ${iconClass}" style="margin-left: auto;"></i>
+                // Nested Collection Support
+                if (tType === 4) {
+                    html += `
+                        <div class="orb-save-panel-item track-item" onclick="window.OrbSavePanel.viewCollection('${item.targetId}')">
+                            <i class="fas fa-folder text-info" style="font-size: 1.5rem; flex-shrink: 0;"></i>
+                            <div style="flex-grow: 1;">
+                                <div class="text-truncate" style="font-weight: 600; color: #fff;">${title}</div>
+                                <div class="text-truncate" style="font-size: 0.8rem; color: #aaa;">Collection</div>
                             </div>
-                        `;
-                    });
+                            <i class="fas fa-chevron-right text-muted"></i>
+                        </div>`;
+                    return; // Skip the rest for folders
                 }
 
-                listContainer.innerHTML = html;
-            }
-        } catch (err) {
-            console.error(err);
-            listContainer.innerHTML = '<div class="text-danger small text-center mt-3">Error loading playlist.</div>';
+                // Active Track Logic
+                let isActive = (this.currentPlayingLinkId && String(this.currentPlayingLinkId) === String(linkId));
+                const activeClass = isActive ? 'active-track' : '';
+                const iconClass = isActive ? 'fa-volume-up' : 'fa-play'; // Removed text-muted since button is solid cyan now
+
+                // Video Thumb Logic & Cover Art (Moved to the right)
+                // Fallbacks to fa-video, fa-image, or fa-music if the cover art fails to load
+                let iconFallback = tType === 2 ? 'fa-video' : (tType === 3 ? 'fa-image' : 'fa-music');
+                let coverHtml = `
+                    <div style="flex-shrink: 0; width: 40px; height: 40px;">
+                        <img src="${cover}" alt="cover" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; margin: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="orb-panel-fallback-icon" style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #333; border-radius: 6px; margin: 0;"><i class="fas ${iconFallback}"></i></div>
+                    </div>`;
+
+                // --- NEW TRACK ITEM LAYOUT ---
+                html += `
+                    <div class="orb-save-panel-item track-item draggable-item ${activeClass}" 
+                         draggable="true" 
+                         data-link-id="${linkId}"
+                         id="playlist-track-${linkId}">
+                        
+                        <div class="drag-handle text-muted" style="cursor: grab; font-size: 1.1rem; padding: 5px;"><i class="fas fa-ellipsis-v"></i></div>
+                        
+                        <div style="display:flex; flex-grow:1; align-items:center; cursor: pointer; gap: 15px;" onclick="window.OrbSavePanel.playTrack('${url}', '${title.replace(/'/g, "\\'")}', '${artist.replace(/'/g, "\\'")}', '${cover}', '${linkId}')">
+                            
+                            <div class="prominent-play-btn" style="margin: 0;">
+                                <i class="track-icon fas ${iconClass}"></i>
+                            </div>
+
+                            <div style="flex-grow: 1; overflow: hidden; text-align: left;">
+                                <div class="text-truncate" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${title}</div>
+                                <div class="text-truncate" style="font-size: 0.8rem; color: #aaa; margin-top: 2px;">${artist}</div>
+                            </div>
+                            
+                            ${coverHtml}
+                        </div>
+
+                        <button class="btn btn-sm btn-outline-danger" id="remove-btn-${linkId}" onclick="window.OrbSavePanel.initiateRemove(event, '${linkId}', '${collectionId}')" title="Remove" style="flex-shrink: 0; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            html += `</div>`;
         }
+        listContainer.innerHTML = html;
+        this.initDragAndDrop(collectionId);
+    },
+
+    // --- 2-STEP DELETE LOGIC ---
+    initiateRemove: function (event, linkId, collectionId) {
+        event.stopPropagation();
+        const btn = document.getElementById(`remove-btn-${linkId}`);
+
+        // If already in confirm state, execute the deletion
+        if (this.removeStates[linkId]) {
+            this.executeRemove(linkId, collectionId, btn);
+            return;
+        }
+
+        // Change to Step 2 (Confirm)
+        this.removeStates[linkId] = true;
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.replace('btn-outline-danger', 'btn-danger');
+
+        // Reset if they click anywhere else
+        const resetFn = () => {
+            this.removeStates[linkId] = false;
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-times"></i>';
+                btn.classList.replace('btn-danger', 'btn-outline-danger');
+            }
+            document.removeEventListener('click', resetFn);
+        };
+        setTimeout(() => document.addEventListener('click', resetFn), 10); // slight delay to avoid immediate trigger
+    },
+
+    executeRemove: async function (linkId, collectionId, btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+            const res = await fetch(`/api/collections/items/${linkId}?collectionId=${collectionId}`, {
+                method: 'DELETE',
+                headers: { "X-Session-Id": window.AuthState.sessionId }
+            });
+            if (res.ok) {
+                // Remove HTML
+                const row = document.getElementById(`playlist-track-${linkId}`);
+                if (row) row.remove();
+
+                // Splice from L2 Cache
+                if (this.cachedItems[collectionId]) {
+                    this.cachedItems[collectionId].items = this.cachedItems[collectionId].items.filter(i => String(i.linkId) !== String(linkId));
+                }
+            } else {
+                alert("Failed to remove. Collection might be locked for sale.");
+                btn.innerHTML = '<i class="fas fa-times"></i>';
+                btn.classList.replace('btn-danger', 'btn-outline-danger');
+            }
+        } catch (e) { console.error(e); }
+        this.removeStates[linkId] = false;
+    },
+
+    // --- DRAG AND DROP REORDER LOGIC ---
+    initDragAndDrop: function (collectionId) {
+        const container = document.getElementById('drag-drop-container');
+        if (!container) return;
+
+        let draggedItem = null;
+
+        container.addEventListener('dragstart', e => {
+            if (!e.target.classList.contains('draggable-item')) return;
+            draggedItem = e.target;
+            e.target.style.opacity = 0.5;
+        });
+
+        container.addEventListener('dragend', e => {
+            if (!e.target.classList.contains('draggable-item')) return;
+            e.target.style.opacity = "";
+
+            // Gather new order
+            const newOrder = Array.from(container.querySelectorAll('.draggable-item')).map(el => parseInt(el.dataset.linkId));
+
+            // Fire background update API (Fire & Forget)
+            fetch(`/api/collections/${collectionId}/reorder`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    "X-Session-Id": window.AuthState.sessionId
+                },
+                body: JSON.stringify(newOrder)
+            }).catch(err => console.error("Reorder failed", err));
+        });
+
+        container.addEventListener('dragover', e => {
+            e.preventDefault();
+            const afterElement = this.getDragAfterElement(container, e.clientY);
+            if (afterElement == null) {
+                container.appendChild(draggedItem);
+            } else {
+                container.insertBefore(draggedItem, afterElement);
+            }
+        });
+    },
+
+    getDragAfterElement: function (container, y) {
+        const draggableElements = [...container.querySelectorAll('.draggable-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
     },
 
     playTrack: function (url, title, artist, cover, linkId = null) {
         this.currentPlayingUrl = url;
         this.currentPlayingLinkId = linkId;
-
-        // Tie the track back to the folder we are currently viewing
         this.currentPlayingCollectionId = this.currentlyViewingCollectionId;
 
-        // Visual UI Update inside list
         const allTracks = document.querySelectorAll('.orb-save-panel-item.track-item');
         allTracks.forEach(el => {
             el.classList.remove('active-track');
@@ -689,83 +839,61 @@ window.OrbSavePanel = {
             if (icon) icon.className = 'track-icon fas fa-play text-muted';
         });
 
-        if (linkId) {
-            const activeEl = document.getElementById(`playlist-track-${linkId}`);
-            if (activeEl) {
-                activeEl.classList.add('active-track');
-                const icon = activeEl.querySelector('.track-icon');
-                if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
-            }
-        } else {
-            const activeEl = document.querySelector(`.orb-save-panel-item.track-item[data-track-url="${url}"]`);
-            if (activeEl) {
-                activeEl.classList.add('active-track');
-                const icon = activeEl.querySelector('.track-icon');
-                if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
-            }
+        const activeEl = document.getElementById(`playlist-track-${linkId}`);
+        if (activeEl) {
+            activeEl.classList.add('active-track');
+            const icon = activeEl.querySelector('.track-icon');
+            if (icon) icon.className = 'track-icon fas fa-volume-up text-info';
         }
 
         if (window.AudioPlayer) {
-            // Prevent the player from breaking if it tries to load a null cover
             const safeCover = (cover && cover.trim() !== '') ? cover : '/img/default_cover.jpg';
             window.AudioPlayer.playTrack(url, { title: title, artist: artist, cover: safeCover });
         }
     },
 
     playCollection: async function (collectionId) {
-        // Set the active folder immediately
         this.currentPlayingCollectionId = collectionId;
+        await this.viewCollection(collectionId);
 
-        try {
-            const res = await fetch(`/api/collections/${collectionId}`, {
-                headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-            });
-
-            if (res.ok) {
-                const collection = await res.json();
-                const items = collection.items || collection.Items || [];
-
-                if (items.length > 0) {
-                    const firstTrack = items[0];
-                    const url = firstTrack.url || firstTrack.Url;
-                    const linkId = firstTrack.linkId || firstTrack.LinkId;
-                    const title = firstTrack.title || firstTrack.Title;
-                    const artist = firstTrack.artistName || firstTrack.ArtistName;
-                    const cover = firstTrack.artUrl || firstTrack.ArtUrl;
-
-                    await this.viewCollection(collectionId);
-                    this.playTrack(url, title, artist, cover, linkId);
-
-                } else {
-                    alert("This playlist is empty.");
-                }
-            }
-        } catch (err) { console.error(err); }
+        // Grab first item from cache
+        const items = this.cachedItems[collectionId]?.items || [];
+        if (items.length > 0) {
+            const first = items[0];
+            this.playTrack(first.url, first.title, first.artistName, first.artUrl, first.linkId);
+        } else {
+            alert("This playlist is empty.");
+        }
     },
 
     close: function () {
         document.getElementById('orbSaveOverlay').classList.add('d-none');
         document.getElementById('orbSavePanel').classList.remove('active');
+
+        // GARBAGE COLLECTION: Wipe everything except the currently playing folder
+        Object.keys(this.cachedItems || {}).forEach(key => {
+            if (String(key) !== String(this.currentPlayingCollectionId)) {
+                delete this.cachedItems[key];
+            }
+        });
     },
 
     saveItem: async function (collectionId) {
         const targetId = document.getElementById('collectionTargetId').value;
         const targetType = document.getElementById('collectionTargetType').value;
-
         if (!targetId) return;
 
         try {
             const res = await fetch(`/api/collections/${collectionId}/add-item`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Id': window.AuthState?.sessionId || ''
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState.sessionId },
                 body: JSON.stringify({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) })
             });
 
             if (res.ok) {
                 alert("Saved to collection!");
+                // Cache Invalidation
+                delete this.cachedItems[collectionId];
                 this.close();
             } else {
                 alert("Failed to save.");
@@ -791,38 +919,25 @@ window.OrbSavePanel = {
         if (targetType == 2) colType = 3;
         if (targetType == 3) colType = 4;
 
-        let itemsPayload = [];
-        if (targetId) {
-            itemsPayload.push({ TargetId: parseInt(targetId), TargetType: parseInt(targetType) });
-        }
+        let itemsPayload = targetId ? [{ TargetId: parseInt(targetId), TargetType: parseInt(targetType) }] : [];
 
         try {
-            const payload = {
-                Title: title,
-                Description: "",
-                Type: colType,
-                DisplayContext: displayContext,
-                CoverImageId: 0,
-                Items: itemsPayload
-            };
+            const payload = { Title: title, Description: "", Type: colType, DisplayContext: displayContext, CoverImageId: 0, Items: itemsPayload };
 
             const res = await fetch('/api/collections/create', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-Id': window.AuthState?.sessionId || ''
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState.sessionId },
                 body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 alert(targetId ? "Folder created and item saved!" : "Playlist created!");
 
-                if (!targetId) {
-                    this.open(null, targetType, displayContext);
-                } else {
-                    this.close();
-                }
+                // Invalidate Level 1 Cache so it re-fetches the new folder
+                window.AuthState.userCollections = [];
+
+                if (!targetId) this.open(null, targetType, displayContext);
+                else this.close();
             } else {
                 alert("Failed to create folder.");
             }

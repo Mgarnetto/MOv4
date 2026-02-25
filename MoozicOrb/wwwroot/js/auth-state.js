@@ -85,6 +85,17 @@
             if (window.MessageService) try { await window.MessageService.start(); } catch (e) { }
             if (window.NotificationService) try { window.NotificationService.init(); } catch (e) { }
 
+            // Pre-load collections cache (used in chat attachments)
+            window.AuthState.userCollections = {};
+
+            // Fire and forget (don't await it, let it load in the background)
+            fetch("/api/collections/mine?type=0", { headers: { "X-Session-Id": this.sessionId } })
+                .then(res => res.ok ? res.json() : [])
+                .then(data => {
+                    window.AuthState.userCollections = data;
+                })
+                .catch(err => console.error("Failed to pre-load collections cache.", err));
+
             const chatList = document.getElementById("chatList");
             if (chatList) chatList.innerHTML = "";
             if (window.renderCreateGroupButton) window.renderCreateGroupButton();

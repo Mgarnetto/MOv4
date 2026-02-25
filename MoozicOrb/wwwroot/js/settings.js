@@ -75,8 +75,8 @@ const SettingsManager = {
             });
 
             if (res.ok) {
-                const data = await res.json();
-                return data.url;
+                // CHANGED: Return the whole object to access .rawKey
+                return await res.json();
             } else {
                 console.warn("Upload failed:", await res.text());
             }
@@ -92,12 +92,12 @@ const SettingsManager = {
         const coverInput = document.getElementById('coverUploadInput');
         if (coverInput) {
             coverInput.addEventListener('change', async (e) => {
-                const url = await this.uploadImage(e.target);
-                if (url) {
+                const data = await this.uploadImage(e.target);
+                if (data && data.url) {
                     const preview = document.getElementById('coverPreview');
                     if (preview) {
-                        preview.style.backgroundImage = `url('${url}')`;
-                        window.newCoverUrl = url;
+                        preview.style.backgroundImage = `url('${data.url}')`; // Presigned for preview
+                        window.newCoverUrl = data.rawKey || data.url;         // Raw Key for Database
                     }
                 }
             });
@@ -205,11 +205,14 @@ const SettingsManager = {
         const avatarInput = document.getElementById('avatarUploadInput');
         if (avatarInput) {
             avatarInput.addEventListener('change', async (e) => {
-                const url = await this.uploadImage(e.target);
-                if (url) {
+                const data = await this.uploadImage(e.target);
+                if (data && data.url) {
                     const preview = document.getElementById('avatarPreview');
-                    if (preview) preview.style.backgroundImage = `url('${url}')`;
-                    await this.submitJson('/settings/update-avatar', { url: url }, false);
+                    if (preview) preview.style.backgroundImage = `url('${data.url}')`; // Presigned for preview
+
+                    const keyToSave = data.rawKey || data.url; // Raw Key for Database
+                    await this.submitJson('/settings/update-avatar', { url: keyToSave }, false);
+
                     if (window.SidebarManager && window.SidebarManager.updateProfile) {
                         window.SidebarManager.updateProfile();
                     }

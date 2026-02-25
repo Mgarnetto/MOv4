@@ -77,7 +77,8 @@ namespace MoozicOrb.API.Controllers
                 // Resolve the URL before handing it back to the frontend for instant preview
                 string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
 
-                return Ok(new { id = newId, type = 3, url = previewUrl });
+                // CHANGED: Returning the rawKey alongside the presigned URL
+                return Ok(new { id = newId, type = 3, url = previewUrl, rawKey = cloudKey });
             }
             catch (Exception ex) { return BadRequest($"Image Upload Error: {ex.Message}"); }
         }

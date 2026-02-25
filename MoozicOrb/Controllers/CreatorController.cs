@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.IO;
 using MoozicOrb.Models;
-using MoozicOrb.Services; // CORRECT NAMESPACE for SessionStore
+using MoozicOrb.Services;
 using MoozicOrb.Extensions;
+using MoozicOrb.API.Services; // NEW: Added for IMediaResolverService
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace MoozicOrb.Controllers
 {
@@ -11,11 +13,22 @@ namespace MoozicOrb.Controllers
     {
         private readonly NotificationService _notify;
         private readonly UserQuery _userQuery;
+        private readonly IMediaResolverService _resolver; // NEW: Injecting the resolver
 
-        public CreatorController(NotificationService notify)
+        // NEW: Updated constructor to accept the resolver
+        public CreatorController(NotificationService notify, IMediaResolverService resolver)
         {
             _userQuery = new UserQuery();
             _notify = notify;
+            _resolver = resolver;
+        }
+
+        // NEW: Helper to prevent resolving local/default images via Cloudflare
+        private string SafeResolve(string urlOrKey)
+        {
+            if (string.IsNullOrEmpty(urlOrKey)) return urlOrKey;
+            if (urlOrKey.StartsWith("/") || urlOrKey.StartsWith("http")) return urlOrKey;
+            return _resolver.ResolveUrl(urlOrKey, 1);
         }
 
         // ==========================================
@@ -24,27 +37,19 @@ namespace MoozicOrb.Controllers
         [HttpGet("creator/profile")]
         public IActionResult MyProfile()
         {
-            // 1. Resolve Identity using the STATIC SessionStore
             string sid = Request.Headers["X-Session-Id"].ToString();
-
-            // Fix: Use the Services namespace, not IO
             var session = SessionStore.GetSession(sid);
-
             int currentUserId = session?.UserId ?? 0;
 
-            // 2. Guard Clause: Not Logged In
             if (currentUserId == 0)
             {
-                // If SPA, return 401 to trigger login modal
                 if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
                 {
                     return Unauthorized();
                 }
-                // If direct browser hit, go home
                 return RedirectToAction("Index", "Home");
             }
 
-            // 3. Pass through to the main Index method
             return Index(currentUserId);
         }
 
@@ -54,17 +59,14 @@ namespace MoozicOrb.Controllers
         [HttpGet("creator/{id:int}")]
         public IActionResult Index(int id)
         {
-            // 1. Fetch Profile Data
             var user = _userQuery.GetUserById(id);
             if (user == null || user.UserId == 0) return NotFound();
 
-            // 2. Determine Context (Viewer)
             string sid = Request.Headers["X-Session-Id"].ToString();
             var session = SessionStore.GetSession(sid);
             int currentUserId = session?.UserId ?? 0;
             bool isMe = (currentUserId == id);
 
-            // 3. FETCH FOLLOW DATA
             var counts = new GetFollowCounts().Execute(id);
             bool isFollowing = false;
 
@@ -73,21 +75,19 @@ namespace MoozicOrb.Controllers
                 isFollowing = new IsFollowing().Execute(currentUserId, id);
             }
 
-            // 4. Build Model
             var model = new CreatorViewModel
             {
                 UserId = user.UserId,
                 DisplayName = user.DisplayName ?? user.UserName,
                 UserName = user.UserName,
-                ProfilePic = user.ProfilePic,
-                CoverImage = user.CoverImageUrl,
+                // CHANGED: Resolving Profile and Cover Images
+                ProfilePic = SafeResolve(user.ProfilePic),
+                CoverImage = SafeResolve(user.CoverImageUrl),
                 Bio = user.Bio,
                 IsCurrentUser = isMe,
                 LayoutOrder = user.LayoutOrder ?? new List<string>(),
                 SignalRGroup = $"user_{user.UserId}",
                 Collections = new List<CollectionDto>(),
-
-                // NEW DATA
                 FollowersCount = counts.Followers,
                 FollowingCount = counts.Following,
                 IsFollowing = isFollowing,
@@ -118,13 +118,13 @@ namespace MoozicOrb.Controllers
             var user = _userQuery.GetUserById(currentUserId);
             if (user == null) return NotFound();
 
-            // FETCH REAL COUNTS
             var counts = new GetFollowCounts().Execute(currentUserId);
 
             return Ok(new
             {
                 name = user.DisplayName ?? user.UserName,
-                pic = user.ProfilePic ?? "/img/profile_default.jpg",
+                // CHANGED: Resolving the sidebar profile picture
+                pic = SafeResolve(user.ProfilePic) ?? "/img/profile_default.jpg",
                 followers = counts.Followers,
                 following = counts.Following
             });
@@ -146,12 +146,7 @@ namespace MoozicOrb.Controllers
 
             if (success)
             {
-                // 1. Update the TARGET (The person being followed)
-                // They see "Followers" go +1
                 await _notify.SendStatsUpdate(id);
-
-                // 2. Update ME (The follower)
-                // I see "Following" go +1
                 await _notify.SendStatsUpdate(currentUserId);
             }
 
@@ -171,7 +166,6 @@ namespace MoozicOrb.Controllers
 
             if (success)
             {
-                // Update both parties with new numbers
                 await _notify.SendStatsUpdate(id);
                 await _notify.SendStatsUpdate(currentUserId);
             }
@@ -185,34 +179,30 @@ namespace MoozicOrb.Controllers
         [HttpGet("creator/{id:int}/store")]
         public IActionResult Storefront(int id)
         {
-            // 1. Fetch Profile Data (Needed for the header)
             var user = _userQuery.GetUserById(id);
             if (user == null || user.UserId == 0) return NotFound();
 
-            // 2. Determine Context
             string sid = Request.Headers["X-Session-Id"].ToString();
             var session = SessionStore.GetSession(sid);
             int currentUserId = session?.UserId ?? 0;
             bool isMe = (currentUserId == id);
 
-            // 3. Build Model
             var model = new CreatorViewModel
             {
                 UserId = user.UserId,
                 DisplayName = user.DisplayName ?? user.UserName,
                 UserName = user.UserName,
-                ProfilePic = user.ProfilePic,
+                // CHANGED: Resolving Profile Image
+                ProfilePic = SafeResolve(user.ProfilePic),
                 IsCurrentUser = isMe,
                 SignalRGroup = $"user_{user.UserId}"
             };
 
-            // If navigating via JS Router (SPA), return just the partial
             if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
             {
                 return PartialView("_StorefrontPartial", model);
             }
 
-            // Fallback for direct browser URL hits (Wrap it in the main layout)
             return RedirectToAction("Index", "Home");
         }
 
@@ -233,7 +223,8 @@ namespace MoozicOrb.Controllers
             {
                 UserId = user.UserId,
                 DisplayName = user.DisplayName ?? user.UserName,
-                ProfilePic = user.ProfilePic,
+                // CHANGED: Resolving Profile Image
+                ProfilePic = SafeResolve(user.ProfilePic),
                 IsCurrentUser = isMe,
                 SignalRGroup = $"user_{user.UserId}"
             };
@@ -261,7 +252,8 @@ namespace MoozicOrb.Controllers
             {
                 UserId = user.UserId,
                 DisplayName = user.DisplayName ?? user.UserName,
-                ProfilePic = user.ProfilePic,
+                // CHANGED: Resolving Profile Image
+                ProfilePic = SafeResolve(user.ProfilePic),
                 IsCurrentUser = isMe,
                 SignalRGroup = $"user_{user.UserId}"
             };

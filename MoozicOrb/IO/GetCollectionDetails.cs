@@ -16,7 +16,6 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // 1. Fetch Header Safely
                 string sqlCol = "SELECT * FROM collections WHERE collection_id = @cid";
                 using (var cmd = new MySqlCommand(sqlCol, conn))
                 {
@@ -39,7 +38,6 @@ namespace MoozicOrb.IO
 
                 if (collection == null) return null;
 
-                // 2. Fetch raw item IDs
                 string sqlItems = "SELECT link_id, target_id, target_type FROM collection_items WHERE collection_id = @cid ORDER BY sort_order ASC";
                 using (var cmd = new MySqlCommand(sqlItems, conn))
                 {
@@ -58,7 +56,6 @@ namespace MoozicOrb.IO
                     }
                 }
 
-                // 3. Hydrate Media Details & Fallbacks
                 if (collection.Items.Count > 0)
                 {
                     foreach (var item in collection.Items)
@@ -105,20 +102,45 @@ namespace MoozicOrb.IO
                                         string titleFromMedia = rdr["media_title"] == DBNull.Value ? null : rdr["media_title"].ToString();
                                         string titleFromPost = rdr["post_title"] == DBNull.Value ? null : rdr["post_title"].ToString();
 
-                                        item.Title = !string.IsNullOrEmpty(titleFromMedia) ? titleFromMedia : (!string.IsNullOrEmpty(titleFromPost) ? titleFromPost : "Unknown Track");
+                                        // --- FIX: PRIORITIZE POST TITLE FIRST ---
+                                        if (!string.IsNullOrEmpty(titleFromPost))
+                                        {
+                                            item.Title = titleFromPost;
+                                        }
+                                        else if (!string.IsNullOrEmpty(titleFromMedia))
+                                        {
+                                            // Fallback: Use media title, but strip ugly extensions like .mp3 or .jpg
+                                            item.Title = System.IO.Path.GetFileNameWithoutExtension(titleFromMedia);
+                                        }
+                                        else
+                                        {
+                                            item.Title = "Unknown Track";
+                                        }
+
                                         item.ArtistName = rdr["display_name"] == DBNull.Value ? "Unknown Artist" : rdr["display_name"].ToString();
 
-                                        // SMART FALLBACK LOGIC
+                                        // LOCAL RESOLVER HELPER
+                                        string ResolveSafely(string inputUrl)
+                                        {
+                                            if (string.IsNullOrEmpty(inputUrl) || inputUrl == "null") return null;
+                                            if (inputUrl.StartsWith("/") || inputUrl.StartsWith("http")) return inputUrl;
+                                            return resolver != null ? resolver.ResolveUrl(inputUrl, 1) : inputUrl;
+                                        }
+
+                                        // SMART FALLBACK LOGIC (RESOLVED)
                                         string postImg = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString();
                                         string profPic = rdr["profile_pic"] == DBNull.Value ? null : rdr["profile_pic"].ToString();
 
-                                        if (!string.IsNullOrEmpty(postImg))
+                                        string finalPostImg = ResolveSafely(postImg);
+                                        string finalProfPic = ResolveSafely(profPic);
+
+                                        if (!string.IsNullOrEmpty(finalPostImg))
                                         {
-                                            item.ArtUrl = postImg;
+                                            item.ArtUrl = finalPostImg;
                                         }
-                                        else if (!string.IsNullOrEmpty(profPic) && profPic != "null")
+                                        else if (!string.IsNullOrEmpty(finalProfPic))
                                         {
-                                            item.ArtUrl = profPic;
+                                            item.ArtUrl = finalProfPic;
                                         }
                                         else
                                         {

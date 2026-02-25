@@ -87,7 +87,13 @@ namespace MoozicOrb.API.Controllers
                 // 1. Fetch Real User Info for the live update
                 var user = new UserQuery().GetUserById(userId);
                 string authorName = user?.UserName ?? "Unknown";
-                string authorPic = user?.ProfilePic ?? "/img/profile_default.jpg";
+
+                string rawPic = user?.ProfilePic;
+                if (!string.IsNullOrEmpty(rawPic) && !rawPic.StartsWith("/") && !rawPic.StartsWith("http"))
+                {
+                    rawPic = _resolver.ResolveUrl(rawPic, 1);
+                }
+                string authorPic = rawPic ?? "/img/profile_default.jpg";
 
                 // 2. Insert Post
                 var postIo = new InsertPost();
