@@ -1227,14 +1227,14 @@ input[type="radio"] {
     background: rgba(12, 12, 12, 0.95); /* Deep dark background */
     backdrop-filter: blur(15px); /* Glassmorphism effect */
     border: 1px solid #333;
-    border-radius: 20px;
+    border-radius: 20px; /* Kept your exact rounded corners */
     padding: 0 25px;
-    z-index: 1000 !important;
-    /* Layout */
+    z-index: 1000 !important; /* Kept your exact z-index */
+    /* NEW: Layout split into 3 distinct columns to match sketch */
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 25px;
     /* ANIMATION: Smooth slide in/out */
     transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.5s;
     box-shadow: 0 15px 50px rgba(0,0,0,0.8);
@@ -1247,67 +1247,99 @@ input[type="radio"] {
     pointer-events: none; /* Prevents accidental clicks */
 }
 
-/* --- CENTER SECTION (Controls + Scrubber) --- */
-.player-center-section {
+/* --- COLUMN 1: LEFT (Play Button) --- */
+.player-left-col {
+    flex-shrink: 0;
+}
+
+/* RETAINED YOUR EXACT GLOW BUTTON */
+.play-glow {
+    width: 55px; /* Slightly larger to match sketch proportion */
+    height: 55px;
+    border-radius: 50%;
+    background: transparent; /* Updated to be a hollow circle per your sketch */
+    color: var(--accent-secondary);
+    border: 2px solid var(--accent-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    cursor: pointer;
+    box-shadow: none;
+    transition: all 0.3s ease;
+    padding-left: 4px; /* Optical centering for play icon */
+}
+
+    /* Hover state for hollow button */
+    .play-glow:hover {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(0, 174, 239, 0.4);
+    }
+
+    /* Glow State when JS adds .playing */
+    .play-glow.playing {
+        border-color: #00ff88;
+        color: #00ff88;
+        padding-left: 0; /* Center the stop icon perfectly */
+        box-shadow: 0 0 20px rgba(0, 255, 136, 0.5), inset 0 0 10px rgba(0, 255, 136, 0.2);
+    }
+
+
+/* --- COLUMN 2: MIDDLE (Text, Arrows, Scrubber) --- */
+.player-middle-col {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 2px; /* Tight gap between buttons and seek bar */
+    gap: 6px;
+    min-width: 0; /* Important: prevents long text from breaking layout */
 }
 
-.main-controls {
+.player-alternating-text {
+    font-weight: 600;
+    color: #fff;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.5s ease-in-out; /* Needed for JS toggle */
+    margin-bottom: 2px;
+}
+
+/* Wraps the arrows and scrubber into one row below the text */
+.player-controls-row {
     display: flex;
     align-items: center;
-    gap: 30px; /* Space between buttons */
+    gap: 15px;
+    width: 100%;
 }
 
-.play-glow {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--accent-secondary);
-    color: black;
-    border: none;
+.player-arrow-controls {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.2rem;
-    cursor: pointer;
-    box-shadow: 0 0 15px rgba(0, 174, 239, 0.4);
-    transition: transform 0.2s, box-shadow 0.2s;
+    gap: 15px;
+    flex-shrink: 0;
 }
-
-    .play-glow:hover {
-        transform: scale(1.1);
-        box-shadow: 0 0 25px rgba(0, 174, 239, 0.6);
-    }
 
 .ctrl-btn.sm {
-    font-size: 1.2rem;
+    font-size: 1.3rem;
     color: #888;
     background: none;
     border: none;
     cursor: pointer;
     transition: color 0.2s;
+    padding: 0;
 }
 
     .ctrl-btn.sm:hover {
         color: #fff;
     }
 
-/* --- SCRUBBER (Restored Functionality) --- */
+/* RETAINED YOUR EXACT SCRUBBER FUNCTIONALITY */
 .scrubber-container {
     width: 100%;
-    max-width: 400px; /* Limits width on desktop */
     display: flex;
     align-items: center;
-    gap: 12px;
-    font-size: 0.75rem;
-    color: #888;
     height: 20px;
-    margin-top: 2px;
 }
 
 .track-line {
@@ -1320,7 +1352,6 @@ input[type="radio"] {
     transition: height 0.2s;
 }
 
-    /* Make it easier to grab on hover */
     .track-line:hover {
         height: 6px;
     }
@@ -1353,30 +1384,80 @@ input[type="radio"] {
     opacity: 1; /* Show dot on hover */
 }
 
-/* --- SIDE SECTIONS --- */
-.player-info-section, .player-actions-section {
-    flex: 1;
-    min-width: 0;
+
+/* --- COLUMN 3: RIGHT (Playlist Trigger) --- */
+.player-right-dock {
+    flex-shrink: 0;
+    height: 50px; /* Helps center the border */
+    border-left: 2px solid #333; /* The vertical line from your sketch */
+    padding-left: 20px;
+    display: flex;
+    align-items: center;
 }
 
-.player-actions-section {
+.player-playlist-trigger {
+    background: transparent;
+    border: 2px solid #fff; /* Boxy border per sketch */
+    border-radius: 6px; /* Slightly rounded */
+    width: 45px;
+    height: 45px;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
 }
+
+    .player-playlist-trigger:hover {
+        border-color: var(--accent-secondary);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+.playlist-icon-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 22px;
+}
+
+    .playlist-icon-rows span {
+        height: 2px;
+        background: #fff;
+        border-radius: 1px;
+        transition: background 0.2s;
+    }
+
+.player-playlist-trigger:hover .playlist-icon-rows span {
+    background: var(--accent-secondary);
+}
+
 
 /* MOBILE FIX */
 @media (max-width: 768px) {
     .player-bar-centered {
-        padding: 0 15px; /* Less padding on phone */
+        padding: 0 15px;
         bottom: 15px;
+        height: auto; /* Allow it to shrink */
+        min-height: 75px;
+        gap: 15px;
     }
 
-    /* On mobile, center section takes full width */
-    .player-center-section {
-        width: 100%;
+    .play-glow {
+        width: 45px;
+        height: 45px;
+        font-size: 1.1rem;
+    }
+
+    .player-right-dock {
+        padding-left: 15px;
+        height: 40px;
+    }
+
+    .player-playlist-trigger {
+        width: 38px;
+        height: 38px;
     }
 }
-
 /* =========================================
    6.5 INCOMING CALL MODAL
    ========================================= */
@@ -4700,7 +4781,7 @@ textarea.form-control {
     }
 
 /* =========================================
-   UNIVERSAL SAVE PANEL (SLIDING)
+   29. UNIVERSAL SLIDING PANEL (SIDEBAR)
    ========================================= */
 .orb-save-panel-overlay {
     position: fixed;
@@ -4709,7 +4790,7 @@ textarea.form-control {
     width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.6);
-    z-index: 1040;
+    z-index: 2040; /* Raised above the audio player */
     transition: opacity 0.3s;
 }
 
@@ -4719,16 +4800,17 @@ textarea.form-control {
     right: 0;
     width: 350px;
     max-width: 90vw;
-    height: 100vh;
+    height: 100dvh; /* Dynamic height fixes mobile keyboard/nav overlap */
     background: rgba(18, 18, 20, 0.95);
     backdrop-filter: blur(15px);
     border-left: 1px solid rgba(255, 255, 255, 0.1);
-    z-index: 1050;
+    z-index: 2050; /* Raised above the audio player */
     display: flex;
     flex-direction: column;
     transform: translateX(100%);
     transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+    overscroll-behavior: none; /* Prevents scroll chaining */
 }
 
     .orb-save-panel.active {
@@ -4741,6 +4823,7 @@ textarea.form-control {
     align-items: center;
     padding: 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-shrink: 0;
 }
 
     .orb-save-panel-header h3 {
@@ -4771,6 +4854,7 @@ textarea.form-control {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    overscroll-behavior: contain; /* Traps the scroll inside the list */
 }
 
 .orb-save-panel-item {
@@ -4804,12 +4888,74 @@ textarea.form-control {
         font-weight: 500;
     }
 
+/* Sidebar View State Enhancements */
+.orb-panel-back-btn {
+    background: none;
+    border: none;
+    color: var(--accent-secondary, #00d2ff);
+    padding: 0 0 15px 5px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    transition: color 0.2s;
+}
+
+    .orb-panel-back-btn:hover {
+        color: #fff;
+    }
+
+.orb-save-panel-item.active-track {
+    border-color: var(--accent-secondary, #00d2ff) !important;
+    background: rgba(0, 210, 255, 0.1) !important;
+}
+
+.orb-panel-play-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-secondary, #00d2ff);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: auto;
+}
+
+    .orb-panel-play-btn:hover {
+        background: var(--accent-secondary, #00d2ff);
+        color: #000;
+        transform: scale(1.1);
+    }
+
+.orb-panel-fallback-icon {
+    width: 35px;
+    height: 35px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    color: var(--accent-secondary, #00d2ff);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
 .orb-save-panel-footer {
     padding: 20px;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom)); /* Accounts for iOS home bar */
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     gap: 10px;
     background: #0a0a0a;
+    flex-shrink: 0;
 }
 
     .orb-save-panel-footer input {
@@ -4835,7 +4981,6 @@ textarea.form-control {
     padding: 10px 15px;
     cursor: pointer;
 }
-
 /* =========================================
    UNIVERSAL TRACK SAVE BUTTON
    ========================================= */
@@ -4918,3 +5063,4 @@ textarea.form-control {
     border: 1px solid rgba(255, 255, 255, 0.1);
     flex-shrink: 0;
 }
+

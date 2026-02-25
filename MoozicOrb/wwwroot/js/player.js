@@ -5,6 +5,11 @@
    2. On-Demand Tracks (HTML5 Audio Element)
    ========================================= */
 
+let alternatingInterval = null;
+let showTitle = true;
+let currentTrackTitle = "Ready to Play";
+let currentTrackArtist = "MoozicOrb";
+
 const AudioPlayer = {
     // --- STATE ---
     mode: 'IDLE', // 'IDLE', 'LIVE', 'TRACK'
@@ -31,16 +36,22 @@ const AudioPlayer = {
         timeDisplay: null,
         durationDisplay: null,
         progressBar: null,
-        progressFill: null
+        progressFill: null,
+        displayText: null,
+        artImg: null
     },
 
     init() {
-        this.ui.playBtn = document.getElementById("playBtn");
+        this.ui.playBtn = document.getElementById("playBtn") || document.getElementById("player-play-btn");
         this.ui.playIcon = this.ui.playBtn?.querySelector('i');
         this.ui.timeDisplay = document.querySelector(".scrubber-container .time:first-child");
         this.ui.durationDisplay = document.querySelector(".scrubber-container .time:last-child");
         this.ui.progressBar = document.querySelector(".track-line");
         this.ui.progressFill = document.querySelector(".track-fill");
+
+        // New UI elements for the rounded player
+        this.ui.displayText = document.getElementById('player-display-text');
+        this.ui.artImg = document.getElementById('player-art');
 
         if (!this.ui.playBtn) return;
 
@@ -95,8 +106,51 @@ const AudioPlayer = {
         this.trackAudio.play();
         this.isPlaying = true;
 
+        // 3. Sync with Sidebar (for active track border highlighting)
+        if (window.OrbSavePanel) {
+            window.OrbSavePanel.currentPlayingUrl = url;
+        }
+
+        // 4. Update UI and Alternating Text
         this.updateUIState(true);
+        this.startAlternatingText(meta.title, meta.artist || "Unknown Artist", meta.cover);
+
         if (this.ui.durationDisplay) this.ui.durationDisplay.innerText = meta.duration || "--:--";
+    },
+
+    // =========================================
+    // DISPLAY LOGIC (Alternating Text)
+    // =========================================
+
+    startAlternatingText(title, artist, cover) {
+        currentTrackTitle = title || "Untitled";
+        currentTrackArtist = artist || "MoozicOrb";
+
+        if (this.ui.artImg && cover) {
+            this.ui.artImg.src = cover;
+        }
+
+        if (alternatingInterval) clearInterval(alternatingInterval);
+
+        if (!this.ui.displayText) return;
+
+        // Initial state
+        this.ui.displayText.innerText = currentTrackTitle;
+        showTitle = false; // The next tick will show the artist
+
+        alternatingInterval = setInterval(() => {
+            if (!this.ui.displayText) return;
+
+            // Simple CSS-based fade transition (opacity set in site.css)
+            this.ui.displayText.style.opacity = 0;
+
+            setTimeout(() => {
+                this.ui.displayText.innerText = showTitle ? currentTrackTitle : currentTrackArtist;
+                this.ui.displayText.style.opacity = 1;
+                showTitle = !showTitle;
+            }, 500);
+
+        }, 2000);
     },
 
     // =========================================
@@ -121,7 +175,10 @@ const AudioPlayer = {
             this.isBuffering = true;
             this.updateUIState(true);
 
-            // UI Reset
+            // Display Update for Live mode
+            this.startAlternatingText("Live Station", "On Air", "/img/default_cover.jpg");
+
+            // UI Reset for scrubber
             if (this.ui.progressFill) this.ui.progressFill.style.width = '100%';
             if (this.ui.timeDisplay) this.ui.timeDisplay.innerText = "LIVE";
             if (this.ui.durationDisplay) this.ui.durationDisplay.innerText = "ON AIR";
@@ -143,6 +200,9 @@ const AudioPlayer = {
 
         this.updateUIState(false);
         this.mode = 'IDLE';
+
+        if (alternatingInterval) clearInterval(alternatingInterval);
+        if (this.ui.displayText) this.ui.displayText.innerText = "Ready to Play";
     },
 
     handleLiveAudio(base64Data) {
@@ -215,6 +275,9 @@ const AudioPlayer = {
         this.trackAudio.currentTime = 0;
         this.isPlaying = false;
         this.updateUIState(false);
+
+        if (alternatingInterval) clearInterval(alternatingInterval);
+        if (this.ui.displayText) this.ui.displayText.innerText = "Ready to Play";
     },
 
     updateScrubber() {
@@ -239,13 +302,15 @@ const AudioPlayer = {
     },
 
     updateUIState(playing) {
+        if (!this.ui.playIcon) return;
+
         if (playing) {
             this.ui.playIcon.classList.remove('fa-play');
-            this.ui.playIcon.classList.add('fa-stop');
+            this.ui.playIcon.classList.add('fa-pause'); // Changed from 'fa-stop' for more intuitive track control
             this.ui.playBtn.style.boxShadow = "0 0 30px #00ff88";
         } else {
-            this.ui.playIcon.classList.remove('fa-stop');
             this.ui.playIcon.classList.remove('fa-pause');
+            this.ui.playIcon.classList.remove('fa-stop');
             this.ui.playIcon.classList.add('fa-play');
             this.ui.playBtn.style.boxShadow = "";
         }
@@ -263,28 +328,21 @@ DISCOGRAPHY UI HELPERS
 ========================================= */
 
 window.toggleCollection = function (header) {
-    // 1. Find the parent box
     const box = header.closest('.collection-box');
     if (box) {
-        // 2. Toggle the expanded class
         box.classList.toggle('expanded');
     }
 };
 
 window.playCollection = function (event, collectionId) {
-    // 1. Stop the click from bubbling up (preventing the toggle)
     event.stopPropagation();
 
-    // 2. Find the container
     const box = event.target.closest('.collection-box');
     if (!box) return;
 
-    // 3. Find the first track in this collection
     const firstTrack = box.querySelector('.track-row');
 
     if (firstTrack) {
-        // 4. Simulate a click on the first track to start playing
-        // (This triggers the existing onclick logic on the track row)
         firstTrack.click();
     }
 };

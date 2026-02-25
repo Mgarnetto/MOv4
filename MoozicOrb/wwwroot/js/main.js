@@ -446,7 +446,8 @@ const ModalScrollManager = {
         'editPostModal',      // Edit post
         'singlePostModal',    // View single post
         'videoCallModal',     // Video call
-        'incomingCallModal'   // Incoming call
+        'incomingCallModal',  // Incoming call
+        'orbSavePanel'   // playlist modal
     ],
 
     init() {
