@@ -506,8 +506,42 @@ window.OrbSavePanel = {
     currentlyViewingCollectionId: null,
 
     // Memory Management
-    cachedItems: {}, // Level 2 Cache (Items)
-    removeStates: {}, // (Kept for legacy compat, but superseded by DOM menu checks)
+    cachedItems: {}, // Level 2 Cache: Holds JSON data OR pending Promises
+    preloadQueue: [],
+    isPreloading: false,
+
+    // --- OPTIMIZATION 1: Sequential Background Loader ---
+    processPreloadQueue: async function () {
+        if (this.isPreloading) return;
+        this.isPreloading = true;
+
+        while (this.preloadQueue.length > 0) {
+            const cId = this.preloadQueue.shift();
+
+            if (!this.cachedItems[cId]) {
+                try {
+                    // Create the promise and store it in cache so the UI can attach to it if clicked early
+                    const fetchPromise = fetch(`/api/collections/${cId}`, { headers: { "X-Session-Id": window.AuthState.sessionId } })
+                        .then(r => r.ok ? r.json() : null)
+                        .then(data => {
+                            if (data) {
+                                this.cachedItems[cId] = data; // Swap promise for real data
+                                return data;
+                            }
+                        })
+                        .catch(e => {
+                            delete this.cachedItems[cId];
+                        });
+
+                    this.cachedItems[cId] = fetchPromise;
+
+                    // Await it to prevent network queue flooding
+                    await fetchPromise;
+                } catch (e) { }
+            }
+        }
+        this.isPreloading = false;
+    },
 
     open: async function (targetId, targetType, displayContext) {
         const isViewMode = !targetId;
@@ -536,7 +570,6 @@ window.OrbSavePanel = {
         const listContainer = document.getElementById('existingCollectionsList');
         const footer = document.getElementById('orbSavePanelFooter');
 
-        // --- UNAUTHENTICATED SAFETY CHECK ---
         if (!window.AuthState?.userId) {
             listContainer.innerHTML = '<div class="text-muted small text-center mt-4">Please log in to organize your media.</div>';
             if (footer) footer.style.display = 'none';
@@ -551,7 +584,6 @@ window.OrbSavePanel = {
             collections = window.AuthState.userCollections.filter(c => c.type === fetchType || fetchType === 5);
         }
 
-        // If cache is empty, fetch immediately. Otherwise, render instantly.
         if (collections.length === 0) {
             listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
             try {
@@ -568,16 +600,17 @@ window.OrbSavePanel = {
             return;
         }
 
-        // 2. Async Pre-Loader (Top 10)
-        const top10 = collections.slice(0, 10);
-        top10.forEach(c => {
-            if (!this.cachedItems[c.id]) {
-                fetch(`/api/collections/${c.id}`, { headers: { "X-Session-Id": window.AuthState.sessionId } })
-                    .then(r => r.ok ? r.json() : null)
-                    .then(data => { if (data) this.cachedItems[c.id] = data; })
-                    .catch(e => console.error("Preload error", e));
-            }
-        });
+        // --- OPTIMIZATION 2: Animation-Aware Preloader ---
+        // Wait 400ms for the CSS sidebar transition to finish before hitting the network
+        setTimeout(() => {
+            const topPlaylists = collections.slice(0, 4); // Top 4 is lightweight
+            topPlaylists.forEach(c => {
+                if (!this.cachedItems[c.id] && !this.preloadQueue.includes(c.id)) {
+                    this.preloadQueue.push(c.id);
+                }
+            });
+            this.processPreloadQueue();
+        }, 400);
 
         // 3. Render Level 1
         collections.forEach(c => {
@@ -615,16 +648,23 @@ window.OrbSavePanel = {
 
         let collectionData = this.cachedItems[collectionId];
 
-        // Level 2 Cache check
+        // --- OPTIMIZATION 3: Promise Interception ---
+        // If the item is currently fetching in the background, we cleanly attach to the active Promise
+        if (collectionData && typeof collectionData.then === 'function') {
+            listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+            collectionData = await collectionData;
+        }
+
+        // Cache miss
         if (!collectionData) {
-            listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+            listContainer.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
             try {
                 const res = await fetch(`/api/collections/${collectionId}`, {
                     headers: { "X-Session-Id": window.AuthState.sessionId }
                 });
                 if (res.ok) {
                     collectionData = await res.json();
-                    this.cachedItems[collectionId] = collectionData; // Save to cache
+                    this.cachedItems[collectionId] = collectionData;
                 }
             } catch (err) { console.error(err); }
         }
@@ -649,12 +689,11 @@ window.OrbSavePanel = {
             items.forEach((item, index) => {
                 const title = item.title || item.Title || 'Unknown Track';
                 const artist = item.artistName || item.ArtistName || 'Unknown Artist';
-                const cover = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+                const coverRaw = item.artUrl || item.ArtUrl || '';
                 const url = item.url || item.Url;
                 const linkId = item.linkId || item.LinkId;
                 const tType = item.targetType || item.TargetType;
 
-                // Nested Collection Support
                 if (tType === 4) {
                     html += `
                         <div class="orb-save-panel-item track-item" onclick="window.OrbSavePanel.viewCollection('${item.targetId}')">
@@ -665,23 +704,30 @@ window.OrbSavePanel = {
                             </div>
                             <i class="fas fa-chevron-right text-muted"></i>
                         </div>`;
-                    return; // Skip the rest for folders
+                    return;
                 }
 
-                // Active Track Logic
                 let isActive = (this.currentPlayingLinkId && String(this.currentPlayingLinkId) === String(linkId));
                 const activeClass = isActive ? 'active-track' : '';
                 const iconClass = isActive ? 'fa-volume-up' : 'fa-play';
 
-                // Video Thumb Logic & Cover Art (Moved to the right)
+                // --- OPTIMIZATION 4: No-Glitch Image Logic ---
                 let iconFallback = tType === 2 ? 'fa-video' : (tType === 3 ? 'fa-image' : 'fa-music');
-                let coverHtml = `
-                    <div style="flex-shrink: 0; width: 40px; height: 40px;">
-                        <img src="${cover}" alt="cover" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; margin: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <div class="orb-panel-fallback-icon" style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #333; border-radius: 6px; margin: 0;"><i class="fas ${iconFallback}"></i></div>
-                    </div>`;
+                let coverHtml = '';
 
-                // --- NEW TRACK ITEM LAYOUT ---
+                if (coverRaw) {
+                    coverHtml = `
+                        <div style="flex-shrink: 0; width: 40px; height: 40px;">
+                            <img src="${coverRaw}" alt="cover" style="width: 100%; height: 100%; object-fit: cover; border-radius: 6px; margin: 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="orb-panel-fallback-icon" style="display:none; width: 100%; height: 100%; align-items: center; justify-content: center; background: #333; border-radius: 6px; margin: 0;"><i class="fas ${iconFallback}"></i></div>
+                        </div>`;
+                } else {
+                    coverHtml = `
+                        <div style="flex-shrink: 0; width: 40px; height: 40px;">
+                            <div class="orb-panel-fallback-icon" style="display:flex; width: 100%; height: 100%; align-items: center; justify-content: center; background: #333; border-radius: 6px; margin: 0;"><i class="fas ${iconFallback}"></i></div>
+                        </div>`;
+                }
+
                 html += `
                     <div class="orb-save-panel-item track-item draggable-item ${activeClass}" 
                          draggable="true" 
@@ -689,17 +735,14 @@ window.OrbSavePanel = {
                          id="playlist-track-${linkId}"
                          style="padding-right: 10px;">
                         
-                        <div style="display:flex; flex-grow:1; align-items:center; cursor: pointer; gap: 15px;" onclick="window.OrbSavePanel.playTrack('${url}', '${title.replace(/'/g, "\\'")}', '${artist.replace(/'/g, "\\'")}', '${cover}', '${linkId}')">
-                            
+                        <div style="display:flex; flex-grow:1; align-items:center; cursor: pointer; gap: 15px;" onclick="window.OrbSavePanel.playTrack('${url}', '${title.replace(/'/g, "\\'")}', '${artist.replace(/'/g, "\\'")}', '${coverRaw}', '${linkId}')">
                             <div class="prominent-play-btn" style="margin: 0;">
                                 <i class="track-icon fas ${iconClass}"></i>
                             </div>
-
                             <div style="flex-grow: 1; overflow: hidden; text-align: left;">
                                 <div class="text-truncate" style="font-weight: 600; color: #fff; font-size: 0.95rem;">${title}</div>
                                 <div class="text-truncate" style="font-size: 0.8rem; color: #aaa; margin-top: 2px;">${artist}</div>
                             </div>
-                            
                             ${coverHtml}
                         </div>
 
@@ -723,19 +766,15 @@ window.OrbSavePanel = {
         this.initDragAndDrop(collectionId);
     },
 
-    // --- NEW: 3 DOTS MENU TOGGLE ---
     toggleTrackMenu: function (event, linkId) {
         event.stopPropagation();
         const menu = document.getElementById(`menu-dropdown-${linkId}`);
         const isCurrentlyOpen = menu.style.display === 'block';
 
-        // Close all menus first
         document.querySelectorAll('[id^="menu-dropdown-"]').forEach(el => el.style.display = 'none');
 
-        // If it wasn't open, open it and listen for outside clicks to close it
         if (!isCurrentlyOpen) {
             menu.style.display = 'block';
-
             const resetFn = () => {
                 menu.style.display = 'none';
                 document.removeEventListener('click', resetFn);
@@ -744,7 +783,6 @@ window.OrbSavePanel = {
         }
     },
 
-    // --- UPDATED: EXECUTE MENU REMOVAL ---
     executeRemove: async function (event, linkId, collectionId, btn) {
         event.stopPropagation();
         const originalText = btn.innerHTML;
@@ -757,16 +795,13 @@ window.OrbSavePanel = {
                 headers: { "X-Session-Id": window.AuthState.sessionId }
             });
             if (res.ok) {
-                // Remove HTML
                 const row = document.getElementById(`playlist-track-${linkId}`);
                 if (row) row.remove();
-
-                // Splice from L2 Cache
                 if (this.cachedItems[collectionId]) {
                     this.cachedItems[collectionId].items = this.cachedItems[collectionId].items.filter(i => String(i.linkId) !== String(linkId));
                 }
             } else {
-                alert("Failed to remove. Collection might be locked for sale.");
+                alert("Failed to remove.");
                 btn.innerHTML = originalText;
                 btn.disabled = false;
             }
@@ -777,7 +812,6 @@ window.OrbSavePanel = {
         }
     },
 
-    // --- DRAG AND DROP REORDER LOGIC ---
     initDragAndDrop: function (collectionId) {
         const container = document.getElementById('drag-drop-container');
         if (!container) return;
@@ -785,7 +819,6 @@ window.OrbSavePanel = {
         let draggedItem = null;
 
         container.addEventListener('dragstart', e => {
-            // Check if they are grabbing the item row
             const targetItem = e.target.closest('.draggable-item');
             if (!targetItem) return;
             draggedItem = targetItem;
@@ -797,10 +830,8 @@ window.OrbSavePanel = {
             if (!targetItem) return;
             targetItem.style.opacity = "";
 
-            // Gather new order
             const newOrder = Array.from(container.querySelectorAll('.draggable-item')).map(el => parseInt(el.dataset.linkId));
 
-            // This ensures if you close and reopen the modal, it stays sorted locally
             const cache = window.OrbSavePanel.cachedItems[collectionId];
             if (cache && cache.items) {
                 cache.items.sort((a, b) => {
@@ -810,13 +841,9 @@ window.OrbSavePanel = {
                 });
             }
 
-            // Fire background update API (Fire & Forget)
             fetch(`/api/collections/${collectionId}/reorder`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    "X-Session-Id": window.AuthState.sessionId
-                },
+                headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState.sessionId },
                 body: JSON.stringify(newOrder)
             }).catch(err => console.error("Reorder failed", err));
         });
@@ -845,11 +872,8 @@ window.OrbSavePanel = {
         }, { offset: Number.NEGATIVE_INFINITY }).element;
     },
 
-    // --- HELPER: Keeps UI in sync when player auto-advances ---
     syncActiveTrackUI: function (newLinkId) {
         this.currentPlayingLinkId = newLinkId;
-
-        // Remove highlight from all rows
         const allTracks = document.querySelectorAll('.orb-save-panel-item.track-item');
         allTracks.forEach(el => {
             el.classList.remove('active-track');
@@ -857,7 +881,6 @@ window.OrbSavePanel = {
             if (icon) icon.className = 'track-icon fas fa-play';
         });
 
-        // Add highlight to new row
         const activeEl = document.getElementById(`playlist-track-${newLinkId}`);
         if (activeEl) {
             activeEl.classList.add('active-track');
@@ -867,7 +890,6 @@ window.OrbSavePanel = {
     },
 
     playTrack: function (url, title, artist, cover, linkId = null) {
-        // --- SAFETY CHECK: Block Playback if a menu is open ---
         let isMenuOpen = false;
         document.querySelectorAll('[id^="menu-dropdown-"]').forEach(el => {
             if (el.style.display === 'block') isMenuOpen = true;
@@ -878,23 +900,17 @@ window.OrbSavePanel = {
         this.currentPlayingLinkId = linkId;
         this.currentPlayingCollectionId = this.currentlyViewingCollectionId;
 
-        // Trigger visual highlight instantly on click
         this.syncActiveTrackUI(linkId);
 
         if (window.AudioPlayer) {
             const safeCover = (cover && cover.trim() !== '') ? cover : '/img/default_cover.jpg';
 
-            // --- QUEUE LOGIC ---
-            // Build the queue from this track onwards
             const currentCollectionData = this.cachedItems[this.currentlyViewingCollectionId];
             if (currentCollectionData && currentCollectionData.items) {
                 const items = currentCollectionData.items || currentCollectionData.Items;
-
-                // Find the index of the clicked track
                 let startIndex = items.findIndex(i => String(i.linkId || i.LinkId) === String(linkId));
 
                 if (startIndex !== -1 && startIndex < items.length - 1) {
-                    // Build queue from the NEXT track to the end of the array
                     const queueArray = items.slice(startIndex + 1).map(item => {
                         const iTitle = item.title || item.Title || 'Unknown Track';
                         const iArtist = item.artistName || item.ArtistName || 'Unknown Artist';
@@ -905,11 +921,10 @@ window.OrbSavePanel = {
                     });
                     window.AudioPlayer.setQueue(queueArray);
                 } else {
-                    window.AudioPlayer.setQueue([]); // Clear if it's the last track
+                    window.AudioPlayer.setQueue([]);
                 }
             }
 
-            // Tell the AudioPlayer to play the clicked track
             window.AudioPlayer.playTrack(url, { title: title, artist: artist, cover: safeCover });
         }
     },
@@ -918,7 +933,6 @@ window.OrbSavePanel = {
         this.currentPlayingCollectionId = collectionId;
         await this.viewCollection(collectionId);
 
-        // Grab first item from cache and let playTrack handle building the queue for the rest
         const items = this.cachedItems[collectionId]?.items || [];
         if (items.length > 0) {
             const first = items[0];
@@ -938,12 +952,8 @@ window.OrbSavePanel = {
         document.getElementById('orbSaveOverlay').classList.add('d-none');
         document.getElementById('orbSavePanel').classList.remove('active');
 
-        // GARBAGE COLLECTION: Wipe everything except the currently playing folder
-        Object.keys(this.cachedItems || {}).forEach(key => {
-            if (String(key) !== String(this.currentPlayingCollectionId)) {
-                delete this.cachedItems[key];
-            }
-        });
+        // Note: We don't wipe the cache here anymore! 
+        // We let the pre-fetched promises stay in memory for a lightning-fast reopening UX.
     },
 
     saveItem: async function (collectionId) {
@@ -960,7 +970,6 @@ window.OrbSavePanel = {
 
             if (res.ok) {
                 alert("Saved to collection!");
-                // Cache Invalidation
                 delete this.cachedItems[collectionId];
                 this.close();
             } else {
@@ -1000,8 +1009,6 @@ window.OrbSavePanel = {
 
             if (res.ok) {
                 alert(targetId ? "Folder created and item saved!" : "Playlist created!");
-
-                // Invalidate Level 1 Cache so it re-fetches the new folder
                 window.AuthState.userCollections = [];
 
                 if (!targetId) this.open(null, targetType, displayContext);
