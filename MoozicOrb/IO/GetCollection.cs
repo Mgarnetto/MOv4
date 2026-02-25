@@ -7,9 +7,9 @@ namespace MoozicOrb.IO
 {
     public class GetCollection
     {
-        public CollectionDto Execute(long collectionId)
+        public ApiCollectionDto Execute(long collectionId)
         {
-            CollectionDto result = null;
+            ApiCollectionDto result = null;
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -24,14 +24,14 @@ namespace MoozicOrb.IO
                     {
                         if (r.Read())
                         {
-                            result = new CollectionDto
+                            result = new ApiCollectionDto
                             {
                                 Id = Convert.ToInt64(r["collection_id"]),
                                 Title = r["title"].ToString(),
                                 Description = r["description"].ToString(),
                                 Type = Convert.ToInt32(r["collection_type"]),
                                 CoverImageId = Convert.ToInt64(r["cover_image_id"]),
-                                Items = new List<CollectionItemDto>()
+                                Items = new List<ApiCollectionItemDto>()
                             };
                         }
                     }
@@ -73,7 +73,7 @@ namespace MoozicOrb.IO
                     {
                         while (r.Read())
                         {
-                            result.Items.Add(new CollectionItemDto
+                            result.Items.Add(new ApiCollectionItemDto
                             {
                                 TargetId = Convert.ToInt64(r["target_id"]),
                                 TargetType = Convert.ToInt32(r["target_type"]),

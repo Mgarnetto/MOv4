@@ -104,9 +104,14 @@
                         }
                     else if (layoutItem == "music")
                     {
-                        <div class="d-flex align-items-center justify-content-between mb-3">
-                            <h4 class="section-heading mb-0">Discography</h4>
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <h4 class="section-heading" style="margin: 0;">My Audio</h4>
+
+                            <a href="/creator/@Model.UserId/audio" class="spa-route" style="background-color: transparent; color: #fff; padding: 6px 16px; border-radius: 20px; text-decoration: none; font-size: 14px; font-weight: bold; border: 1px solid #555; transition: background-color 0.2s; display: flex; align-items: center; gap: 5px;">
+                                My Discography <i class="fas fa-arrow-right"></i>
+                            </a>
                         </div>
+
                         @await Component.InvokeAsync("Discography", new
                         {
                             userId = Model.UserId,

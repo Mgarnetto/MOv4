@@ -7,9 +7,9 @@ namespace MoozicOrb.IO
 {
     public class GetUserCollectionsByType
     {
-        public List<CollectionDto> Execute(int userId, int type)
+        public List<ApiCollectionDto> Execute(int userId, int type)
         {
-            var results = new List<CollectionDto>();
+            var results = new List<ApiCollectionDto>();
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -38,7 +38,7 @@ namespace MoozicOrb.IO
                                 coverUrl = "/" + coverUrl;
                             }
 
-                            results.Add(new CollectionDto
+                            results.Add(new ApiCollectionDto
                             {
                                 Id = rdr.GetInt64("collection_id"),
                                 UserId = rdr.GetInt32("user_id"),

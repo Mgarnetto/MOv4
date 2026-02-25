@@ -8,9 +8,9 @@ namespace MoozicOrb.IO
 {
     public class GetCollectionDetails
     {
-        public CollectionDto Execute(long collectionId, IMediaResolverService resolver = null)
+        public ApiCollectionDto Execute(long collectionId, IMediaResolverService resolver = null)
         {
-            CollectionDto collection = null;
+            ApiCollectionDto collection = null;
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -24,13 +24,13 @@ namespace MoozicOrb.IO
                     {
                         if (rdr.Read())
                         {
-                            collection = new CollectionDto
+                            collection = new ApiCollectionDto
                             {
                                 Id = rdr.GetInt64("collection_id"),
                                 Title = rdr["title"].ToString(),
                                 Type = rdr.GetInt32("collection_type"),
                                 DisplayContext = rdr["display_context"].ToString(),
-                                Items = new List<CollectionItemDto>()
+                                Items = new List<ApiCollectionItemDto>()
                             };
                         }
                     }
@@ -46,7 +46,7 @@ namespace MoozicOrb.IO
                     {
                         while (rdr.Read())
                         {
-                            collection.Items.Add(new CollectionItemDto
+                            collection.Items.Add(new ApiCollectionItemDto
                             {
                                 LinkId = rdr.GetInt64("link_id"),
                                 TargetId = rdr.GetInt64("target_id"),

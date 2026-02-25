@@ -1,25 +1,28 @@
-﻿using MoozicOrb.Models;
-using MoozicOrb.API.Services; // <-- ADDED for resolver
+﻿using MoozicOrb.API.Models;
+using MoozicOrb.API.Services;
 using MySql.Data.MySqlClient;
-using System; // <-- ADDED for Convert.ToInt32
+using System;
 using System.Collections.Generic;
 
 namespace MoozicOrb.IO
 {
     public class GetUserAudioCollection
     {
-        public CollectionDto Execute(int userId, IMediaResolverService resolver = null) // <-- ADDED resolver
+        public ApiCollectionDto Execute(int userId, IMediaResolverService resolver = null)
         {
-            var collection = new CollectionDto
+            var collection = new ApiCollectionDto
             {
                 Id = -1,
+                UserId = userId,
                 Title = "Discography",
                 Description = "All audio uploads",
-                ArtUrl = "/img/default_cover.jpg",
-                Items = new List<CollectionItemDto>()
+                Type = 2,
+                DisplayContext = "Fallback",
+                CoverImageId = 0,
+                CoverImageUrl = "/img/default_cover.jpg", // FIXED: Parent uses CoverImageUrl
+                Items = new List<ApiCollectionItemDto>()
             };
 
-            // ADDED ma.storage_provider to query
             string sql = @"
                 SELECT 
                     pm.media_id, 
@@ -35,7 +38,7 @@ namespace MoozicOrb.IO
                 JOIN user u ON p.user_id = u.user_id
                 WHERE p.user_id = @uid 
                   AND pm.media_type = 1 
-                ORDER BY p.created_at DESC";
+                ORDER BY p.created_at DESC LIMIT 10";
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -50,31 +53,32 @@ namespace MoozicOrb.IO
                             string art = rdr["post_art"]?.ToString();
                             string rawPath = rdr["file_path"]?.ToString();
 
-                            // Get storage provider to know if it's local or cloud
                             int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
 
-                            // --- FIX START: Cloudflare resolution vs local file fallback ---
                             if (resolver != null && storageProv == 1)
                             {
                                 rawPath = resolver.ResolveUrl(rawPath, 1);
+                                if (!string.IsNullOrEmpty(art) && !art.StartsWith("/") && !art.StartsWith("http"))
+                                {
+                                    art = resolver.ResolveUrl(art, 1);
+                                }
                             }
                             else if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/") && !rawPath.StartsWith("http"))
                             {
                                 rawPath = "/" + rawPath;
                             }
-                            // --- FIX END ---
 
-                            // If collection cover is still default, grab the first track's art
-                            if (collection.ArtUrl == "/img/default_cover.jpg" && !string.IsNullOrEmpty(art))
-                                collection.ArtUrl = art;
+                            // FIXED: Check and assign against CoverImageUrl
+                            if (collection.CoverImageUrl == "/img/default_cover.jpg" && !string.IsNullOrEmpty(art))
+                                collection.CoverImageUrl = art;
 
-                            collection.Items.Add(new CollectionItemDto
+                            collection.Items.Add(new ApiCollectionItemDto
                             {
                                 TargetId = rdr.GetInt64("media_id"),
-                                TargetType = 1, // Audio
+                                TargetType = 1,
                                 Title = !string.IsNullOrEmpty(rdr["song_title"]?.ToString()) ? rdr["song_title"].ToString() : rdr["post_title"]?.ToString(),
-                                Url = rawPath, // Use the fixed path here
-                                ArtUrl = art,
+                                Url = rawPath,
+                                ArtUrl = art, // Tracks use ArtUrl
                                 ArtistName = rdr["display_name"]?.ToString()
                             });
                         }

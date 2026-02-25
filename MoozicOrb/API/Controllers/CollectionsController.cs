@@ -91,7 +91,7 @@ namespace MoozicOrb.API.Controllers
         {
             try
             {
-                var results = new List<CollectionDto>();
+                var results = new List<ApiCollectionDto>();
 
                 using (var conn = new MySqlConnection(DBConn1.ConnectionString))
                 {
@@ -115,7 +115,7 @@ namespace MoozicOrb.API.Controllers
                                 string coverUrl = rdr["cover_url"] == DBNull.Value ? "/img/default_cover.jpg" : rdr["cover_url"].ToString();
                                 if (!coverUrl.StartsWith("/")) coverUrl = "/" + coverUrl;
 
-                                results.Add(new CollectionDto
+                                results.Add(new ApiCollectionDto
                                 {
                                     Id = rdr.GetInt64("collection_id"),
                                     UserId = rdr.GetInt32("user_id"),
@@ -190,7 +190,7 @@ namespace MoozicOrb.API.Controllers
         }
 
         [HttpPost("{id}/add-item")]
-        public IActionResult AddItem(long id, [FromBody] CollectionItemRequest req)
+        public IActionResult AddItem(long id, [FromBody] ApiCollectionItemRequest req)
         {
             try
             {

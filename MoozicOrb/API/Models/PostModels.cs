@@ -78,10 +78,10 @@ namespace MoozicOrb.API.Models
         public string DisplayContext { get; set; } // NEW: "audio", "video", "image", "store", "showcase"
         public long CoverImageId { get; set; }
 
-        public List<CollectionItemRequest> Items { get; set; }
+        public List<ApiCollectionItemRequest> Items { get; set; }
     }
 
-    public class CollectionDto
+    public class ApiCollectionDto
     {
         public long Id { get; set; }
         public int UserId { get; set; }        // NEW: Allows the UI to know who owns this
@@ -92,14 +92,14 @@ namespace MoozicOrb.API.Models
         public long CoverImageId { get; set; }
         public string CoverImageUrl { get; set; }
 
-        public List<CollectionItemDto> Items { get; set; }
+        public List<ApiCollectionItemDto> Items { get; set; }
     }
 
 
     /// <summary>
     /// Represents a pointer to a specific piece of media to add to a collection.
     /// </summary>
-    public class CollectionItemRequest
+    public class ApiCollectionItemRequest
     {
         public long TargetId { get; set; }      // The ID of the Media file (Song/Video)
         public int TargetType { get; set; }     // 1=MediaFile (Expandable for other types later)
@@ -108,7 +108,7 @@ namespace MoozicOrb.API.Models
     /// <summary>
     /// A resolved item inside a collection, ready for the Player.
     /// </summary>
-    public class CollectionItemDto
+    public class ApiCollectionItemDto
     {
         public long LinkId { get; set; }        // NEW: The PK from collection_items
         public long TargetId { get; set; }
