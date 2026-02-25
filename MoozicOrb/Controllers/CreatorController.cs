@@ -263,5 +263,38 @@ namespace MoozicOrb.Controllers
 
             return View("VideoHub", model);
         }
+
+        // ==========================================
+        // Audio Destination Route (/creator/105/audio)
+        // ==========================================
+        [HttpGet("creator/{id:int}/audio")]
+        public IActionResult Audio(int id)
+        {
+            var user = _userQuery.GetUserById(id);
+            if (user == null || user.UserId == 0) return NotFound();
+
+            string sid = Request.Headers["X-Session-Id"].ToString();
+            var session = SessionStore.GetSession(sid);
+            int currentUserId = session?.UserId ?? 0;
+            bool isMe = (currentUserId == id);
+
+            var model = new CreatorViewModel
+            {
+                UserId = user.UserId,
+                DisplayName = user.DisplayName ?? user.UserName,
+                UserName = user.UserName,
+                ProfilePic = SafeResolve(user.ProfilePic),
+                IsCurrentUser = isMe,
+                SignalRGroup = $"user_{user.UserId}"
+            };
+
+            if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
+            {
+                return PartialView("_AudioPartial", model);
+            }
+
+            // Fallback for hard refreshes 
+            return View("Audio", model);
+        }
     }
 }

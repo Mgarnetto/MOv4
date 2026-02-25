@@ -2452,3 +2452,147 @@ window.loadStoreCarousel = async function (userId) {
     }
 };
 
+// ============================================
+// AUDIO CAROUSEL MANAGER (DOCK)
+// ============================================
+
+window.isAudioCarouselManagerActive = false;
+
+window.toggleAudioCarouselManager = async function () {
+    window.isAudioCarouselManagerActive = !window.isAudioCarouselManagerActive;
+
+    const btn = document.getElementById('btnToggleAudioCarouselManager');
+    const dock = document.getElementById('audioCarouselManagerDock');
+
+    if (window.isAudioCarouselManagerActive) {
+        if (btn) {
+            btn.classList.add('is-active');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Loading...</span>';
+            btn.disabled = true;
+        }
+        if (dock) dock.classList.remove('d-none');
+
+        await window.loadAudioCarouselDock();
+
+        if (btn) {
+            btn.innerHTML = '<i class="fas fa-check"></i> <span>Close Manager</span>';
+            btn.disabled = false;
+        }
+    } else {
+        if (btn) {
+            btn.classList.remove('is-active');
+            btn.innerHTML = '<i class="fas fa-star"></i> <span>Manage Carousel</span>';
+        }
+        if (dock) dock.classList.add('d-none');
+    }
+};
+
+window.loadAudioCarouselDock = async function () {
+    const container = document.getElementById('audioCarouselDockSlotsContainer');
+    const colIdInput = document.getElementById('audioCarouselCollectionId');
+
+    container.innerHTML = '<div style="color:#888; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading tracks...</div>';
+
+    try {
+        const res = await fetch('/api/collections/mine?type=2', {
+            headers: { "X-Session-Id": window.AuthState.sessionId }
+        });
+
+        let collections = await res.json();
+        let carouselCol = collections.find(c => c.displayContext === 'ProfileCarousel');
+
+        if (!carouselCol) {
+            container.innerHTML = '<div style="color:#888; padding: 20px;">No Featured Carousel set up yet.</div>';
+            return;
+        }
+
+        colIdInput.value = carouselCol.id;
+
+        const detailRes = await fetch(`/api/collections/${carouselCol.id}`, {
+            headers: { "X-Session-Id": window.AuthState.sessionId }
+        });
+
+        const data = await detailRes.json();
+        const items = data.items || data.Items || [];
+
+        window.renderAudioCarouselSlots(items, carouselCol.id);
+
+    } catch (e) {
+        console.error(e);
+        container.innerHTML = '<div style="color:#ff4d4d; padding: 20px;">Error loading audio data.</div>';
+    }
+};
+
+window.renderAudioCarouselSlots = function (items, collectionId) {
+    const container = document.getElementById('audioCarouselDockSlotsContainer');
+    let html = '';
+    const maxSlots = 5;
+
+    for (let i = 0; i < maxSlots; i++) {
+        let item = items[i];
+
+        if (item) {
+            const safeArt = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+            const linkId = item.linkId || item.LinkId;
+            html += `
+            <div class="store-carousel-dock-slot filled draggable-audio-slot" draggable="true" data-link-id="${linkId}" title="Drag to reorder">
+                <img src="${safeArt}" alt="cover" />
+                <div class="store-carousel-dock-slot-remove" onclick="window.removeAudioCarouselItem(${linkId}, ${collectionId})"><i class="fas fa-times-circle"></i></div>
+            </div>`;
+        } else {
+            html += `
+            <div class="store-carousel-dock-slot empty">
+                <div class="store-carousel-select-overlay" onclick="alert('Audio selection coming soon!')">
+                    <i class="fas fa-plus add-icon"></i>
+                </div>
+            </div>`;
+        }
+    }
+    container.innerHTML = html;
+};
+
+window.removeAudioCarouselItem = async function (linkId, collectionId) {
+    if (!confirm("Remove this track?")) return;
+    try {
+        await fetch(`/api/collections/items/${linkId}?collectionId=${collectionId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState.sessionId }
+        });
+        window.loadAudioCarouselDock();
+    } catch (e) {
+        console.error("Failed to remove", e);
+    }
+};
+
+window.saveAudioCarouselDock = function () {
+    const container = document.getElementById('audioCarouselDockSlotsContainer');
+    const newOrder = Array.from(container.querySelectorAll('.draggable-audio-slot')).map(el => parseInt(el.dataset.linkId));
+    const collectionId = document.getElementById('audioCarouselCollectionId').value;
+
+    const btn = document.querySelector('#audioCarouselManagerDock .btn-dock-save');
+    if (btn) {
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+    }
+
+    if (!collectionId || newOrder.length === 0) {
+        window.toggleAudioCarouselManager();
+        return;
+    }
+
+    fetch(`/api/collections/${collectionId}/reorder`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState.sessionId },
+        body: JSON.stringify(newOrder)
+    }).then(() => {
+        if (btn) {
+            btn.innerText = "Saved!";
+            setTimeout(() => {
+                btn.innerText = "Save to Profile";
+                btn.disabled = false;
+                window.toggleAudioCarouselManager();
+                if (window.AppRouter) window.AppRouter.navigate(window.location.pathname);
+            }, 1000);
+        }
+    });
+};

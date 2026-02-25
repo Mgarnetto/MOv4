@@ -1,0 +1,6 @@
+﻿@model MoozicOrb.Models.CreatorViewModel
+@{
+    ViewData["Title"] = $"{Model.DisplayName}'s Audio";
+}
+
+@await Html.PartialAsync("_AudioPartial", Model)

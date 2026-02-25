@@ -1,0 +1,59 @@
+﻿@model MoozicOrb.Models.CreatorViewModel
+
+<input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
+<input type="hidden" id="audio-user-id" value="@Model.UserId" />
+
+<div class="audio-container" style="padding: 20px 0;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="/creator/@Model.UserId" class="spa-route" style="background: #1a1a1a; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #333;">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #333;">
+            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Discography</h2>
+        </div>
+
+        @if (Model.IsCurrentUser)
+        {
+            <div style="display: flex; gap: 10px;">
+                <button id="btnToggleAudioCarouselManager" class="btn-carousel-manage" onclick="window.toggleAudioCarouselManager()" style="background-color: transparent; color: #00d2ff; border: 1px solid #00d2ff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+                    <i class="fas fa-star"></i> <span>Manage Carousel</span>
+                </button>
+
+                <button class="commerce-btn-submit" style="margin: 0; padding: 8px 16px; display: flex; align-items: center; gap: 8px;" onclick="alert('Collection Builder Coming Soon!')">
+                    <i class="fas fa-folder-plus"></i> <span>Add Collection</span>
+                </button>
+            </div>
+        }
+    </div>
+
+    <div class="audio-grid" id="audio-grid-container">
+        @await Component.InvokeAsync("Discography", new { userId = Model.UserId, isCurrentUser = Model.IsCurrentUser })
+    </div>
+</div>
+
+<div id="audioCarouselManagerDock" class="store-carousel-dock d-none">
+    <div class="store-carousel-dock-header">
+        <div class="store-carousel-dock-title">
+            <i class="fas fa-star" style="color: #00d2ff; margin-right: 8px;"></i> Featured Audio Carousel
+        </div>
+        <button class="btn-dock-save" onclick="window.saveAudioCarouselDock()" style="background: linear-gradient(135deg, #00d2ff, #007bff); box-shadow: 0 4px 10px rgba(0, 210, 255, 0.3);">Save to Profile</button>
+    </div>
+
+    <input type="hidden" id="audioCarouselCollectionId" value="" />
+
+    <div class="store-carousel-dock-slots-container" id="audioCarouselDockSlotsContainer">
+    </div>
+</div>
+
+<style>
+    .audio-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 20px;
+        align-items: start;
+        justify-content: start;
+        width: 100%;
+    }
+</style>
