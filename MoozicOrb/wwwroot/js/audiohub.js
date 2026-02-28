@@ -70,7 +70,7 @@ window.loadAudioHub = async function (userId) {
 };
 
 // ============================================
-// AUDIO HUB: LIST RENDERERS (VANILLA CSS FIX)
+// AUDIO HUB: LIST RENDERERS (MOBILE OPTIMIZED)
 // ============================================
 function renderOrphansList(items, isOwner) {
     const container = document.getElementById('audio-orphans-container');
@@ -81,7 +81,7 @@ function renderOrphansList(items, isOwner) {
         return;
     }
 
-    // Pure CSS Table Layout (No Bootstrap needed)
+    // Conditionally render headers based on ownership
     let html = `
         <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px;">Singles & Vault Tracks</h4>
         <div style="max-height: 500px; overflow-y: auto; background: #121212; border: 1px solid #222; border-radius: 8px;">
@@ -90,9 +90,9 @@ function renderOrphansList(items, isOwner) {
                     <tr>
                         <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 60px;">Art</th>
                         <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #333;">Track Title</th>
-                        <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Status</th>
-                        <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Price</th>
-                        <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Actions</th>
+                        ${isOwner ? `<th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Status</th>` : ''}
+                        <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 80px;">Price</th>
+                        ${isOwner ? `<th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Actions</th>` : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -104,11 +104,8 @@ function renderOrphansList(items, isOwner) {
         const visibility = item.visibility !== undefined ? item.visibility : item.Visibility;
 
         const lockIcon = isLocked ? '<i class="fas fa-lock" style="color: #ffc107; margin-left: 6px;" title="Sold Item - Locked"></i>' : '';
-
-        // Safely parse visibility to handle 0 properly
         const visState = visibility !== undefined && visibility !== null ? parseInt(visibility) : 0;
 
-        // Raw CSS Pills for Status
         let statusBadge = '';
         if (isOwner) {
             if (visState === 0) statusBadge = '<span style="background: #0d6efd; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold;">Public</span>';
@@ -121,29 +118,44 @@ function renderOrphansList(items, isOwner) {
         const encodedTitle = encodeURIComponent(rawTitle);
         const art = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
         const targetId = item.targetId || item.TargetId;
+        const rawUrl = item.url || item.Url || '';
+
+        // Row configuration: Clickable for guests, static for owners
+        const rowCursor = !isOwner ? 'cursor: pointer;' : '';
+        const rowClickEvent = !isOwner
+            ? `onclick="if(window.playAudioTrack) window.playAudioTrack(${targetId}, '${encodedTitle}', '${art}', '${rawUrl}'); else alert('Playing: ${rawTitle.replace(/'/g, "\\'")}');"`
+            : '';
 
         html += `
-            <tr style="border-bottom: 1px solid #222; transition: background 0.2s;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">
+            <tr style="border-bottom: 1px solid #222; transition: background 0.2s; ${rowCursor}" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'" ${rowClickEvent} title="${!isOwner ? 'Click to Play' : ''}">
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
-                    <img src="${art}" style="width: 35px; height: 35px; border-radius: 4px; object-fit: cover; display: block; margin: 0 auto;">
+                    <div style="position: relative; display: inline-block;">
+                        <img src="${art}" style="width: 35px; height: 35px; border-radius: 4px; object-fit: cover; display: block; margin: 0 auto;">
+                        ${!isOwner ? `<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.4); border-radius: 4px;"><i class="fas fa-play" style="color: white; font-size: 0.8rem;"></i></div>` : ''}
+                    </div>
                 </td>
                 <td style="text-align: left; vertical-align: middle; padding: 8px; font-weight: 600; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${rawTitle}">
                     ${rawTitle} ${lockIcon}
                 </td>
+                
+                ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
                     ${statusBadge}
                 </td>
+                ` : ''}
+                
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
                     ${priceDisplay}
                 </td>
+                
+                ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
                     <div style="display: flex; justify-content: center; gap: 8px;">
-                        ${isOwner ? `
-                            <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
-                            <button style="background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" title="Edit Settings"><i class="fas fa-edit"></i></button>
-                        ` : `<button style="background: #198754; border: none; color: white; border-radius: 4px; padding: 4px 12px; cursor: pointer;" title="Buy/Play"><i class="fas fa-play"></i></button>`}
+                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                        <button style="background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" title="Edit Settings"><i class="fas fa-edit"></i></button>
                     </div>
                 </td>
+                ` : ''}
             </tr>
         `;
     });
