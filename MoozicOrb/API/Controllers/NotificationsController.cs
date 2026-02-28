@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED for IMediaResolverService
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
@@ -14,10 +15,13 @@ namespace MoozicOrb.API.Controllers
     public class NotificationsController : ControllerBase
     {
         private readonly IHttpContextAccessor _http;
+        private readonly IMediaResolverService _resolver; // <-- ADDED
 
-        public NotificationsController(IHttpContextAccessor http)
+        // <-- ADDED resolver to DI constructor
+        public NotificationsController(IHttpContextAccessor http, IMediaResolverService resolver)
         {
             _http = http;
+            _resolver = resolver;
         }
 
         private int GetUserId()
@@ -35,9 +39,9 @@ namespace MoozicOrb.API.Controllers
             {
                 int userId = GetUserId();
                 var io = new NotificationIO();
-                // We reuse GetUnread or create a GetRecent method in IO
-                // For now, let's assume GetUnread returns the list we need
-                var list = io.GetUnread(userId);
+
+                // <-- PASSED resolver to IO method
+                var list = io.GetUnread(userId, _resolver);
                 return Ok(list);
             }
             catch (Exception ex) { return BadRequest(ex.Message); }
@@ -51,7 +55,6 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
                 string sql = "UPDATE notifications SET is_read = 1 WHERE user_id = @uid";
 
-                // Simple inline execution since we didn't add this to IO yet
                 using (var conn = new MySqlConnection(DBConn1.ConnectionString))
                 {
                     conn.Open();

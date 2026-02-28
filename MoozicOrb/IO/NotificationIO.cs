@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED for IMediaResolverService
 using System;
 using System.Collections.Generic;
 
@@ -14,7 +15,6 @@ namespace MoozicOrb.IO
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
-                // Using UTC_TIMESTAMP() for consistency
                 string sql = @"
                     INSERT INTO notifications (user_id, actor_id, type, reference_id, message, created_at)
                     VALUES (@uid, @aid, @type, @ref, @msg, UTC_TIMESTAMP());
@@ -32,7 +32,8 @@ namespace MoozicOrb.IO
             }
         }
 
-        public List<NotificationDto> GetUnread(int userId)
+        // <-- ADDED IMediaResolverService parameter
+        public List<NotificationDto> GetUnread(int userId, IMediaResolverService resolver = null)
         {
             var list = new List<NotificationDto>();
             string sql = @"
@@ -52,24 +53,33 @@ namespace MoozicOrb.IO
                     {
                         while (r.Read())
                         {
-                            // 1. READ AND FORCE UTC
                             var dt = r.GetDateTime("created_at");
                             var utcDt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+                            // --- IMAGE RESOLUTION LOGIC ---
+                            string rawPic = r["profile_pic"]?.ToString();
+
+                            // If it doesn't start with / or http, assume it's a cloud key and resolve it
+                            if (resolver != null && !string.IsNullOrEmpty(rawPic) && !rawPic.StartsWith("/") && !rawPic.StartsWith("http"))
+                            {
+                                rawPic = resolver.ResolveUrl(rawPic, 1); // 1 = Cloudflare Vault
+                            }
+
+                            string finalPic = string.IsNullOrEmpty(rawPic) ? "/img/profile_default.jpg" : rawPic;
+                            // ------------------------------
 
                             list.Add(new NotificationDto
                             {
                                 Id = r.GetInt64("id"),
                                 ActorId = r.GetInt32("actor_id"),
                                 ActorName = r["username"].ToString(),
-                                ActorPic = r["profile_pic"]?.ToString() ?? "/img/profile_default.jpg",
+                                ActorPic = finalPic, // <-- USE RESOLVED URL
                                 Type = r["type"].ToString(),
                                 Message = r["message"].ToString(),
                                 ReferenceId = r.GetInt64("reference_id"),
                                 IsRead = false,
-
-                                // 2. ASSIGN TO DTO
                                 CreatedAt = utcDt,
-                                CreatedAgo = TimeAgo(utcDt) // Fallback server-side string
+                                CreatedAgo = TimeAgo(utcDt)
                             });
                         }
                     }
