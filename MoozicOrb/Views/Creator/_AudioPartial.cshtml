@@ -2,34 +2,103 @@
 
 <input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
 <input type="hidden" id="audio-user-id" value="@Model.UserId" />
+<input type="hidden" id="audio-is-owner" value="@Model.IsCurrentUser.ToString().ToLower()" />
 
-<div class="audio-container" style="padding: 20px 0;">
+<div class="audio-container" style="padding: 20px 0; position: relative; overflow-x: hidden;">
+
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
-
         <div style="display: flex; align-items: center; gap: 15px;">
             <a href="/creator/@Model.UserId" class="spa-route" style="background: #1a1a1a; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #333;">
                 <i class="fas fa-arrow-left"></i>
             </a>
             <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #333;">
-            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Discography</h2>
+            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Audio</h2>
         </div>
 
         @if (Model.IsCurrentUser)
         {
             <div style="display: flex; gap: 10px;">
                 <button id="btnToggleAudioCarouselManager" class="btn-carousel-manage" onclick="window.toggleAudioCarouselManager()" style="background-color: transparent; color: #00d2ff; border: 1px solid #00d2ff; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
-                    <i class="fas fa-star"></i> <span>Manage Carousel</span>
+                    <i class="fas fa-star"></i> <span class="d-none d-md-inline">Manage Carousel</span>
                 </button>
-
-                <button class="commerce-btn-submit" style="margin: 0; padding: 8px 16px; display: flex; align-items: center; gap: 8px;" onclick="alert('Collection Builder Coming Soon!')">
-                    <i class="fas fa-folder-plus"></i> <span>Add Collection</span>
+                <button class="commerce-btn-submit" style="margin: 0; padding: 8px 16px; display: flex; align-items: center; gap: 8px;" onclick="window.toggleAudioDropzone()">
+                    <i class="fas fa-cloud-upload-alt"></i> <span class="d-none d-md-inline">Batch Upload</span>
+                </button>
+                <button class="commerce-btn-submit" style="margin: 0; padding: 8px 16px; display: flex; align-items: center; gap: 8px; background: #28a745; border-color: #28a745;" onclick="alert('Collection Builder Coming Soon!')">
+                    <i class="fas fa-folder-plus"></i> <span class="d-none d-md-inline">New Album</span>
                 </button>
             </div>
         }
     </div>
 
-    <div class="audio-grid" id="audio-grid-container">
-        @await Component.InvokeAsync("Discography", new { userId = Model.UserId, isCurrentUser = Model.IsCurrentUser })
+    @if (Model.IsCurrentUser)
+    {
+        <div id="audio-dropzone-wizard" class="d-none" style="background: #1a1a1a; border: 1px dashed #555; border-radius: 12px; padding: 30px; margin-bottom: 25px; text-align: center;">
+            <i class="fas fa-file-audio" style="font-size: 3rem; color: #888; margin-bottom: 15px;"></i>
+            <h4 style="color: #fff;">Drag & Drop Audio Files Here</h4>
+            <p style="color: #aaa; font-size: 0.9rem;">Upload up to 20 tracks at once. They will default to Private.</p>
+            <input type="file" id="batchAudioInput" multiple accept="audio/mp3,audio/wav" style="display: none;" onchange="window.handleBatchAudioSelect(event)">
+            <button onclick="document.getElementById('batchAudioInput').click()" style="background: #00d2ff; color: #000; border: none; padding: 8px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; margin-top: 10px;">Select Files</button>
+
+            <div id="batch-upload-queue" style="margin-top: 20px; text-align: left; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+    }
+
+    <div id="audio-carousel-container" style="margin-bottom: 30px;">
+    </div>
+
+    <div id="audio-albums-container" style="margin-bottom: 20px;">
+        <div class="text-center text-muted py-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+    </div>
+
+    <div id="audio-orphans-container" style="margin-bottom: 20px;">
+    </div>
+</div>
+
+<div id="audio-inspector-sidebar" class="audio-inspector closed">
+    <div class="inspector-header">
+        <h5 id="inspector-title" style="margin: 0; font-weight: 700;">Edit Track</h5>
+        <button onclick="window.closeAudioInspector()" style="background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div id="inspector-lock-warning" class="d-none" style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 10px; margin: 15px; border-radius: 4px;">
+        <i class="fas fa-lock text-warning" style="margin-right: 5px;"></i>
+        <span style="font-size: 0.85rem; color: #ddd;">This item has been sold. Media files and tracklists are locked.</span>
+    </div>
+
+    <div class="inspector-tabs">
+        <button class="tab-btn active" onclick="window.switchInspectorTab('details')">Details</button>
+        <button class="tab-btn" onclick="window.switchInspectorTab('monetization')">Monetization</button>
+    </div>
+
+    <div class="inspector-body">
+        <div id="inspector-tab-details" class="tab-content active">
+            <input type="hidden" id="edit-target-id">
+            <input type="hidden" id="edit-target-type">
+
+            <label class="inspector-label">Title</label>
+            <input type="text" id="edit-title" class="inspector-input" placeholder="Track/Album Title">
+
+            <label class="inspector-label">Visibility</label>
+            <select id="edit-visibility" class="inspector-input">
+                <option value="0">Public</option>
+                <option value="1">Link Only</option>
+                <option value="2">Private / Draft</option>
+            </select>
+        </div>
+
+        <div id="inspector-tab-monetization" class="tab-content d-none">
+            <label class="inspector-label">Price (USD)</label>
+            <div style="position: relative;">
+                <span style="position: absolute; left: 10px; top: 10px; color: #aaa;">$</span>
+                <input type="number" id="edit-price" class="inspector-input" style="padding-left: 25px;" placeholder="0.00" step="0.01" min="0">
+            </div>
+            <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">Set to 0.00 for free streaming/download.</p>
+        </div>
+    </div>
+
+    <div class="inspector-footer">
+        <button class="btn-dock-save w-100" onclick="window.saveAudioInspector()" style="background: linear-gradient(135deg, #00d2ff, #007bff); box-shadow: 0 4px 10px rgba(0, 210, 255, 0.3);">Save Changes</button>
     </div>
 </div>
 
@@ -38,22 +107,185 @@
         <div class="store-carousel-dock-title">
             <i class="fas fa-star" style="color: #00d2ff; margin-right: 8px;"></i> Featured Audio Carousel
         </div>
-        <button class="btn-dock-save" onclick="window.saveAudioCarouselDock()" style="background: linear-gradient(135deg, #00d2ff, #007bff); box-shadow: 0 4px 10px rgba(0, 210, 255, 0.3);">Save to Profile</button>
+        <button class="btn-dock-save" onclick="window.saveAudioCarouselDock()" style="background: linear-gradient(135deg, #00d2ff, #007bff);">Save to Profile</button>
     </div>
-
     <input type="hidden" id="audioCarouselCollectionId" value="" />
-
-    <div class="store-carousel-dock-slots-container" id="audioCarouselDockSlotsContainer">
-    </div>
+    <div class="store-carousel-dock-slots-container" id="audioCarouselDockSlotsContainer"></div>
 </div>
 
 <style>
-    .audio-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-        gap: 20px;
-        align-items: start;
-        justify-content: start;
-        width: 100%;
+    /* Inspector Slide-Out Logic */
+    .audio-inspector {
+        position: fixed;
+        top: 60px; /* Adjust based on your top navbar */
+        right: 0;
+        width: 350px;
+        height: calc(100vh - 60px);
+        background: #121212;
+        border-left: 1px solid #333;
+        z-index: 1050;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.5);
     }
+
+        .audio-inspector.closed {
+            transform: translateX(100%);
+        }
+
+    .inspector-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1a1a1a;
+    }
+
+    .inspector-tabs {
+        display: flex;
+        border-bottom: 1px solid #333;
+    }
+
+    .tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #888;
+        padding: 12px 0;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+        .tab-btn.active {
+            color: #00d2ff;
+            border-bottom: 2px solid #00d2ff;
+        }
+
+    .inspector-body {
+        padding: 20px;
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    .inspector-label {
+        display: block;
+        color: #aaa;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+
+    .inspector-input {
+        width: 100%;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+    }
+
+        .inspector-input:focus {
+            outline: none;
+            border-color: #00d2ff;
+        }
+
+    .inspector-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #333;
+        background: #1a1a1a;
+    }
+
+    /* Audio Carousel Dock Slots */
+    .audio-carousel-slot {
+        width: 140px;
+        height: 140px;
+        background: #121212;
+        border: 2px dashed #444;
+        border-radius: 8px;
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        position: relative;
+        overflow: hidden;
+        color: #888;
+        transition: all 0.2s;
+        flex-shrink: 0;
+        cursor: pointer;
+    }
+
+        .audio-carousel-slot.empty-slot:hover {
+            border-color: #00d2ff;
+            color: #00d2ff;
+            background: rgba(0, 210, 255, 0.05);
+        }
+
+        .audio-carousel-slot.filled-slot {
+            border: 2px solid #333;
+            cursor: default;
+        }
+
+    .audio-slot-art {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-size: cover;
+        background-position: center;
+        z-index: 1;
+    }
+    /* Dark gradient from bottom up to make text extremely readable */
+    .audio-slot-info {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 60%, transparent 100%);
+        padding: 25px 8px 8px 8px;
+        z-index: 2;
+        text-align: center;
+        line-height: 1.2;
+    }
+
+    .audio-slot-title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.85rem;
+        margin-bottom: 2px;
+    }
+
+    .audio-slot-type {
+        color: #00d2ff;
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .btn-audio-slot-remove {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+        cursor: pointer;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .btn-audio-slot-remove:hover {
+            background: #dc3545;
+        }
 </style>

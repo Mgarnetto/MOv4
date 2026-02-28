@@ -156,6 +156,13 @@
                 window.loadVideoHub(userId);
             }
 
+            // I. Audio Hub Loader (Creator's Audio Tab Command Center)
+            const audioHubUserIdEl = document.getElementById("audio-user-id");
+            if (audioHubUserIdEl && window.loadAudioHub) {
+                const userId = audioHubUserIdEl.value;
+                window.loadAudioHub(userId);
+            }
+
         } catch (err) {
             console.error("Initialization error in router:", err);
         }

@@ -91,6 +91,9 @@ namespace MoozicOrb.API.Models
         public string DisplayContext { get; set; }
         public long CoverImageId { get; set; }
         public string CoverImageUrl { get; set; }
+        public decimal? Price { get; set; }           // For Bundles/Storefronts
+        public bool IsLocked { get; set; }              // For Bundles/Storefronts
+        public int Visibility { get; set; }             // For Albums/Playlists (1=Public, 2=Private, 3=Unlisted)
 
         public List<ApiCollectionItemDto> Items { get; set; }
     }
@@ -119,6 +122,9 @@ namespace MoozicOrb.API.Models
         // --- ADDED: Required for the UI Player to render track data ---
         public string ArtUrl { get; set; }
         public string ArtistName { get; set; }
+        public decimal? Price { get; set; }
+        public int Visibility { get; set; }
+        public bool IsLocked { get; set; }
     }
 
     public class CommentDto

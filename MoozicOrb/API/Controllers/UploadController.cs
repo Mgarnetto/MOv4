@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Services;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
+using MySql.Data.MySqlClient;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -186,6 +188,101 @@ namespace MoozicOrb.API.Controllers
                 return Ok(new { id = newId, type = 2, url = previewUrl, snippetPath = previewThumb });
             }
             catch (Exception ex) { return BadRequest($"Video Upload Error: {ex.Message}"); }
+        }
+
+        // ==========================================
+        // 4. BATCH AUDIO UPLOAD (Creator Hub)
+        // ==========================================
+        [HttpPost("audio/batch")]
+        public async Task<IActionResult> UploadAudioBatch([FromForm] List<IFormFile> files)
+        {
+            if (files == null || files.Count == 0) return BadRequest("No files provided");
+            int uid = GetUserId();
+            if (uid == 0) return Unauthorized("User not logged in");
+
+            var results = new List<object>();
+
+            foreach (var file in files)
+            {
+                if (file.Length == 0) continue;
+
+                try
+                {
+                    string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
+                    string snippetName = $"{Path.GetFileNameWithoutExtension(uniqueName)}_snippet.wav";
+
+                    string cloudKey = $"audio/{uniqueName}";
+                    string cloudSnippetKey = $"audio/{snippetName}";
+
+                    string dbPath = await _fileService.SaveFileAsync(file, "Audio");
+                    string physPath = _fileService.GetPhysicalPath(dbPath);
+                    string snippetPath = "";
+                    int duration = 0;
+
+                    try
+                    {
+                        var meta = await _processor.ProcessAudioAsync(physPath, dbPath);
+                        snippetPath = meta.SnippetPath;
+                        duration = (int)meta.DurationSeconds;
+                    }
+                    catch (Exception ex) { Console.WriteLine($"[Batch Upload] Audio processing failed for {file.FileName}: {ex.Message}"); }
+
+                    // Upload Main File
+                    await _fileService.UploadToCloudAsync(physPath, cloudKey);
+
+                    // Upload Snippet
+                    if (!string.IsNullOrEmpty(snippetPath))
+                    {
+                        string physSnippet = _fileService.GetPhysicalPath(snippetPath);
+                        if (System.IO.File.Exists(physSnippet))
+                        {
+                            await _fileService.UploadToCloudAsync(physSnippet, cloudSnippetKey);
+                            await _fileService.DeleteLocalFileAsync(physSnippet);
+                        }
+                    }
+                    await _fileService.DeleteLocalFileAsync(physPath);
+
+                    // Insert using existing method
+                    long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, cloudSnippetKey, duration);
+
+                    // SECURE THE ASSET: Force Visibility to 2 (Private) for batch uploads
+                    using (var conn = new MySqlConnection(DBConn1.ConnectionString))
+                    {
+                        conn.Open();
+                        string sql = "UPDATE media_audio SET visibility = 2 WHERE audio_id = @id";
+                        using (var cmd = new MySqlCommand(sql, conn))
+                        {
+                            cmd.Parameters.AddWithValue("@id", newId);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    // Resolve URLs for immediate frontend UI mapping
+                    string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
+                    string previewSnippet = _resolver.ResolveUrl(cloudSnippetKey, 1);
+
+                    // Push successful track to the return array
+                    results.Add(new
+                    {
+                        targetId = newId,
+                        type = 1,
+                        title = file.FileName,
+                        url = previewUrl,
+                        snippetPath = previewSnippet,
+                        isLocked = false,
+                        price = (decimal?)null,
+                        visibility = 2
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Batch Upload] Error saving {file.FileName}: {ex.Message}");
+                    // We catch here so one failed track doesn't kill the whole 20-track upload loop
+                }
+            }
+
+            // Return array of processed files back to JS to instantly update the UI
+            return Ok(new { success = true, items = results });
         }
     }
 }

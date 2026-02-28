@@ -143,7 +143,7 @@ namespace MoozicOrb.API.Controllers
                 // Require the user to be logged in to pull "mine"
                 int userId = GetUserId();
 
-                var results = new GetUserCollectionsByType().Execute(userId, type);
+                var results = new GetUserCollectionsByType().Execute(userId, type, true);
 
                 return Ok(results);
             }
