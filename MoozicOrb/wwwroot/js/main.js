@@ -1020,5 +1020,24 @@ window.OrbSavePanel = {
     }
 };
 
+// ============================================
+// DISCOGRAPHY VIEW COMPONENT CONTROLS
+// ============================================
+
+window.scrollDiscoCarousel = function (dir, userId) {
+    const track = document.getElementById('disco-carousel-' + userId);
+    if (track) {
+        const scrollAmount = 200 * dir;
+        track.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+};
+
+window.toggleCollection = function (headerElement) {
+    const box = headerElement.closest('.collection-box');
+    if (box) {
+        box.classList.toggle('expanded');
+    }
+};
+
 window.closeCollectionModal = window.OrbSavePanel.close;
 window.openSaveToCollectionModal = window.OrbSavePanel.open;

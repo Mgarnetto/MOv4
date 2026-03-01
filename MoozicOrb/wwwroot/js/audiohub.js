@@ -46,24 +46,31 @@ window.loadAudioHub = async function (userId) {
         // Trigger the visual carousel renderer
         window.loadAudioCarousel(userId);
 
+        // THE FIX: Two-step fetch to properly hydrate the dock with actual items
         if (isOwner) {
-            fetch(`/api/collections/mine?type=6`, { headers })
+            fetch(`/api/collections/user/${userId}/context/ProfileCarousel`, { headers })
                 .then(res => res.ok ? res.json() : [])
-                .then(data => {
-                    if (data && data.length > 0) {
-                        document.getElementById('audioCarouselCollectionId').value = data[0].collectionId || data[0].CollectionId;
+                .then(collections => {
+                    if (collections && collections.length > 0) {
+                        const colId = collections[0].id || collections[0].Id;
+                        document.getElementById('audioCarouselCollectionId').value = colId;
 
-                        const items = data[0].items || data[0].Items;
-                        if (items) {
-                            items.forEach(item => {
-                                const art = item.artUrl || item.ArtUrl || item.coverImageUrl || '/img/default_cover.jpg';
-                                const targetId = item.targetId || item.TargetId;
-                                const targetType = item.targetType !== undefined ? item.targetType : item.TargetType;
-                                const title = item.title || item.Title || "Untitled";
+                        // Now fetch the actual deeply nested items using GetCollectionDetails
+                        fetch(`/api/collections/${colId}`, { headers })
+                            .then(res => res.ok ? res.json() : null)
+                            .then(details => {
+                                if (details) {
+                                    const items = details.items || details.Items || [];
+                                    items.forEach(item => {
+                                        const art = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+                                        const targetId = item.targetId || item.TargetId;
+                                        const targetType = item.targetType !== undefined ? item.targetType : item.TargetType;
+                                        const title = item.title || item.Title || "Untitled";
 
-                                window.addToAudioCarouselDock(targetId, targetType, title, art, true);
+                                        window.addToAudioCarouselDock(targetId, targetType, title, art, true);
+                                    });
+                                }
                             });
-                        }
                     }
                 });
         }
