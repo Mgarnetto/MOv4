@@ -116,14 +116,21 @@ function renderOrphansList(items, isOwner) {
         const priceDisplay = price > 0 ? `<span style="color: #198754; font-weight: bold;">$${price.toFixed(2)}</span>` : '<span style="color: #888;">Free</span>';
         const rawTitle = item.title || item.Title || "Untitled Track";
         const encodedTitle = encodeURIComponent(rawTitle);
+
+        // --- ADDED ARTIST EXTRACTION HERE ---
+        const rawArtist = item.artistName || item.ArtistName || "Unknown Artist";
+        const encodedArtist = encodeURIComponent(rawArtist);
+
         const art = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
         const targetId = item.targetId || item.TargetId;
         const rawUrl = item.url || item.Url || '';
 
         // Row configuration: Clickable for guests, static for owners
         const rowCursor = !isOwner ? 'cursor: pointer;' : '';
+
+        // --- UPDATED ROW CLICK TO PASS ARTIST ---
         const rowClickEvent = !isOwner
-            ? `onclick="if(window.playAudioTrack) window.playAudioTrack(${targetId}, '${encodedTitle}', '${art}', '${rawUrl}'); else alert('Playing: ${rawTitle.replace(/'/g, "\\'")}');"`
+            ? `onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${rawUrl}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });"`
             : '';
 
         html += `
@@ -163,6 +170,7 @@ function renderOrphansList(items, isOwner) {
     html += `</tbody></table></div>`;
     container.innerHTML = html;
 }
+
 function renderAlbumsList(albums, isOwner) {
     const container = document.getElementById('audio-albums-container');
     if (!albums || albums.length === 0) {
@@ -192,13 +200,28 @@ function renderAlbumsList(albums, isOwner) {
 
         const rawTitle = album.title || album.Title || "Untitled Album";
         const encodedTitle = encodeURIComponent(rawTitle);
+
+        // --- ADDED ARTIST EXTRACTION HERE ---
+        const rawArtist = album.artistName || album.ArtistName || "Unknown Artist";
+        const encodedArtist = encodeURIComponent(rawArtist);
+
         const art = album.coverImageUrl || album.CoverImageUrl || '/img/default_cover.jpg';
         const id = album.id || album.Id;
+        const rawUrl = album.url || album.Url || '';
+
+        // Row configuration: Clickable for guests, static for owners
+        const cardCursor = !isOwner ? 'cursor: pointer;' : '';
+
+        // --- UPDATED ALBUM CLICK TO PASS ARTIST ---
+        const cardClickEvent = !isOwner
+            ? `onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${rawUrl}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });"`
+            : '';
 
         html += `
-            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; transition: transform 0.2s;" class="album-card-hover shadow-sm">
+            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; transition: transform 0.2s; ${cardCursor}" class="album-card-hover shadow-sm" ${cardClickEvent}>
                 <div style="position: relative; padding-top: 100%;">
                     <img src="${art}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
+                     ${!isOwner ? `<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"><i class="fas fa-play" style="color: white; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i></div>` : ''}
                 </div>
                 <div class="p-3">
                     <div class="text-white fw-bold text-truncate mb-1" title="${rawTitle}">${rawTitle}</div>
@@ -208,11 +231,11 @@ function renderAlbumsList(albums, isOwner) {
                     </div>
                     
                     ${isOwner ? `
-                        <div class="d-flex gap-2">
+                        <div class="d-flex gap-2" style="position: relative; z-index: 2;">
                             <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')"><i class="fas fa-star"></i></button>
                             <button class="btn btn-sm btn-outline-light flex-grow-1" onclick="window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})"><i class="fas fa-edit"></i></button>
                         </div>
-                    ` : `<button class="btn btn-sm btn-success w-100">View</button>`}
+                    ` : ''}
                 </div>
             </div>
         `;

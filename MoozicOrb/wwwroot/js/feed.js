@@ -734,7 +734,7 @@ function renderNewPost(post) {
             <div class="post-body">
                 ${pTitle ? `<h5 class="post-title">${pTitle}</h5>` : ''}
                 ${pText ? `<div class="post-text text-break">${pText}</div>` : ''}
-                ${renderAttachments(attachments)}
+                ${renderAttachments(attachments, pTitle, pAuthorName)}
             </div>
 
             <div class="post-footer">
@@ -778,7 +778,7 @@ function renderNewPost(post) {
     container.insertBefore(postEl, container.firstChild);
 }
 
-function renderAttachments(attachments) {
+function renderAttachments(attachments, postTitle, postAuthor) {
     if (!attachments || attachments.length === 0) return '';
     let html = `<div class="row g-2 mt-3">`;
 
@@ -820,18 +820,19 @@ function renderAttachments(attachments) {
             </div>`;
         }
         else if (mType === 1) {
-            const trackTitle = "Track";
+            const safeTitle = (postTitle && postTitle !== '') ? postTitle.replace(/'/g, "\\'") : "Track";
+            const safeArtist = (postAuthor && postAuthor !== '') ? postAuthor.replace(/'/g, "\\'") : "Unknown";
             const trackUrl = mUrl;
             // NEW SAVE BUTTON ADDED HERE FOR DYNAMIC AUDIO CARDS
             html += `
             <div class="track-card">
                 <button class="btn-track-play" 
-                        onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${trackUrl}', { title: '${trackTitle}' })">
+                        onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${trackUrl}', { title: '${safeTitle}', artist: '${safeArtist}' })">
                     <i class="fas fa-play"></i>
                 </button>
                 <div class="track-info">
-                    <div class="track-title">${trackTitle}</div>
-                    <div class="track-artist">Audio</div>
+                    <div class="track-title">${safeTitle}</div>
+                    <div class="track-artist">${safeArtist}</div>
                 </div>
                 <button class="btn-save-track" onclick="window.OrbSavePanel.open('${mId}', 1, 'audio'); event.stopPropagation();" title="Add to Playlist">
                     <i class="far fa-plus"></i>
@@ -1329,7 +1330,7 @@ function appendHistoricalPost(post, container) {
             <div class="post-body">
                 ${pTitle ? `<h5 class="post-title">${pTitle}</h5>` : ''}
                 ${pText ? `<div class="post-text text-break">${pText}</div>` : ''}
-                ${renderAttachments(attachments)}
+                ${renderAttachments(attachments, pTitle, pAuthorName)}
             </div>
 
             <div class="post-footer">
@@ -1406,6 +1407,7 @@ window.loadAudioPlaylist = async () => {
             const title = post.title || post.Title || 'Untitled Track';
             const titleEscaped = title.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const artist = post.authorName || post.AuthorName || 'Unknown Artist';
+            const artistEscaped = artist.replace(/'/g, "\\'").replace(/"/g, "&quot;");
             const pAuthorId = post.authorId !== undefined ? post.authorId : post.AuthorId;
             const profileLink = `/creator/${pAuthorId}`;
             const pCreatedAt = post.createdAt || post.CreatedAt;
@@ -1419,7 +1421,7 @@ window.loadAudioPlaylist = async () => {
     <div class="audio-meter"><span></span><span></span><span></span><span></span></div>
 
     <button class="btn-track-play" 
-            onclick="window.playTrackInFeed('${trackSrc}', '${titleEscaped}', this)">
+            onclick="window.playTrackInFeed('${trackSrc}', '${titleEscaped}', '${artistEscaped}', this)">
         <i class="fas fa-play"></i>
     </button>
 
@@ -1451,9 +1453,9 @@ window.loadAudioPlaylist = async () => {
     }
 };
 
-window.playTrackInFeed = function (url, title, element) {
+window.playTrackInFeed = function (url, title, artist, element) {
     if (window.AudioPlayer) {
-        window.AudioPlayer.playTrack(url, { title: title });
+        window.AudioPlayer.playTrack(url, { title: title, artist: artist });
     }
     const allRows = document.querySelectorAll('.audio-row');
     allRows.forEach(row => row.classList.remove('playing'));
