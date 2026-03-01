@@ -40,9 +40,8 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
                 long collectionId = 0;
 
-                // If it's a dedicated 1-to-1 context (like a profile carousel), we UPSERT.
-                // This prevents duplicate rows and stops the ID column from exploding.
-                if (req.DisplayContext == "store" || req.DisplayContext == "video" || req.DisplayContext == "image")
+                // ADDED ProfileCarousel to the 1-to-1 Upsert logic
+                if (req.DisplayContext == "store" || req.DisplayContext == "video" || req.DisplayContext == "image" || req.DisplayContext == "ProfileCarousel")
                 {
                     collectionId = new UpsertContextCollection().Execute(userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
 

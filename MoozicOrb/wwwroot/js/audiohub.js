@@ -43,6 +43,9 @@ window.loadAudioHub = async function (userId) {
             renderAlbumsList(albums, isOwner);
         }
 
+        // Trigger the visual carousel renderer
+        window.loadAudioCarousel(userId);
+
         if (isOwner) {
             fetch(`/api/collections/mine?type=6`, { headers })
                 .then(res => res.ok ? res.json() : [])
@@ -68,6 +71,106 @@ window.loadAudioHub = async function (userId) {
         console.error("Error loading Audio Hub data:", err);
     }
 };
+
+// ============================================
+// AUDIO CAROUSEL: VISUAL RENDERER & FALLBACK
+// ============================================
+window.loadAudioCarousel = async function (userId) {
+    const container = document.getElementById('audio-carousel-container');
+    if (!container) return;
+
+    try {
+        const headers = { "X-Session-Id": window.AuthState?.sessionId || "" };
+
+        // 1. Check if the user has a custom ProfileCarousel saved
+        const existRes = await fetch(`/api/collections/user/${userId}/context/ProfileCarousel`, { headers });
+        let customItems = [];
+
+        if (existRes.ok) {
+            const collections = await existRes.json();
+            if (collections && collections.length > 0) {
+                const collectionId = collections[0].id || collections[0].Id;
+
+                // Fetch the actual tracks inside the dock
+                const detailRes = await fetch(`/api/collections/${collectionId}`, { headers });
+                if (detailRes.ok) {
+                    const details = await detailRes.json();
+                    customItems = details.items || details.Items || [];
+                }
+            }
+        }
+
+        // 2. Render Custom OR Fallback to Top 10
+        if (customItems.length > 0) {
+            renderAudioCarouselUI(customItems, false);
+        } else {
+            // FALLBACK: Get top 10 most recent tracks
+            const fallbackRes = await fetch(`/api/audiohub/orphans/${userId}`, { headers });
+            if (fallbackRes.ok) {
+                const orphanData = await fallbackRes.json();
+                const orphans = orphanData.items || orphanData.Items || [];
+
+                if (orphans.length > 0) {
+                    const top10 = orphans.slice(0, 10);
+                    renderAudioCarouselUI(top10, true);
+                } else {
+                    container.innerHTML = ''; // Hide carousel entirely if they have 0 uploads
+                }
+            }
+        }
+    } catch (err) {
+        console.error("Error loading audio carousel:", err);
+        container.innerHTML = '';
+    }
+};
+
+function renderAudioCarouselUI(items, isFallback) {
+    const container = document.getElementById('audio-carousel-container');
+    if (!container) return;
+
+    let html = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+            <h4 style="color:white; margin: 0; font-weight: 700;">${isFallback ? 'Recent Uploads' : 'Featured Audio'}</h4>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="document.getElementById('audio-carousel-track').scrollBy({left: -250, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-left"></i></button>
+                <button onclick="document.getElementById('audio-carousel-track').scrollBy({left: 250, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+        <div id="audio-carousel-track" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: none; scroll-behavior: smooth;">
+    `;
+
+    items.forEach(item => {
+        const title = item.title || item.Title || "Untitled Track";
+        const encodedTitle = encodeURIComponent(title);
+        const artist = item.artistName || item.ArtistName || "Unknown Artist";
+        const encodedArtist = encodeURIComponent(artist);
+        const art = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+        const url = item.url || item.Url || '';
+
+        html += `
+            <div style="flex: 0 0 200px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; transition: transform 0.2s;" 
+                 onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
+                 onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${url}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });">
+                
+                <div style="position: relative; width: 100%; height: 200px;">
+                    <img src="${art}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                        <i class="fas fa-play-circle" style="color: white; font-size: 4rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8);"></i>
+                    </div>
+                </div>
+                <div style="padding: 12px; text-align: center;">
+                    <div style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title.replace(/"/g, '&quot;')}">${title}</div>
+                    <div style="color: #888; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${artist.replace(/"/g, '&quot;')}">${artist}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>
+    <style>#audio-carousel-track::-webkit-scrollbar { display: none; }</style>`;
+
+    container.innerHTML = html;
+}
 
 // ============================================
 // AUDIO HUB: LIST RENDERERS (MOBILE OPTIMIZED)
@@ -117,7 +220,6 @@ function renderOrphansList(items, isOwner) {
         const rawTitle = item.title || item.Title || "Untitled Track";
         const encodedTitle = encodeURIComponent(rawTitle);
 
-        // --- ADDED ARTIST EXTRACTION HERE ---
         const rawArtist = item.artistName || item.ArtistName || "Unknown Artist";
         const encodedArtist = encodeURIComponent(rawArtist);
 
@@ -125,10 +227,8 @@ function renderOrphansList(items, isOwner) {
         const targetId = item.targetId || item.TargetId;
         const rawUrl = item.url || item.Url || '';
 
-        // Row configuration: Clickable for guests, static for owners
         const rowCursor = !isOwner ? 'cursor: pointer;' : '';
 
-        // --- UPDATED ROW CLICK TO PASS ARTIST ---
         const rowClickEvent = !isOwner
             ? `onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${rawUrl}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });"`
             : '';
@@ -201,7 +301,6 @@ function renderAlbumsList(albums, isOwner) {
         const rawTitle = album.title || album.Title || "Untitled Album";
         const encodedTitle = encodeURIComponent(rawTitle);
 
-        // --- ADDED ARTIST EXTRACTION HERE ---
         const rawArtist = album.artistName || album.ArtistName || "Unknown Artist";
         const encodedArtist = encodeURIComponent(rawArtist);
 
@@ -209,10 +308,8 @@ function renderAlbumsList(albums, isOwner) {
         const id = album.id || album.Id;
         const rawUrl = album.url || album.Url || '';
 
-        // Row configuration: Clickable for guests, static for owners
         const cardCursor = !isOwner ? 'cursor: pointer;' : '';
 
-        // --- UPDATED ALBUM CLICK TO PASS ARTIST ---
         const cardClickEvent = !isOwner
             ? `onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${rawUrl}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });"`
             : '';
@@ -335,11 +432,13 @@ window.saveAudioCarouselDock = async function () {
         });
     });
 
+    // THE FIX: Perfectly aligned DTO mapping
     const payload = {
-        CollectionId: parseInt(document.getElementById('audioCarouselCollectionId').value) || 0,
-        Title: "Featured Audio Carousel",
-        CollectionType: 6,
+        Title: "Featured Audio",
+        Description: "My featured audio tracks",
+        Type: 6,
         DisplayContext: "ProfileCarousel",
+        CoverImageId: 0,
         Items: itemsToSave
     };
 
@@ -349,7 +448,7 @@ window.saveAudioCarouselDock = async function () {
     };
 
     try {
-        const response = await fetch('/api/collections/upsert', {
+        const response = await fetch('/api/collections/create', {
             method: 'POST',
             headers: headers,
             body: JSON.stringify(payload)
@@ -357,11 +456,15 @@ window.saveAudioCarouselDock = async function () {
 
         if (response.ok) {
             const result = await response.json();
-            document.getElementById('audioCarouselCollectionId').value = result.collectionId;
+            document.getElementById('audioCarouselCollectionId').value = result.id;
 
             if (btn) {
                 btn.innerText = "Saved!";
                 btn.style.background = "#28a745";
+
+                const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
+                if (userId) window.loadAudioCarousel(userId);
+
                 setTimeout(() => {
                     btn.innerText = "Save to Profile";
                     btn.style.background = "linear-gradient(135deg, #00d2ff, #007bff)";
@@ -394,7 +497,6 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
     document.getElementById('edit-title').value = decodedTitle;
     document.getElementById('edit-price').value = currentPrice > 0 ? currentPrice.toFixed(2) : '';
 
-    // THE FIX: Do not use || 1 here. Use the exact value passed.
     document.getElementById('edit-visibility').value = currentVisibility !== undefined && currentVisibility !== null ? currentVisibility : 0;
 
     const lockWarning = document.getElementById('inspector-lock-warning');
