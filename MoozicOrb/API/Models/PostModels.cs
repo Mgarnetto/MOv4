@@ -164,4 +164,19 @@ namespace MoozicOrb.API.Models
         public int? Quantity { get; set; }
         public List<MediaAttachmentDto>? MediaAttachments { get; set; }
     }
+
+    public class AudioItemMetadataDto
+    {
+        public long TargetId { get; set; }
+
+        // 0 = Album (Collection), 1 = Track (Media)
+        public int TargetType { get; set; }
+
+        public string Title { get; set; }
+
+        // 0 = Public, 1 = Link Only, 2 = Private
+        public int Visibility { get; set; }
+
+        public decimal? Price { get; set; }
+    }
 }

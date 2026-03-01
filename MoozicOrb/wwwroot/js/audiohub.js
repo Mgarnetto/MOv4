@@ -446,7 +446,7 @@ window.saveAudioInspector = async function () {
     };
 
     try {
-        const response = await fetch('/api/audiohub/update-settings', {
+        const response = await fetch('/api/audiohub/metadata', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

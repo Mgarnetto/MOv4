@@ -1,8 +1,9 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MoozicOrb.API.Models;
+using MoozicOrb.API.Services;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
-using MoozicOrb.API.Services;
 using System;
 
 namespace MoozicOrb.Controllers
@@ -83,6 +84,25 @@ namespace MoozicOrb.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // POST: api/audiohub/metadata
+        [HttpPost("metadata")]
+        public IActionResult UpdateMetadata([FromBody] AudioItemMetadataDto req)
+        {
+            int userId = GetCurrentUserIdSafe();
+            if (userId == 0) return Unauthorized("User is not logged in.");
+
+            try
+            {
+                new UpdateAudioMetadata().Execute(userId, req);
+                return Ok(new { success = true, message = "Metadata updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[AudioHub] Metadata update error: {ex.Message}");
+                return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
     }
