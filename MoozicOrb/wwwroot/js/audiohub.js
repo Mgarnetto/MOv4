@@ -8,12 +8,21 @@ window.toggleAudioCarouselManager = function () {
     const btn = document.getElementById('btnToggleAudioCarouselManager');
     const dock = document.getElementById('audioCarouselManagerDock');
 
+    // Grab the main audio wrapper to adjust its height
+    const mainContainer = document.querySelector('.audio-container');
+
     if (window.isAudioCarouselManagerActive) {
         if (btn) btn.innerHTML = '<i class="fas fa-check"></i> <span class="d-none d-md-inline">Close Manager</span>';
         if (dock) dock.classList.remove('d-none');
+
+        // THE FIX: Add 280px of padding to the bottom of the page so it scrolls past the dock
+        if (mainContainer) mainContainer.style.paddingBottom = '280px';
     } else {
         if (btn) btn.innerHTML = '<i class="fas fa-star"></i> <span class="d-none d-md-inline">Manage Carousel</span>';
         if (dock) dock.classList.add('d-none');
+
+        // Reset the padding when the dock is closed
+        if (mainContainer) mainContainer.style.paddingBottom = '20px';
     }
 };
 
@@ -315,17 +324,15 @@ function renderAlbumsList(albums, isOwner) {
         const id = album.id || album.Id;
         const rawUrl = album.url || album.Url || '';
 
-        const cardCursor = !isOwner ? 'cursor: pointer;' : '';
-
-        const cardClickEvent = !isOwner
-            ? `onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${rawUrl}', { title: decodeURIComponent('${encodedTitle}'), artist: decodeURIComponent('${encodedArtist}'), cover: '${art}' });"`
-            : '';
+        // Make the whole card open the Album Viewer
+        const cardCursor = 'cursor: pointer;';
+        const cardClickEvent = `onclick="window.openAlbumView(${id}, '${encodedTitle}', '${art}')"`;
 
         html += `
             <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; transition: transform 0.2s; ${cardCursor}" class="album-card-hover shadow-sm" ${cardClickEvent}>
                 <div style="position: relative; padding-top: 100%;">
                     <img src="${art}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
-                     ${!isOwner ? `<div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"><i class="fas fa-play" style="color: white; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i></div>` : ''}
+                     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"><i class="fas fa-list" style="color: white; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i></div>
                 </div>
                 <div class="p-3">
                     <div class="text-white fw-bold text-truncate mb-1" title="${rawTitle}">${rawTitle}</div>
@@ -336,8 +343,8 @@ function renderAlbumsList(albums, isOwner) {
                     
                     ${isOwner ? `
                         <div class="d-flex gap-2" style="position: relative; z-index: 2;">
-                            <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')"><i class="fas fa-star"></i></button>
-                            <button class="btn btn-sm btn-outline-light flex-grow-1" onclick="window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')"><i class="fas fa-star"></i></button>
+                            <button class="btn btn-sm btn-outline-light flex-grow-1" onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})"><i class="fas fa-edit"></i></button>
                         </div>
                     ` : ''}
                 </div>
@@ -586,5 +593,430 @@ window.saveAudioInspector = async function () {
         console.error("Error saving inspector:", e);
         btn.innerText = originalText;
         btn.disabled = false;
+    }
+};
+
+// ============================================
+// AUDIO HUB: BATCH UPLOAD & DRAG/DROP
+// ============================================
+
+window.toggleAudioDropzone = function () {
+    const wizard = document.getElementById('audio-dropzone-wizard');
+    if (wizard) {
+        wizard.classList.toggle('d-none');
+    }
+};
+
+window.handleBatchAudioSelect = async function (eventOrInput) {
+    // Extract input correctly whether passed directly or via 'event'
+    const input = eventOrInput.target ? eventOrInput.target : eventOrInput;
+    if (!input.files || input.files.length === 0) return;
+
+    const files = Array.from(input.files);
+    const maxFiles = 20;
+
+    const queueContainer = document.getElementById('batch-upload-queue');
+
+    if (files.length > maxFiles) {
+        if (queueContainer) queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-circle"></i> Max ${maxFiles} tracks allowed at once.</div>`;
+        input.value = '';
+        return;
+    }
+
+    if (queueContainer) {
+        queueContainer.innerHTML = `<div class="text-info" style="font-weight:bold;"><i class="fas fa-spinner fa-spin me-2"></i> Securing ${files.length} tracks to your Vault...</div>`;
+    }
+
+    // Package the files for C#
+    const formData = new FormData();
+    files.forEach(file => {
+        if (file.type.startsWith('audio/')) {
+            formData.append("files", file);
+        }
+    });
+
+    try {
+        // Hit the Batch Endpoint
+        const response = await fetch('/api/upload/audio/batch', {
+            method: 'POST',
+            headers: {
+                "X-Session-Id": window.AuthState?.sessionId || ""
+            },
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+
+            if (queueContainer) {
+                queueContainer.innerHTML = `<div class="text-success" style="font-weight:bold;"><i class="fas fa-check-circle me-2"></i> Successfully secured ${result.items ? result.items.length : files.length} tracks!</div>`;
+            }
+
+            // Reload the Audio Hub to instantly display the new Private tracks in the table
+            const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
+            if (userId) {
+                window.loadAudioHub(userId);
+            }
+
+            // Auto-close the wizard after a short success delay
+            setTimeout(() => {
+                window.toggleAudioDropzone();
+                if (queueContainer) queueContainer.innerHTML = '';
+            }, 2500);
+
+        } else {
+            const errText = await response.text();
+            if (queueContainer) {
+                queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i> Upload failed: ${errText}</div>`;
+            }
+        }
+    } catch (err) {
+        console.error("Batch upload error:", err);
+        if (queueContainer) {
+            queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i> An error occurred during the batch upload.</div>`;
+        }
+    } finally {
+        input.value = '';
+    }
+};
+
+// Hook up Drag and Drop functionality to your specific wizard
+window.initAudioDragAndDrop = function () {
+    const dropZone = document.getElementById('audio-dropzone-wizard');
+    const fileInput = document.getElementById('batchAudioInput');
+
+    if (!dropZone || !fileInput) return;
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#0dcaf0";
+        dropZone.style.backgroundColor = "rgba(0, 210, 255, 0.05)";
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#555";
+        dropZone.style.backgroundColor = "#1a1a1a";
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = "#555";
+        dropZone.style.backgroundColor = "#1a1a1a";
+
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            window.handleBatchAudioSelect(fileInput);
+        }
+    });
+};
+
+// Initialize Drag and Drop when the script loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.initAudioDragAndDrop();
+});
+
+// ============================================
+// ALBUM BUILDER LOGIC (TYPE 7 COLLECTIONS)
+// ============================================
+
+window.albumAvailableTracks = [];
+window.albumSelectedTracks = [];
+window.albumCoverFile = null;
+
+window.openAlbumBuilderModal = async function () {
+    const modal = document.getElementById('albumBuilderModal');
+    if (!modal) return;
+
+    // 1. Reset UI State
+    window.albumAvailableTracks = [];
+    window.albumSelectedTracks = [];
+    window.albumCoverFile = null;
+    document.getElementById('albumTitleInput').value = '';
+    document.getElementById('albumDescInput').value = '';
+    document.getElementById('albumCoverInput').value = '';
+    document.getElementById('albumCoverImg').src = '';
+    document.getElementById('albumCoverImg').classList.add('d-none');
+    document.getElementById('albumCoverIcon').classList.remove('d-none');
+    document.getElementById('album-track-count').innerText = "0";
+
+    document.getElementById('album-available-tracks').innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i></div>';
+    document.getElementById('album-selected-tracks').innerHTML = '<div class="text-center text-muted" style="margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
+
+    modal.classList.remove('d-none');
+
+    // 2. Fetch Vault Tracks
+    const userId = document.getElementById("audio-user-id").value;
+    try {
+        const res = await fetch(`/api/audiohub/orphans/${userId}`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            window.albumAvailableTracks = data.items || data.Items || [];
+            window.renderAlbumBuilderLists();
+        }
+    } catch (e) {
+        console.error("Failed to load tracks for builder", e);
+    }
+};
+
+window.closeAlbumBuilderModal = function () {
+    document.getElementById('albumBuilderModal').classList.add('d-none');
+};
+
+window.previewAlbumCover = function (input) {
+    if (input.files && input.files[0]) {
+        window.albumCoverFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = document.getElementById('albumCoverImg');
+            img.src = e.target.result;
+            img.classList.remove('d-none');
+            document.getElementById('albumCoverIcon').classList.add('d-none');
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
+window.renderAlbumBuilderLists = function () {
+    const availContainer = document.getElementById('album-available-tracks');
+    const selContainer = document.getElementById('album-selected-tracks');
+    document.getElementById('album-track-count').innerText = window.albumSelectedTracks.length;
+
+    // Render Available (Vault)
+    if (window.albumAvailableTracks.length === 0) {
+        availContainer.innerHTML = '<div class="text-center text-muted mt-4" style="font-size:0.85rem;">No tracks available in Vault.</div>';
+    } else {
+        let availHtml = '';
+        window.albumAvailableTracks.forEach(track => {
+            const title = track.title || track.Title || "Untitled";
+            const tId = track.targetId || track.TargetId;
+            availHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #121212; padding: 8px 10px; border-radius: 4px; margin-bottom: 5px; border: 1px solid #222;">
+                    <span style="color: #fff; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;">${title}</span>
+                    <button onclick="window.moveToAlbum(${tId})" style="background: #28a745; border: none; color: white; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-plus" style="font-size: 10px;"></i></button>
+                </div>
+            `;
+        });
+        availContainer.innerHTML = availHtml;
+    }
+
+    // Render Selected (Album)
+    if (window.albumSelectedTracks.length === 0) {
+        selContainer.innerHTML = '<div class="text-center text-muted" style="margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
+    } else {
+        let selHtml = '';
+        window.albumSelectedTracks.forEach((track, index) => {
+            const title = track.title || track.Title || "Untitled";
+            const tId = track.targetId || track.TargetId;
+            selHtml += `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(40, 167, 69, 0.1); padding: 8px 10px; border-radius: 4px; margin-bottom: 5px; border: 1px solid rgba(40, 167, 69, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+                        <span style="color: #28a745; font-size: 0.75rem; font-weight: bold;">${index + 1}.</span>
+                        <span style="color: #fff; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;">${title}</span>
+                    </div>
+                    <button onclick="window.removeFromAlbum(${tId})" style="background: #dc3545; border: none; color: white; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-minus" style="font-size: 10px;"></i></button>
+                </div>
+            `;
+        });
+        selContainer.innerHTML = selHtml;
+    }
+};
+
+window.moveToAlbum = function (trackId) {
+    const trackIndex = window.albumAvailableTracks.findIndex(t => (t.targetId || t.TargetId) === trackId);
+    if (trackIndex > -1) {
+        const track = window.albumAvailableTracks.splice(trackIndex, 1)[0];
+        window.albumSelectedTracks.push(track);
+        window.renderAlbumBuilderLists();
+    }
+};
+
+window.removeFromAlbum = function (trackId) {
+    const trackIndex = window.albumSelectedTracks.findIndex(t => (t.targetId || t.TargetId) === trackId);
+    if (trackIndex > -1) {
+        const track = window.albumSelectedTracks.splice(trackIndex, 1)[0];
+        window.albumAvailableTracks.push(track);
+        window.renderAlbumBuilderLists();
+    }
+};
+
+window.saveNewAlbum = async function () {
+    const title = document.getElementById('albumTitleInput').value.trim();
+    const desc = document.getElementById('albumDescInput').value.trim();
+
+    if (!title) {
+        alert("Please enter an Album Title.");
+        return;
+    }
+    if (window.albumSelectedTracks.length === 0) {
+        alert("Please add at least one track to the album.");
+        return;
+    }
+
+    const btn = document.getElementById('btnSaveAlbum');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    btn.disabled = true;
+
+    try {
+        let coverImageId = 0;
+
+        // 1. Upload Cover Art if exists
+        if (window.albumCoverFile) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Art...';
+            const imgData = new FormData();
+            imgData.append("file", window.albumCoverFile);
+
+            const imgRes = await fetch("/api/upload/image", {
+                method: 'POST',
+                headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                body: imgData
+            });
+
+            if (imgRes.ok) {
+                const mediaResult = await imgRes.json();
+                coverImageId = mediaResult.id;
+            } else {
+                alert("Cover art upload failed. Saving without art.");
+            }
+        }
+
+        // 2. Build the structured payload
+        const itemsPayload = window.albumSelectedTracks.map((track, index) => ({
+            TargetId: parseInt(track.targetId || track.TargetId),
+            TargetType: 1, // 1 = AudioTrack according to Constants
+            SortOrder: index
+        }));
+
+        const payload = {
+            Title: title,
+            Description: desc,
+            Type: 7, // 7 = AudioAlbum according to Constants
+            DisplayContext: "album",
+            CoverImageId: coverImageId,
+            Items: itemsPayload
+        };
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Album...';
+
+        // 3. POST to Collections API
+        const createRes = await fetch('/api/collections/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Session-Id': window.AuthState?.sessionId || ''
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (createRes.ok) {
+            btn.innerHTML = 'Success!';
+            btn.style.background = '#20c997';
+
+            setTimeout(() => {
+                window.closeAlbumBuilderModal();
+                btn.innerHTML = 'Create Album';
+                btn.style.background = '#28a745';
+                btn.disabled = false;
+
+                // Reload the entire Audio Hub to show the new Album and empty the Vault!
+                const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
+                if (userId) window.loadAudioHub(userId);
+            }, 1000);
+
+        } else {
+            const err = await createRes.text();
+            alert("Failed to save album: " + err);
+            btn.innerHTML = 'Create Album';
+            btn.disabled = false;
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("Error: " + error.message);
+        btn.innerHTML = 'Create Album';
+        btn.disabled = false;
+    }
+};
+
+// ============================================
+// ALBUM VIEWER (TRACKLIST & PLAYBACK)
+// ============================================
+
+window.currentAlbumTracks = [];
+
+window.openAlbumView = async function (albumId, encodedTitle, coverUrl) {
+    const modal = document.getElementById('albumViewModal');
+    document.getElementById('albumViewTitle').innerText = decodeURIComponent(encodedTitle);
+    document.getElementById('albumViewCover').src = coverUrl;
+    const trackListContainer = document.getElementById('albumViewTracklist');
+
+    trackListContainer.innerHTML = '<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>';
+    modal.classList.remove('d-none');
+
+    try {
+        const res = await fetch(`/api/collections/${albumId}`, {
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const items = data.items || data.Items || [];
+            window.currentAlbumTracks = items; // Store globally for the "Play Album" button
+
+            if (items.length === 0) {
+                trackListContainer.innerHTML = '<div class="text-muted text-center py-5">This album is empty.</div>';
+                return;
+            }
+
+            let html = '';
+            items.forEach((item, index) => {
+                const title = item.title || item.Title || "Untitled";
+                const url = item.url || item.Url;
+                const artist = item.artistName || item.ArtistName || "Unknown";
+
+                // Secure quotes for inline HTML
+                const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                html += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; transition: background 0.2s; cursor: pointer;" 
+                         onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'" 
+                         onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${url}', { title: '${safeTitle}', artist: '${safeArtist}', cover: '${coverUrl}' });">
+                        
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <span style="color: #666; font-size: 0.9rem; width: 20px; text-align: right; font-weight: bold;">${index + 1}</span>
+                            <div style="color: #fff; font-weight: 500; font-size: 0.95rem;">${title}</div>
+                        </div>
+                        <i class="fas fa-play text-info" style="font-size: 0.85rem; opacity: 0.7;"></i>
+                    </div>
+                `;
+            });
+            trackListContainer.innerHTML = html;
+        }
+    } catch (e) {
+        console.error("Failed to load album tracks", e);
+        trackListContainer.innerHTML = '<div class="text-danger text-center py-5">Failed to load tracklist.</div>';
+    }
+};
+
+window.closeAlbumView = function () {
+    document.getElementById('albumViewModal').classList.add('d-none');
+};
+
+window.playEntireAlbum = function () {
+    if (window.currentAlbumTracks && window.currentAlbumTracks.length > 0) {
+        // For now, kicks off the album by playing Track 1. 
+        // If your AudioPlayer supports arrays, you can pass the whole window.currentAlbumTracks array here!
+        const firstTrack = window.currentAlbumTracks[0];
+        const url = firstTrack.url || firstTrack.Url;
+        const title = (firstTrack.title || firstTrack.Title || "Untitled").replace(/'/g, "\\'");
+        const artist = (firstTrack.artistName || firstTrack.ArtistName || "Unknown").replace(/'/g, "\\'");
+        const cover = document.getElementById('albumViewCover').src;
+
+        if (window.AudioPlayer && typeof window.AudioPlayer.playTrack === 'function') {
+            window.AudioPlayer.playTrack(url, { title: title, artist: artist, cover: cover });
+        }
     }
 };

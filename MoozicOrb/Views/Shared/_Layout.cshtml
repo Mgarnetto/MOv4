@@ -16,8 +16,7 @@
     <script src="https://cdn.amcharts.com/lib/5/map.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/geodata/worldLow.js"></script>
     <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
-    
-    
+
     <style>
         /* Specific Modal Styles to match site theme */
         .orb-modal-content {
@@ -27,12 +26,15 @@
             border-radius: 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
+
         .orb-modal-header {
             border-bottom: 1px solid #222;
         }
+
         .orb-modal-footer {
             border-top: 1px solid #222;
         }
+
         .orb-input {
             background-color: #000 !important;
             border: 1px solid #333 !important;
@@ -40,10 +42,12 @@
             border-radius: 10px !important;
             padding: 12px 15px !important;
         }
-        .orb-input:focus {
-            border-color: #00AEEF !important; /* var(--accent-secondary) */
-            box-shadow: 0 0 0 2px rgba(0, 174, 239, 0.2) !important;
-        }
+
+            .orb-input:focus {
+                border-color: #00AEEF !important; /* var(--accent-secondary) */
+                box-shadow: 0 0 0 2px rgba(0, 174, 239, 0.2) !important;
+            }
+
         .search-result-item {
             padding: 10px;
             border-bottom: 1px solid #222;
@@ -52,12 +56,15 @@
             display: flex;
             align-items: center;
         }
-        .search-result-item:hover {
-            background-color: #222;
-        }
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
+
+            .search-result-item:hover {
+                background-color: #222;
+            }
+
+            .search-result-item:last-child {
+                border-bottom: none;
+            }
+
         .user-chip {
             background: #222;
             border: 1px solid #333;
@@ -69,16 +76,18 @@
             font-size: 0.9rem;
             animation: fadeIn 0.2s;
         }
-        .user-chip i {
-            color: #ff0055; /* Remove icon color */
-            cursor: pointer;
-        }
-        .user-chip img {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            object-fit: cover;
-        }
+
+            .user-chip i {
+                color: #ff0055; /* Remove icon color */
+                cursor: pointer;
+            }
+
+            .user-chip img {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                object-fit: cover;
+            }
     </style>
 </head>
 <body class="auth-off">
@@ -206,7 +215,7 @@
     </aside>
 
     <div class="main-wrapper" id="mainContent">
-         @RenderBody()
+        @RenderBody()
     </div>
 
     <div class="chat-overlay" id="chatOverlay">
@@ -241,6 +250,26 @@
                     <button class="send-btn" id="msgSendBtn"><i class="fas fa-paper-plane"></i></button>
                 </footer>
             </main>
+        </div>
+    </div>
+
+    <div id="albumViewModal" class="d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+        <div style="background: #121212; border: 1px solid #333; border-radius: 12px; width: 95%; max-width: 500px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <div style="padding: 20px; border-bottom: 1px solid #333; background: #1a1a1a; display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <img id="albumViewCover" src="" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    <div>
+                        <h4 id="albumViewTitle" style="margin: 0; color: #fff; font-weight: 700; font-size: 1.3rem;">Album Title</h4>
+                        <button class="btn btn-sm" onclick="window.playEntireAlbum()" style="background: #00d2ff; color: #000; font-weight: bold; border-radius: 20px; padding: 4px 15px; margin-top: 8px; border: none;">
+                            <i class="fas fa-play me-1"></i> Play Album
+                        </button>
+                    </div>
+                </div>
+                <button onclick="window.closeAlbumView()" style="background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer;"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="albumViewTracklist" style="padding: 0; overflow-y: auto; flex-grow: 1; background: #0a0a0a;">
+                <div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>
+            </div>
         </div>
     </div>
 
@@ -316,13 +345,13 @@
                     <div class="mb-3 position-relative">
                         <label class="form-label text-muted small text-uppercase fw-bold mb-2">Add Members</label>
                         <input type="text" id="memberSearchInput" class="form-control orb-input" placeholder="Search by name..." autocomplete="off">
-                        
+
                         <div id="searchResultsDropdown" class="position-absolute w-100 mt-1 shadow-lg" style="display:none; background: #1f1f1f; border: 1px solid #333; border-radius: 10px; z-index: 1050; max-height: 200px; overflow-y: auto;">
-                            </div>
+                        </div>
                     </div>
 
                     <div id="selectedMembersList" class="d-flex flex-wrap gap-2 mt-2" style="min-height: 30px;">
-                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer orb-modal-footer p-3">
                     <button type="button" class="btn btn-outline-secondary rounded-pill px-4 me-2" onclick="closeAllModals()">Cancel</button>
@@ -363,7 +392,7 @@
                 const res = await fetch(`/api/direct/messages/search?query=${encodeURIComponent(query)}`, {
                     headers: { 'X-Session-Id': window.AuthState.sessionId }
                 });
-                
+
                 if(res.ok) {
                     const users = await res.json();
                     renderSearchResults(users);
@@ -375,7 +404,7 @@
         function renderSearchResults(users) {
             const dropdown = document.getElementById('searchResultsDropdown');
             dropdown.innerHTML = '';
-            
+
             // Filter out already selected users & current user (optional)
             const filtered = users.filter(u => !selectedGroupMembers.some(m => m.id === u.id));
 
@@ -405,7 +434,7 @@
         function selectMember(user) {
             selectedGroupMembers.push(user);
             renderSelectedChips();
-            
+
             // Clear input & dropdown
             document.getElementById('memberSearchInput').value = '';
             document.getElementById('searchResultsDropdown').style.display = 'none';
@@ -441,17 +470,17 @@
             const memberIds = selectedGroupMembers.map(u => u.id);
 
             const result = await window.GroupService.createGroup(name, memberIds);
-            
+
             if(result) {
                 closeAllModals();
-                
+
                 // Clear state
                 selectedGroupMembers = [];
                 renderSelectedChips();
                 document.getElementById('newGroupName').value = '';
 
                 if(window.AuthState && window.AuthState.bootstrap) {
-                    await window.AuthState.bootstrap(); 
+                    await window.AuthState.bootstrap();
                 } else {
                     window.location.reload();
                     return;

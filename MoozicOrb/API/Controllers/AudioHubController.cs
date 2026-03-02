@@ -15,18 +15,12 @@ namespace MoozicOrb.Controllers
         private readonly IMediaResolverService _resolver;
         private readonly IHttpContextAccessor _http;
 
-        // Inject IHttpContextAccessor so we can read the headers globally
         public AudioHubController(IMediaResolverService resolver, IHttpContextAccessor http)
         {
             _resolver = resolver;
             _http = http;
         }
 
-        // ==========================================
-        // SESSION HELPERS
-        // ==========================================
-
-        // Safe version for READ requests (so fans can view public profiles without crashing)
         private int GetCurrentUserIdSafe()
         {
             var sid = _http.HttpContext?.Request.Headers["X-Session-Id"].ToString();
@@ -36,7 +30,6 @@ namespace MoozicOrb.Controllers
             return session?.UserId ?? 0;
         }
 
-        // Strict version for WRITE/UPLOAD requests (blocks unauthorized users)
         private int GetUserIdStrict()
         {
             var sid = _http.HttpContext?.Request.Headers["X-Session-Id"].ToString();
@@ -47,10 +40,6 @@ namespace MoozicOrb.Controllers
 
             return session.UserId;
         }
-
-        // ==========================================
-        // PUBLIC READ ENDPOINTS (The Display Zones)
-        // ==========================================
 
         [HttpGet("orphans/{userId}")]
         public IActionResult GetOrphans(int userId)
@@ -77,8 +66,8 @@ namespace MoozicOrb.Controllers
                 int currentUserId = GetCurrentUserIdSafe();
                 bool isOwner = (currentUserId != 0 && currentUserId == userId);
 
-                // 2 is the locked-in Type for standard Audio Albums
-                var albums = new GetUserCollectionsByType().Execute(userId, 7, isOwner);
+                // Pass the _resolver into the Execution class here
+                var albums = new GetUserCollectionsByType().Execute(userId, 7, isOwner, _resolver);
                 return Ok(albums);
             }
             catch (Exception ex)
@@ -87,7 +76,6 @@ namespace MoozicOrb.Controllers
             }
         }
 
-        // POST: api/audiohub/metadata
         [HttpPost("metadata")]
         public IActionResult UpdateMetadata([FromBody] AudioItemMetadataDto req)
         {
