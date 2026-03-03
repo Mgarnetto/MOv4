@@ -12,12 +12,12 @@ window.toggleAudioCarouselManager = function () {
     const mainContainer = document.querySelector('.audio-container');
 
     if (window.isAudioCarouselManagerActive) {
-        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> <span style="display: none;">Close Manager</span>';
+        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> <span>Close Manager</span>';
         if (dock) dock.classList.remove('d-none');
 
         if (mainContainer) mainContainer.style.paddingBottom = '280px';
     } else {
-        if (btn) btn.innerHTML = '<i class="fas fa-star"></i> <span style="display: none;">Manage Carousel</span>';
+        if (btn) btn.innerHTML = '<i class="fas fa-star"></i> <span>Manage Carousel</span>';
         if (dock) dock.classList.add('d-none');
 
         if (mainContainer) mainContainer.style.paddingBottom = '20px';
@@ -265,26 +265,28 @@ function renderOrphansList(items, isOwner) {
                 ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
                     <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer; margin-right: 8px;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer; margin-right: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
                         
-                        <button class="msg-options-btn" style="position: static !important; background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="toggleAudioMenu('audio-menu-${targetId}')">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        
-                        <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
-                            <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
-                                <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
+                        <div style="position: relative; display: flex; align-items: center;">
+                            <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 6px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" onclick="toggleAudioMenu('audio-menu-${targetId}')">
+                                <i class="fas fa-ellipsis-v"></i>
                             </button>
                             
-                            ${!isLocked ? `
-                            <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteTrack(this, ${targetId})">
-                                <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track
-                            </button>
-                            ` : `
-                            <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
-                                <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
-                            </button>
-                            `}
+                            <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
+                                <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
+                                    <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
+                                </button>
+                                
+                                ${!isLocked ? `
+                                <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteTrack(this, ${targetId})">
+                                    <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track
+                                </button>
+                                ` : `
+                                <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
+                                    <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
+                                </button>
+                                `}
+                            </div>
                         </div>
                     </div>
                 </td>
@@ -326,13 +328,18 @@ function renderAlbumsList(albums, isOwner) {
 
         const rawTitle = album.title || album.Title || "Untitled Album";
         const encodedTitle = encodeURIComponent(rawTitle);
+
+        const rawArtist = album.artistName || album.ArtistName || "Unknown Artist";
+        const encodedArtist = encodeURIComponent(rawArtist);
+
         const art = album.coverImageUrl || album.CoverImageUrl || '/img/default_cover.jpg';
         const id = album.id || album.Id;
+        const rawUrl = album.url || album.Url || '';
 
         const cardCursor = 'cursor: pointer;';
         const cardClickEvent = `onclick="window.openAlbumView(${id}, '${encodedTitle}', '${art}', ${isOwner})"`;
 
-        // COMPLETELY BOOTSTRAP FREE GRID CARD
+        // COMPLETELY BOOTSTRAP FREE GRID CARD WITH PROPER FLEX ALIGNMENT
         html += `
             <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; transition: transform 0.2s; ${cardCursor} display: flex; flex-direction: column;" class="album-card-hover" ${cardClickEvent}>
                 <div style="position: relative; padding-top: 100%; border-radius: 8px 8px 0 0; overflow: hidden;">
@@ -347,11 +354,11 @@ function renderAlbumsList(albums, isOwner) {
                     </div>
                     
                     ${isOwner ? `
-                        <div style="display: flex; gap: 8px; position: relative; z-index: 2; margin-top: auto;">
-                            <button style="flex-grow: 1; height: 100%; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; margin-top: auto;">
+                            <button style="flex-grow: 1; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
                             
-                            <div style="position: relative; display: flex; align-items: stretch;">
-                                <button class="msg-options-btn" style="background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(248, 249, 250, 0.1)'" onmouseout="this.style.background='transparent'" onclick="toggleAudioMenu('album-menu-${id}')">
+                            <div style="position: relative; display: flex; align-items: center; margin-left: 8px;">
+                                <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 6px 10px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" onclick="toggleAudioMenu('album-menu-${id}')">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 
