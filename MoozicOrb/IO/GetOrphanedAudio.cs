@@ -38,7 +38,7 @@ namespace MoozicOrb.IO
                       SELECT ci.target_id 
                       FROM collection_items ci
                       JOIN collections c ON ci.collection_id = c.collection_id
-                      -- THE FIX: Hides tracks if they are in a Playlist (2) OR an Album (7)... (2,7) was both before
+                      -- THE FIX: Hides tracks if they are in a Playlist (2) OR an Album (7) (2,7) was both before
                       WHERE ci.target_type = 1 AND c.collection_type IN (7)
                   )
             ORDER BY ma.created_at DESC";

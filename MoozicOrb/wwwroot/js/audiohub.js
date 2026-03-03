@@ -273,9 +273,28 @@ function renderOrphansList(items, isOwner) {
                 
                 ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
-                    <div style="display: flex; justify-content: center; gap: 8px;">
-                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
-                        <button style="background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" title="Edit Settings"><i class="fas fa-edit"></i></button>
+                    <div class="position-relative ms-auto" style="display: flex; align-items: center; justify-content: center;">
+                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer; margin-right: 8px;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                        
+                        <button class="msg-options-btn" style="position: static !important;" onclick="toggleAudioMenu('audio-menu-${targetId}')">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        
+                        <div id="audio-menu-${targetId}" class="msg-context-menu" style="right: 0; top: 35px; width: max-content; text-align: left;">
+                            <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})">
+                                <i class="fas fa-edit"></i> Edit Details
+                            </button>
+                            
+                            ${!isLocked ? `
+                            <button class="text-danger track-delete-btn" onclick="window.twoStepDeleteTrack(this, ${targetId})">
+                                <i class="fas fa-trash"></i> Delete Track
+                            </button>
+                            ` : `
+                            <button class="text-muted" style="cursor: not-allowed;" title="Item is locked/sold">
+                                <i class="fas fa-lock"></i> Locked
+                            </button>
+                            `}
+                        </div>
                     </div>
                 </td>
                 ` : ''}
@@ -355,6 +374,83 @@ function renderAlbumsList(albums, isOwner) {
     html += `</div>`;
     container.innerHTML = html;
 }
+
+// ============================================
+// AUDIO MENU & DELETION LOGIC (NEW)
+// ============================================
+
+// Toggle the 3-dot menu safely
+window.toggleAudioMenu = function (menuId) {
+    // Close any currently open menus first
+    document.querySelectorAll('.msg-context-menu.active').forEach(menu => {
+        if (menu.id !== menuId) menu.classList.remove('active');
+    });
+
+    // Toggle the target menu
+    const menu = document.getElementById(menuId);
+    if (menu) {
+        // Prevent click from propagating and triggering other things
+        if (window.event) window.event.stopPropagation();
+        menu.classList.toggle('active');
+    }
+};
+
+// Close menus when clicking outside
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.position-relative')) {
+        document.querySelectorAll('.msg-context-menu.active').forEach(m => m.classList.remove('active'));
+    }
+});
+
+// The 2-Step Deletion Logic
+window.twoStepDeleteTrack = async function (btnElement, trackId) {
+    // Stop click from closing menu immediately or playing track
+    if (window.event) window.event.stopPropagation();
+
+    // STEP 1: If it's the first click, ask for confirmation
+    if (!btnElement.classList.contains('confirming-delete')) {
+        btnElement.classList.add('confirming-delete');
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm Delete?`;
+        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+
+        // Auto-revert back to normal after 4 seconds if they hesitate
+        setTimeout(() => {
+            if (btnElement) {
+                btnElement.classList.remove('confirming-delete');
+                btnElement.innerHTML = `<i class="fas fa-trash"></i> Delete Track`;
+                btnElement.style.backgroundColor = 'transparent';
+            }
+        }, 4000);
+        return; // Stop here, wait for second click
+    }
+
+    // STEP 2: Second click executed. Perform API Call.
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch(`/api/media/audio/${trackId}`, {
+            method: 'DELETE',
+            headers: {
+                "X-Session-Id": window.AuthState?.sessionId || ""
+            }
+        });
+
+        if (response.ok) {
+            // Success! Refresh the UI
+            const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
+            if (userId) window.loadAudioHub(userId);
+        } else {
+            const errText = await response.text();
+            alert("Delete failed: " + errText);
+            btnElement.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error deleting track:", e);
+        alert("Network error occurred.");
+        btnElement.disabled = false;
+    }
+};
 
 // ============================================
 // AUDIO HUB: CAROUSEL DOCK LOGIC

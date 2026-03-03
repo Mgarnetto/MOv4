@@ -50,5 +50,38 @@ namespace MoozicOrb.API.Controllers
 
             return Ok(new { url = secureUrl, w = data.Width, h = data.Height });
         }
+
+        [HttpDelete("{mediaTypeStr}/{id}")]
+        public IActionResult DeleteMedia(string mediaTypeStr, long id)
+        {
+            try
+            {
+                // Your Auth Logic
+                var sid = HttpContext.Request.Headers["X-Session-Id"].ToString();
+                var session = MoozicOrb.Services.SessionStore.GetSession(sid);
+                if (session == null) return Unauthorized();
+
+                int mediaType = mediaTypeStr.ToLower() switch
+                {
+                    "audio" => MoozicOrb.Constants.MarketplaceTargetTypes.AudioTrack,
+                    "video" => MoozicOrb.Constants.MarketplaceTargetTypes.Video,
+                    "image" => MoozicOrb.Constants.MarketplaceTargetTypes.Image,
+                    _ => -1
+                };
+
+                if (mediaType == -1) return BadRequest("Invalid media type.");
+
+                // Call the IO Class we created in the previous step
+                var result = new MoozicOrb.IO.DeleteMedia().Execute(session.UserId, id, mediaType);
+
+                if (!result.Success) return BadRequest(result.ErrorMessage);
+
+                // Call our consolidated File Service!
+                _ = _mediaFileService.DeleteMediaFilesAsync(result.PathsToDelete, result.StorageProvider);
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex) { return BadRequest(ex.Message); }
+        }
     }
 }

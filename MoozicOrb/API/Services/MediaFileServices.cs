@@ -12,11 +12,12 @@ namespace MoozicOrb.API.Services
     {
         Task<string> SaveFileAsync(IFormFile file, string typeFolder);
         string GetPhysicalPath(string relativePath);
-
-        // Cloudflare R2 Pipeline
         Task<string> UploadToCloudAsync(string localPhysicalPath, string objectKey);
         Task<string> UploadStreamToCloudAsync(Stream stream, string objectKey, string contentType);
         Task DeleteLocalFileAsync(string localPhysicalPath);
+
+        // NEW: Handles Local, S3, and R2 deletion based on provider ID
+        Task DeleteMediaFilesAsync(List<string> relativePaths, int storageProvider);
     }
 
     public class MediaFileService : IMediaFileService
@@ -93,6 +94,39 @@ namespace MoozicOrb.API.Services
                 Console.WriteLine($"[Cleanup Error] Failed to delete local temp file: {ex.Message}");
             }
             return Task.CompletedTask;
+        }
+
+        public async Task DeleteMediaFilesAsync(List<string> relativePaths, int storageProvider)
+        {
+            if (relativePaths == null || relativePaths.Count == 0) return;
+
+            foreach (var path in relativePaths)
+            {
+                if (string.IsNullOrWhiteSpace(path)) continue;
+
+                try
+                {
+                    if (storageProvider == 1 || storageProvider == 2) // Amazon S3 or Cloudflare R2
+                    {
+                        // The AWS SDK handles both S3 and R2 natively
+                        var deleteRequest = new DeleteObjectRequest
+                        {
+                            BucketName = BUCKET_NAME,
+                            Key = path.TrimStart('/') // Keys shouldn't start with slash
+                        };
+                        await _s3Client.DeleteObjectAsync(deleteRequest);
+                    }
+                    else // Local Storage (0)
+                    {
+                        string localPath = GetPhysicalPath(path);
+                        await DeleteLocalFileAsync(localPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Media Cleanup Error] Failed to delete {path}: {ex.Message}");
+                }
+            }
         }
     }
 }
