@@ -197,14 +197,13 @@
 </div>
 
 <style>
-    /* Inspector Slide-Out Logic */
     .audio-inspector {
         position: fixed;
-        top: 60px; /* Adjust based on your top navbar */
-        bottom: 0; /* This perfectly pins the footer to the visible bottom of the screen */
+        top: 70px; /* var(--navbar-height) */
+        bottom: 0;
         right: 0;
         width: 350px;
-        max-width: 100vw; /* Ensures it doesn't bleed off the edge on very small phone screens */
+        max-width: 100vw;
         background: #121212;
         border-left: 1px solid #333;
         z-index: 1050;
@@ -283,7 +282,6 @@
         background: #1a1a1a;
     }
 
-    /* Audio Carousel Dock Slots */
     .audio-carousel-slot {
         width: 140px;
         height: 140px;
@@ -324,7 +322,7 @@
         background-position: center;
         z-index: 1;
     }
-    /* Dark gradient from bottom up to make text extremely readable */
+
     .audio-slot-info {
         position: absolute;
         bottom: 0;

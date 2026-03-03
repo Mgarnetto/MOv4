@@ -195,14 +195,14 @@ function renderOrphansList(items, isOwner) {
     let html = `
         <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px;">Singles & Vault Tracks</h4>
         <div style="max-height: 500px; overflow-y: auto; background: #121212; border: 1px solid #222; border-radius: 8px;">
-            <table style="width: 100%; border-collapse: collapse; color: #fff; font-size: 0.9rem;">
-                <thead style="position: sticky; top: 0; background: #1a1a1a; z-index: 1;">
+            <table style="width: 100%; border-collapse: collapse; color: #fff; font-size: 0.9rem; table-layout: auto;">
+                <thead style="position: sticky; top: 0; background: #1a1a1a; z-index: 10;">
                     <tr>
                         <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 60px;">Art</th>
                         <th style="text-align: left; padding: 12px 8px; border-bottom: 2px solid #333;">Track Title</th>
                         ${isOwner ? `<th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Status</th>` : ''}
                         <th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 80px;">Price</th>
-                        ${isOwner ? `<th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 100px;">Actions</th>` : ''}
+                        ${isOwner ? `<th style="text-align: center; padding: 12px 8px; border-bottom: 2px solid #333; width: 110px;">Actions</th>` : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -241,7 +241,7 @@ function renderOrphansList(items, isOwner) {
             : '';
 
         html += `
-            <tr style="border-bottom: 1px solid #222; transition: background 0.2s; ${rowCursor}" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'" ${rowClickEvent} title="${!isOwner ? 'Click to Play' : ''}">
+            <tr style="border-bottom: 1px solid #222; transition: background 0.2s; ${rowCursor} position: relative;" onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'" ${rowClickEvent} title="${!isOwner ? 'Click to Play' : ''}">
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
                     <div style="position: relative; display: inline-block;">
                         <img src="${art}" style="width: 35px; height: 35px; border-radius: 4px; object-fit: cover; display: block; margin: 0 auto;">
@@ -264,26 +264,34 @@ function renderOrphansList(items, isOwner) {
                 
                 ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
-                    <div style="position: relative; display: flex; align-items: center; justify-content: center;">
-                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer; margin-right: 8px; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                    <div style="position: relative; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; width: 32px; height: 32px; padding: 0; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center;" 
+                                onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" 
+                                onclick="event.stopPropagation(); window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel">
+                            <i class="fas fa-star" style="font-size: 0.8rem;"></i>
+                        </button>
                         
                         <div style="position: relative; display: flex; align-items: center;">
-                            <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 6px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" onclick="toggleAudioMenu('audio-menu-${targetId}')">
+                            <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; width: 32px; height: 32px; padding: 0; cursor: pointer; transition: color 0.2s; display: flex; align-items: center; justify-content: center;" 
+                                    onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" 
+                                    onclick="event.stopPropagation(); toggleAudioMenu('audio-menu-${targetId}')">
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             
-                            <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
-                                <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
-                                    <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
+                            <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: 160px; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
+                                <button onclick="event.stopPropagation(); window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" 
+                                        style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-edit"></i> Edit Details
                                 </button>
                                 
                                 ${!isLocked ? `
-                                <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteTrack(this, ${targetId})">
-                                    <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track
+                                <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #ff0055; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;" 
+                                        onclick="event.stopPropagation(); window.twoStepDeleteTrack(this, ${targetId})">
+                                    <i class="fas fa-trash"></i> Delete Track
                                 </button>
                                 ` : `
-                                <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
-                                    <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
+                                <button class="text-muted" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;" title="Item is locked/sold">
+                                    <i class="fas fa-lock"></i> Locked
                                 </button>
                                 `}
                             </div>
@@ -308,7 +316,7 @@ function renderAlbumsList(albums, isOwner) {
 
     let html = `
         <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">Albums</h4>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px;">
     `;
 
     albums.forEach(album => {
@@ -329,51 +337,54 @@ function renderAlbumsList(albums, isOwner) {
         const rawTitle = album.title || album.Title || "Untitled Album";
         const encodedTitle = encodeURIComponent(rawTitle);
 
-        const rawArtist = album.artistName || album.ArtistName || "Unknown Artist";
-        const encodedArtist = encodeURIComponent(rawArtist);
-
         const art = album.coverImageUrl || album.CoverImageUrl || '/img/default_cover.jpg';
         const id = album.id || album.Id;
-        const rawUrl = album.url || album.Url || '';
 
         const cardCursor = 'cursor: pointer;';
         const cardClickEvent = `onclick="window.openAlbumView(${id}, '${encodedTitle}', '${art}', ${isOwner})"`;
 
-        // COMPLETELY BOOTSTRAP FREE GRID CARD WITH PROPER FLEX ALIGNMENT
         html += `
-            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; transition: transform 0.2s; ${cardCursor} display: flex; flex-direction: column;" class="album-card-hover" ${cardClickEvent}>
+            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; transition: transform 0.2s; ${cardCursor} display: flex; flex-direction: column; position: relative;" class="album-card-hover" ${cardClickEvent}>
                 <div style="position: relative; padding-top: 100%; border-radius: 8px 8px 0 0; overflow: hidden;">
                     <img src="${art}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
                      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"><i class="fas fa-list" style="color: white; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i></div>
                 </div>
                 <div style="padding: 15px; display: flex; flex-direction: column; flex-grow: 1;">
                     <div style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px;" title="${rawTitle}">${rawTitle}</div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 12px;">
                         <span style="color: #28a745; font-weight: bold;">${priceDisplay}</span>
                         <span>${statusIcon} ${lockIcon}</span>
                     </div>
                     
                     ${isOwner ? `
-                        <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 2; margin-top: auto;">
-                            <button style="flex-grow: 1; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 10; margin-top: auto; gap: 8px;">
+                            <button style="flex-grow: 1; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; height: 32px; padding: 0 10px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 600;" 
+                                    onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" 
+                                    onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel">
+                                <i class="fas fa-star"></i> <span>Carousel</span>
+                            </button>
                             
-                            <div style="position: relative; display: flex; align-items: center; margin-left: 8px;">
-                                <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 6px 10px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'" onclick="toggleAudioMenu('album-menu-${id}')">
+                            <div style="position: relative; display: flex; align-items: center;">
+                                <button class="msg-options-btn" style="background: transparent; border: 1px solid #444; color: #ccc; width: 32px; height: 32px; border-radius: 4px; padding: 0; cursor: pointer; transition: color 0.2s; display: flex; align-items: center; justify-content: center;" 
+                                        onmouseover="this.style.color='#fff'; this.style.borderColor='#666';" onmouseout="this.style.color='#ccc'; this.style.borderColor='#444';" 
+                                        onclick="event.stopPropagation(); toggleAudioMenu('album-menu-${id}')">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 
-                                <div id="album-menu-${id}" class="msg-context-menu" style="position: absolute; right: 0; bottom: 100%; margin-bottom: 5px; width: max-content; text-align: left; z-index: 1050;">
-                                    <button onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
-                                        <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
+                                <div id="album-menu-${id}" class="msg-context-menu" style="position: absolute; right: 0; bottom: 100%; margin-bottom: 8px; width: 160px; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
+                                    <button onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" 
+                                            style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
+                                        <i class="fas fa-edit"></i> Edit Details
                                     </button>
                                     
                                     ${!isLocked ? `
-                                    <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteAlbum(this, ${id})">
-                                        <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Album
+                                    <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #ff0055; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;" 
+                                            onclick="event.stopPropagation(); window.twoStepDeleteAlbum(this, ${id})">
+                                        <i class="fas fa-trash"></i> Delete Album
                                     </button>
                                     ` : `
-                                    <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
-                                        <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
+                                    <button class="text-muted" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;" title="Item is locked/sold">
+                                        <i class="fas fa-lock"></i> Locked
                                     </button>
                                     `}
                                 </div>
@@ -390,26 +401,25 @@ function renderAlbumsList(albums, isOwner) {
 }
 
 // ============================================
-// AUDIO MENU & DELETION LOGIC (NEW)
+// AUDIO MENU & DELETION LOGIC
 // ============================================
 
-// Toggle the 3-dot menu safely
 window.toggleAudioMenu = function (menuId) {
-    document.querySelectorAll('.msg-context-menu.active').forEach(menu => {
-        if (menu.id !== menuId) menu.classList.remove('active');
+    const menu = document.getElementById(menuId);
+
+    // Close other menus first
+    document.querySelectorAll('.msg-context-menu').forEach(m => {
+        if (m.id !== menuId) m.style.display = 'none';
     });
 
-    const menu = document.getElementById(menuId);
     if (menu) {
-        if (window.event) window.event.stopPropagation();
-        menu.classList.toggle('active');
+        menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
     }
 };
 
-// Close menus when clicking outside
 document.addEventListener('click', function (e) {
     if (!e.target.closest('.msg-options-btn') && !e.target.closest('.msg-context-menu')) {
-        document.querySelectorAll('.msg-context-menu.active').forEach(m => m.classList.remove('active'));
+        document.querySelectorAll('.msg-context-menu').forEach(m => m.style.display = 'none');
     }
 });
 
@@ -419,28 +429,26 @@ window.twoStepDeleteTrack = async function (btnElement, trackId) {
 
     if (!btnElement.classList.contains('confirming-delete')) {
         btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Delete?`;
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm?`;
         btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
 
         setTimeout(() => {
             if (btnElement) {
                 btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track`;
+                btnElement.innerHTML = `<i class="fas fa-trash"></i> Delete Track`;
                 btnElement.style.backgroundColor = 'transparent';
             }
         }, 4000);
         return;
     }
 
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Deleting...`;
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
     btnElement.disabled = true;
 
     try {
         const response = await fetch(`/api/media/audio/${trackId}`, {
             method: 'DELETE',
-            headers: {
-                "X-Session-Id": window.AuthState?.sessionId || ""
-            }
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
         if (response.ok) {
@@ -453,7 +461,6 @@ window.twoStepDeleteTrack = async function (btnElement, trackId) {
         }
     } catch (e) {
         console.error("Error deleting track:", e);
-        alert("Network error occurred.");
         btnElement.disabled = false;
     }
 };
@@ -463,20 +470,20 @@ window.twoStepDeleteAlbum = async function (btnElement, albumId) {
 
     if (!btnElement.classList.contains('confirming-delete')) {
         btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Delete?`;
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm?`;
         btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
 
         setTimeout(() => {
             if (btnElement) {
                 btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Album`;
+                btnElement.innerHTML = `<i class="fas fa-trash"></i> Delete Album`;
                 btnElement.style.backgroundColor = 'transparent';
             }
         }, 4000);
         return;
     }
 
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Deleting...`;
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
     btnElement.disabled = true;
 
     try {
@@ -489,7 +496,7 @@ window.twoStepDeleteAlbum = async function (btnElement, albumId) {
             const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
             if (userId) window.loadAudioHub(userId);
         } else {
-            alert("Delete failed: Cannot delete locked albums.");
+            alert("Delete failed.");
             btnElement.disabled = false;
         }
     } catch (e) {
@@ -503,20 +510,20 @@ window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId
 
     if (!btnElement.classList.contains('confirming-delete')) {
         btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Remove?`;
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm?`;
         btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
 
         setTimeout(() => {
             if (btnElement) {
                 btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track`;
+                btnElement.innerHTML = `<i class="fas fa-trash"></i> Remove Track`;
                 btnElement.style.backgroundColor = 'transparent';
             }
         }, 4000);
         return;
     }
 
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Removing...`;
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Removing...`;
     btnElement.disabled = true;
 
     try {
@@ -545,6 +552,7 @@ window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId
 // ============================================
 window.initAudioCarouselDock = function () {
     const container = document.getElementById('audioCarouselDockSlotsContainer');
+    if (!container) return;
     container.innerHTML = '';
 
     for (let i = 0; i < 10; i++) {
@@ -559,6 +567,7 @@ window.initAudioCarouselDock = function () {
 
 window.addToAudioCarouselDock = function (targetId, targetType, title, artUrl, isInitLoad = false) {
     const container = document.getElementById('audioCarouselDockSlotsContainer');
+    if (!container) return;
 
     if (container.querySelector(`[data-target-id="${targetId}"][data-target-type="${targetType}"]`)) {
         if (!isInitLoad) alert("This item is already in your carousel!");
@@ -714,7 +723,7 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
 
 window.closeAudioInspector = function () {
     const sidebar = document.getElementById('audio-inspector-sidebar');
-    sidebar.classList.add('closed');
+    if (sidebar) sidebar.classList.add('closed');
 };
 
 window.switchInspectorTab = function (tabName) {
@@ -936,7 +945,8 @@ window.openAlbumBuilderModal = async function () {
 };
 
 window.closeAlbumBuilderModal = function () {
-    document.getElementById('albumBuilderModal').classList.add('d-none');
+    const modal = document.getElementById('albumBuilderModal');
+    if (modal) modal.classList.add('d-none');
 };
 
 window.previewAlbumCover = function (input) {
@@ -956,6 +966,8 @@ window.previewAlbumCover = function (input) {
 window.renderAlbumBuilderLists = function () {
     const availContainer = document.getElementById('album-available-tracks');
     const selContainer = document.getElementById('album-selected-tracks');
+    if (!availContainer || !selContainer) return;
+
     document.getElementById('album-track-count').innerText = window.albumSelectedTracks.length;
 
     if (window.albumAvailableTracks.length === 0) {
@@ -1116,6 +1128,7 @@ window.currentAlbumTracks = [];
 
 window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner = false) {
     const modal = document.getElementById('albumViewModal');
+    if (!modal) return;
     document.getElementById('albumViewTitle').innerText = decodeURIComponent(encodedTitle);
     document.getElementById('albumViewCover').src = coverUrl;
     const trackListContainer = document.getElementById('albumViewTracklist');
@@ -1165,8 +1178,8 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner 
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     
-                                    <div id="album-track-menu-${linkId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
-                                        <button class="track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepRemoveTrackFromAlbum(this, ${linkId}, ${albumId})">
+                                    <div id="album-track-menu-${linkId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
+                                        <button class="track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="event.stopPropagation(); window.twoStepRemoveTrackFromAlbum(this, ${linkId}, ${albumId})">
                                             <i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track
                                         </button>
                                     </div>
@@ -1184,50 +1197,9 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner 
     }
 };
 
-window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId) {
-    if (window.event) window.event.stopPropagation();
-
-    if (!btnElement.classList.contains('confirming-delete')) {
-        btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Remove?`;
-        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-
-        setTimeout(() => {
-            if (btnElement) {
-                btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track`;
-                btnElement.style.backgroundColor = 'transparent';
-            }
-        }, 4000);
-        return;
-    }
-
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Removing...`;
-    btnElement.disabled = true;
-
-    try {
-        const response = await fetch(`/api/collections/items/${linkId}?collectionId=${albumId}`, {
-            method: 'DELETE',
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
-
-        if (response.ok) {
-            const coverUrl = document.getElementById('albumViewCover').src;
-            const encodedTitle = encodeURIComponent(document.getElementById('albumViewTitle').innerText);
-            window.openAlbumView(albumId, encodedTitle, coverUrl, true);
-        } else {
-            const err = await response.text();
-            alert("Failed to remove track: " + err);
-            btnElement.disabled = false;
-        }
-    } catch (e) {
-        console.error("Error removing track:", e);
-        btnElement.disabled = false;
-    }
-};
-
 window.closeAlbumView = function () {
-    document.getElementById('albumViewModal').classList.add('d-none');
+    const modal = document.getElementById('albumViewModal');
+    if (modal) modal.classList.add('d-none');
 };
 
 window.playEntireAlbum = function () {

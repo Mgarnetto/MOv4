@@ -1,6 +1,6 @@
 /* =========================================
-   1. GLOBAL & VARS
-   ========================================= */
+    1. GLOBAL & VARS
+    ========================================= */
 :root {
     --bg-main: #000000;
     --bg-card: #111111;
@@ -63,8 +63,8 @@ body.no-scroll {
 }
 
 /* =========================================
-   2. NAVBAR & LOGIN
-   ========================================= */
+    2. NAVBAR & LOGIN
+    ========================================= */
 
 /* Fix the flicker by hiding the welcome text globally */
 .welcome-text {
@@ -341,8 +341,8 @@ input[type="radio"] {
 }
 
 /* =========================================
-   3. SIDEBAR & AUTH STATES
-   ========================================= */
+    3. SIDEBAR & AUTH STATES
+    ========================================= */
 .sidebar {
     position: fixed;
     top: var(--navbar-height);
@@ -434,7 +434,7 @@ input[type="radio"] {
 }
 
 /* NEW: SEARCH GROUP
-   Replaces the old .sidebar-search
+    Replaces the old .sidebar-search
 */
 .sidebar-search-group {
     display: flex;
@@ -505,8 +505,8 @@ input[type="radio"] {
 }
 
 /* =========================================
-   4. CONTENT & COMPONENTS
-   ========================================= */
+    4. CONTENT & COMPONENTS
+    ========================================= */
 .main-wrapper {
     transition: padding-left 0.3s;
     width: 100%;
@@ -872,8 +872,8 @@ input[type="radio"] {
     }
 
 /* =========================================
-   5. CHAT OVERLAY & VIDEO MODAL
-   ========================================= */
+    5. CHAT OVERLAY & VIDEO MODAL
+    ========================================= */
 .chat-overlay {
     position: fixed;
     top: var(--navbar-height);
@@ -1214,8 +1214,8 @@ input[type="radio"] {
 }
 
 /* =========================================
-   6. PLAYER (Refactored & Scroll-Smart)
-   ========================================= */
+    6. PLAYER (Refactored & Scroll-Smart)
+    ========================================= */
 .player-bar-centered {
     position: fixed;
     bottom: 25px; /* Floats nicely above bottom edge */
@@ -1459,8 +1459,8 @@ input[type="radio"] {
     }
 }
 /* =========================================
-   6.5 INCOMING CALL MODAL
-   ========================================= */
+    6.5 INCOMING CALL MODAL
+    ========================================= */
 
 .incoming-modal {
     position: fixed;
@@ -1566,8 +1566,8 @@ input[type="radio"] {
 }
 
 /* =========================================
-   7. PROFILE & LAYOUT
-   ========================================= */
+    7. PROFILE & LAYOUT
+    ========================================= */
 .page-grid-layout {
     display: flex;
     flex-direction: column;
@@ -1618,7 +1618,7 @@ input[type="radio"] {
 }
 
 /* FIX: Updated Profile Hero Content Layout
-   Aligned to left for desktop, centers on mobile via media query below
+    Aligned to left for desktop, centers on mobile via media query below
 */
 .profile-hero-content {
     position: relative;
@@ -1702,8 +1702,8 @@ input[type="radio"] {
 }
 
 /* =========================================
-   8. INPUTS & POSTING
-   ========================================= */
+    8. INPUTS & POSTING
+    ========================================= */
 .create-post-input,
 textarea.form-control,
 input[type="text"].form-control {
@@ -1804,8 +1804,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   9. POST CARD STYLING (MODERNIZED)
-   ========================================= */
+    9. POST CARD STYLING (MODERNIZED)
+    ========================================= */
 .post-card {
     background-color: var(--bg-card);
     border: 1px solid #2a2a2a; /* Subtler border */
@@ -1987,8 +1987,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   10. INTERACTION & COMMENTS (MODERNIZED)
-   ========================================= */
+    10. INTERACTION & COMMENTS (MODERNIZED)
+    ========================================= */
 
 /* Manual Hamburger Menu */
 .post-options-menu {
@@ -2206,8 +2206,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   11. SETTINGS LAYOUT
-   ========================================= */
+    11. SETTINGS LAYOUT
+    ========================================= */
 .settings-grid-layout {
     display: grid;
     grid-template-columns: 250px 1fr;
@@ -2272,8 +2272,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   12. TRACK CARD UI
-   ========================================= */
+    12. TRACK CARD UI
+    ========================================= */
 .track-card {
     display: flex;
     align-items: center;
@@ -2385,8 +2385,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   13. RADIO ORB TUNER UI
-   ========================================= */
+    13. RADIO ORB TUNER UI
+    ========================================= */
 
 .radio-tuner-grid {
     display: grid;
@@ -2540,8 +2540,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   14. MOBILE FIXES: CREATE POST
-   ========================================= */
+    14. MOBILE FIXES: CREATE POST
+    ========================================= */
 @media (max-width: 768px) {
     /* Stack elements vertically */
     .create-post-actions {
@@ -2564,8 +2564,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   15. CUSTOM VIDEO PLAYER
-   ========================================= */
+    15. CUSTOM VIDEO PLAYER
+    ========================================= */
 .custom-video-wrapper {
     position: relative;
     width: 100%;
@@ -2741,9 +2741,9 @@ textarea.form-control {
 }
 
 /* =========================================
-   FULLSCREEN FIXES
-   Overrides feed constraints when in fullscreen mode
-   ========================================= */
+    FULLSCREEN FIXES
+    Overrides feed constraints when in fullscreen mode
+    ========================================= */
 
 /* Standard Syntax */
 .custom-video-wrapper:fullscreen {
@@ -2780,8 +2780,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   16. AUDIO DISCOVERY PLAYLIST (SPA)
-   ========================================= */
+    16. AUDIO DISCOVERY PLAYLIST (SPA)
+    ========================================= */
 #audio-feed-list {
     display: flex;
     flex-direction: column;
@@ -2797,7 +2797,7 @@ textarea.form-control {
     /* Vertical padding keeps text vertically centered */
     padding: 12px 0 12px 15px;
     /* Right padding ensures text doesn't overlap the image area.
-       85px = Image Width (~60px) + Gap (15px) + Safety (10px) */
+        85px = Image Width (~60px) + Gap (15px) + Safety (10px) */
     padding-right: 85px;
     border-bottom: none;
     transition: background 0.2s, transform 0.2s;
@@ -2969,8 +2969,8 @@ textarea.form-control {
         }
 
 /* =========================================
-   17. AUDIO DISCOVERY (Refined)
-   ========================================= */
+    17. AUDIO DISCOVERY (Refined)
+    ========================================= */
 /* The Header Card - THIN LAYOUT */
 .audio-header-card {
     background: linear-gradient(135deg, #111 0%, #050505 100%);
@@ -3238,8 +3238,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   18. MANUAL EDIT MODAL (No Bootstrap Required)
-   ========================================= */
+    18. MANUAL EDIT MODAL (No Bootstrap Required)
+    ========================================= */
 #editPostModal {
     position: fixed;
     top: 0;
@@ -3317,8 +3317,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   19. NOTIFICATIONS (NEW)
-   ========================================= */
+    19. NOTIFICATIONS (NEW)
+    ========================================= */
 .notif-wrapper {
     position: relative;
     display: flex;
@@ -3523,8 +3523,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   20. MANUAL NOTIFICATION MODAL (No Bootstrap)
-   ========================================= */
+    20. MANUAL NOTIFICATION MODAL (No Bootstrap)
+    ========================================= */
 
 /* --- SINGLE POST MODAL SCALING FIX --- */
 #singlePostModal {
@@ -3623,8 +3623,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   21. MINI GRID SYSTEM (Replacements for Bootstrap col-*)
-   ========================================= */
+    21. MINI GRID SYSTEM (Replacements for Bootstrap col-*)
+    ========================================= */
 /* Since _PostCard.cshtml uses .row and .col-*, we define them manually here */
 
 .row {
@@ -3652,8 +3652,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   CUSTOM ANIMATIONS
-   ========================================= */
+    CUSTOM ANIMATIONS
+    ========================================= */
 
 /* Rotates the element on the Y-axis (like the Earth) */
 @keyframes spin-y {
@@ -3672,8 +3672,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   22. RADIO BANNER & ORB STYLES
-   ========================================= */
+    22. RADIO BANNER & ORB STYLES
+    ========================================= */
 
 .orb-radio-banner {
     /* Visuals */
@@ -3773,8 +3773,8 @@ textarea.form-control {
 }
 
 /* =========================================
-   23. CREATE GROUP MODAL (Added Fix)
-   ========================================= */
+    23. CREATE GROUP MODAL (Added Fix)
+    ========================================= */
 #createGroupModal {
     position: fixed;
     top: 0;
@@ -3834,8 +3834,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   SOCIAL FEED BANNER (Fixed: Orb Stays Stationary)
-   ========================================= */
+    SOCIAL FEED BANNER (Fixed: Orb Stays Stationary)
+    ========================================= */
 
 #social-feed-banner {
     transition: max-width 0.8s cubic-bezier(0.77, 0, 0.175, 1), padding 0.8s ease, border-radius 0.8s ease, border-left-width 0.8s ease;
@@ -3894,8 +3894,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   24. GROUP MANAGEMENT & DROPDOWNS (FIXED)
-   ========================================= */
+    24. GROUP MANAGEMENT & DROPDOWNS (FIXED)
+    ========================================= */
 
 /* --- Comment & Message Dropdowns --- */
 .msg-options-btn {
@@ -4133,8 +4133,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   25. GROUP INFO MODAL STRUCTURE (MISSING FIX)
-   ========================================= */
+    25. GROUP INFO MODAL STRUCTURE (MISSING FIX)
+    ========================================= */
 
 #groupInfoModal {
     position: fixed;
@@ -4183,8 +4183,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   26 CUSTOM POST MENU BUTTON (Non-Bootstrap)
-   ========================================= */
+    26 CUSTOM POST MENU BUTTON (Non-Bootstrap)
+    ========================================= */
 .btn-post-options {
     /* 1. Reset Browser Defaults */
     background-color: transparent; /* Matches post background */
@@ -4220,7 +4220,7 @@ textarea.form-control {
         transform: scale(0.95); /* Slight press effect */
     }
 
-    /**********************
+/**********************
     27 COMMERCE MODAL
     **********************/
 
@@ -4585,8 +4585,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   STOREFRONT CAROUSEL MANAGER DOCK
-   ========================================= */
+    STOREFRONT CAROUSEL MANAGER DOCK
+    ========================================= */
 .store-carousel-dock {
     position: fixed;
     bottom: 20px;
@@ -4781,8 +4781,8 @@ textarea.form-control {
     }
 
 /* =========================================
-   29. UNIVERSAL SLIDING PANEL (SIDEBAR)
-   ========================================= */
+    29. UNIVERSAL SLIDING PANEL (SIDEBAR)
+    ========================================= */
 .orb-save-panel-overlay {
     position: fixed;
     top: 0;
@@ -5002,66 +5002,113 @@ textarea.form-control {
         transform: scale(1.1);
     }
 
-/* Sidebar Back Button */
-.orb-panel-back-btn {
-    background: none;
-    border: none;
-    color: var(--accent-secondary, #00d2ff);
-    padding: 0 0 15px 5px;
-    cursor: pointer;
-    font-size: 0.95rem;
+/* =========================================
+   30. AUDIO HUB & ALIGNMENT FIXES
+   ========================================= */
+
+/* Ensure the parent containers for tracks and albums are relative anchors */
+#audio-orphans-container tr,
+#audio-albums-container > div,
+.album-card-hover {
+    position: relative !important;
+}
+
+/* Fix the Actions column in the track table */
+#audio-orphans-container td:last-child {
+    width: 120px;
+    text-align: center;
+}
+
+/* Standardize the button group inside the table cell */
+.track-action-group {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    height: 100%;
+}
+
+/* Fix the 3-dot menu dropdown drifting */
+.msg-context-menu {
+    display: none;
+    position: absolute;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+    z-index: 2100;
+    min-width: 160px;
+    padding: 5px 0;
+    /* Default position for track list */
+    right: 0;
+    top: 100%;
+    margin-top: 5px;
+}
+
+/* Position adjustment for Album Card menus (Bottom-up) */
+[id^="album-menu-"].msg-context-menu {
+    bottom: 45px; /* Sits above the buttons */
+    top: auto;
+    right: 10px;
+}
+
+.msg-context-menu.active {
+    display: block !important;
+}
+
+.msg-context-menu button {
     width: 100%;
-    text-align: left;
-    transition: color 0.2s;
-}
-
-    .orb-panel-back-btn:hover {
-        color: #fff;
-    }
-
-/* Active Track Highlight */
-.orb-save-panel-item.active-track {
-    border-color: var(--accent-secondary, #00d2ff) !important;
-    background: rgba(0, 210, 255, 0.1) !important;
-}
-
-/* Optional: Make the playlist play button look distinct */
-.orb-panel-play-btn {
+    padding: 10px 15px;
     background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    border: none;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    justify-content: center;
-    color: var(--accent-secondary, #00d2ff);
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-left: auto;
+    gap: 10px;
+    transition: background 0.2s;
 }
 
-    .orb-panel-play-btn:hover {
-        background: var(--accent-secondary, #00d2ff);
-        color: #000;
-        transform: scale(1.1);
+    .msg-context-menu button:hover {
+        background: #2a2a2a;
     }
 
-/* Generic Music Note Fallback */
-.orb-panel-fallback-icon {
-    width: 35px;
-    height: 35px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-    color: var(--accent-secondary, #00d2ff);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    flex-shrink: 0;
+/* Force Center the Modals */
+#albumBuilderModal,
+#albumViewModal {
+    display: none;
 }
 
+    #albumBuilderModal:not(.d-none),
+    #albumViewModal:not(.d-none) {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 3000;
+        background: rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(8px);
+    }
+
+/* Ensure consistent button sizes for the Star/Carousel toggle */
+button[title="Add to Carousel"],
+.album-card-hover .msg-options-btn {
+    width: 34px !important;
+    height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 6px !important;
+    padding: 0 !important;
+}
+
+/* Prevent the fixed player bar from covering the bottom of the list */
+.audio-container {
+    padding-bottom: 150px !important;
+}
