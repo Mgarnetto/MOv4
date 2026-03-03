@@ -9,11 +9,13 @@ namespace MoozicOrb.API.Controllers
     public class MediaController : ControllerBase
     {
         private readonly IMediaResolverService _resolver;
+        private readonly IMediaFileService _mediaFileService; // <-- 1. ADD THIS
 
-        // Dependency Injecting the Switchboard
-        public MediaController(IMediaResolverService resolver)
+        // <-- 2. INJECT IT HERE
+        public MediaController(IMediaResolverService resolver, IMediaFileService mediaFileService)
         {
             _resolver = resolver;
+            _mediaFileService = mediaFileService;
         }
 
         [HttpGet("audio/{id}")]
@@ -56,7 +58,6 @@ namespace MoozicOrb.API.Controllers
         {
             try
             {
-                // Your Auth Logic
                 var sid = HttpContext.Request.Headers["X-Session-Id"].ToString();
                 var session = MoozicOrb.Services.SessionStore.GetSession(sid);
                 if (session == null) return Unauthorized();
@@ -71,12 +72,11 @@ namespace MoozicOrb.API.Controllers
 
                 if (mediaType == -1) return BadRequest("Invalid media type.");
 
-                // Call the IO Class we created in the previous step
                 var result = new MoozicOrb.IO.DeleteMedia().Execute(session.UserId, id, mediaType);
 
                 if (!result.Success) return BadRequest(result.ErrorMessage);
 
-                // Call our consolidated File Service!
+                // This will now work perfectly without crashing!
                 _ = _mediaFileService.DeleteMediaFilesAsync(result.PathsToDelete, result.StorageProvider);
 
                 return Ok(new { success = true });

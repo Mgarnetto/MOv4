@@ -1,4 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
+using System;
 
 namespace MoozicOrb.IO
 {
@@ -10,13 +11,17 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // Double check ownership before deleting
-                string checkSql = "SELECT COUNT(*) FROM collections WHERE collection_id = @cid AND user_id = @uid";
+                // THE FIX: Check lock status instead of just count
+                string checkSql = "SELECT is_locked FROM collections WHERE collection_id = @cid AND user_id = @uid";
                 using (var checkCmd = new MySqlCommand(checkSql, conn))
                 {
                     checkCmd.Parameters.AddWithValue("@cid", collectionId);
                     checkCmd.Parameters.AddWithValue("@uid", userId);
-                    if (System.Convert.ToInt32(checkCmd.ExecuteScalar()) == 0) return false;
+                    
+                    var result = checkCmd.ExecuteScalar();
+                    
+                    if (result == null) return false; // Doesn't exist or isn't owner
+                    if (Convert.ToBoolean(result) == true) return false; // Locked! Cannot delete.
                 }
 
                 // Delete Items First

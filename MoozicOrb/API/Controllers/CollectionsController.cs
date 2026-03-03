@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Models;
-using MoozicOrb.API.Services; // <-- ADDED MediaResolverService namespace
+using MoozicOrb.API.Services;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
@@ -15,9 +15,9 @@ namespace MoozicOrb.API.Controllers
     public class CollectionsController : ControllerBase
     {
         private readonly IHttpContextAccessor _http;
-        private readonly IMediaResolverService _resolver; // <-- ADDED
+        private readonly IMediaResolverService _resolver;
 
-        public CollectionsController(IHttpContextAccessor http, IMediaResolverService resolver) // <-- INJECTED
+        public CollectionsController(IHttpContextAccessor http, IMediaResolverService resolver)
         {
             _http = http;
             _resolver = resolver;
@@ -76,7 +76,6 @@ namespace MoozicOrb.API.Controllers
         {
             try
             {
-                // <-- PASSED _resolver here to hydrate Cloudflare URLs
                 var collection = new GetCollectionDetails().Execute(id, _resolver);
                 if (collection == null) return NotFound("Collection not found.");
 
@@ -158,7 +157,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // APPLICATION-LEVEL SECURITY PRE-CHECK
-                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+                if (!new CheckCollectionOwner().Execute(id, userId)) return StatusCode(403, "Access denied.");
 
                 bool success = new UpdateCollection().Execute(id, userId, req.Title, req.Description, req.Type, req.DisplayContext, req.CoverImageId);
 
@@ -177,7 +176,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // APPLICATION-LEVEL SECURITY PRE-CHECK
-                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+                if (!new CheckCollectionOwner().Execute(id, userId)) return StatusCode(403, "Access denied.");
 
                 bool success = new DeleteCollection().Execute(id, userId);
 
@@ -196,7 +195,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // APPLICATION-LEVEL SECURITY PRE-CHECK
-                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+                if (!new CheckCollectionOwner().Execute(id, userId)) return StatusCode(403, "Access denied.");
 
                 var itemIo = new InsertCollectionItem();
                 itemIo.Execute(id, req.TargetId, req.TargetType, 999);
@@ -215,7 +214,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // Check ownership of the parent collection before allowing item removal
-                if (!new CheckCollectionOwner().Execute(collectionId, userId)) return Forbid();
+                if (!new CheckCollectionOwner().Execute(collectionId, userId)) return StatusCode(403, "Access denied.");
 
                 new DeleteCollectionItem().Execute(linkId, collectionId);
 
@@ -233,7 +232,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // APPLICATION-LEVEL SECURITY PRE-CHECK
-                if (!new CheckCollectionOwner().Execute(id, userId)) return Forbid();
+                if (!new CheckCollectionOwner().Execute(id, userId)) return StatusCode(403, "Access denied.");
 
                 if (linkIds == null || linkIds.Count == 0) return Ok(new { success = true });
 

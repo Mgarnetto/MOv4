@@ -12,16 +12,14 @@ window.toggleAudioCarouselManager = function () {
     const mainContainer = document.querySelector('.audio-container');
 
     if (window.isAudioCarouselManagerActive) {
-        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> <span class="d-none d-md-inline">Close Manager</span>';
+        if (btn) btn.innerHTML = '<i class="fas fa-check"></i> <span style="display: none;">Close Manager</span>';
         if (dock) dock.classList.remove('d-none');
 
-        // THE FIX: Add 280px of padding to the bottom of the page so it scrolls past the dock
         if (mainContainer) mainContainer.style.paddingBottom = '280px';
     } else {
-        if (btn) btn.innerHTML = '<i class="fas fa-star"></i> <span class="d-none d-md-inline">Manage Carousel</span>';
+        if (btn) btn.innerHTML = '<i class="fas fa-star"></i> <span style="display: none;">Manage Carousel</span>';
         if (dock) dock.classList.add('d-none');
 
-        // Reset the padding when the dock is closed
         if (mainContainer) mainContainer.style.paddingBottom = '20px';
     }
 };
@@ -55,7 +53,6 @@ window.loadAudioHub = async function (userId) {
         // Trigger the visual carousel renderer
         window.loadAudioCarousel(userId);
 
-        // THE FIX: Two-step fetch to properly hydrate the dock with actual items
         if (isOwner) {
             fetch(`/api/collections/user/${userId}/context/ProfileCarousel`, { headers })
                 .then(res => res.ok ? res.json() : [])
@@ -64,7 +61,6 @@ window.loadAudioHub = async function (userId) {
                         const colId = collections[0].id || collections[0].Id;
                         document.getElementById('audioCarouselCollectionId').value = colId;
 
-                        // Now fetch the actual deeply nested items using GetCollectionDetails
                         fetch(`/api/collections/${colId}`, { headers })
                             .then(res => res.ok ? res.json() : null)
                             .then(details => {
@@ -98,7 +94,6 @@ window.loadAudioCarousel = async function (userId) {
     try {
         const headers = { "X-Session-Id": window.AuthState?.sessionId || "" };
 
-        // 1. Check if the user has a custom ProfileCarousel saved
         const existRes = await fetch(`/api/collections/user/${userId}/context/ProfileCarousel`, { headers });
         let customItems = [];
 
@@ -107,7 +102,6 @@ window.loadAudioCarousel = async function (userId) {
             if (collections && collections.length > 0) {
                 const collectionId = collections[0].id || collections[0].Id;
 
-                // Fetch the actual tracks inside the dock
                 const detailRes = await fetch(`/api/collections/${collectionId}`, { headers });
                 if (detailRes.ok) {
                     const details = await detailRes.json();
@@ -116,11 +110,9 @@ window.loadAudioCarousel = async function (userId) {
             }
         }
 
-        // 2. Render Custom OR Fallback to Top 10
         if (customItems.length > 0) {
             renderAudioCarouselUI(customItems, false);
         } else {
-            // FALLBACK: Get top 10 most recent tracks
             const fallbackRes = await fetch(`/api/audiohub/orphans/${userId}`, { headers });
             if (fallbackRes.ok) {
                 const orphanData = await fallbackRes.json();
@@ -130,7 +122,7 @@ window.loadAudioCarousel = async function (userId) {
                     const top10 = orphans.slice(0, 10);
                     renderAudioCarouselUI(top10, true);
                 } else {
-                    container.innerHTML = ''; // Hide carousel entirely if they have 0 uploads
+                    container.innerHTML = '';
                 }
             }
         }
@@ -200,7 +192,6 @@ function renderOrphansList(items, isOwner) {
         return;
     }
 
-    // Conditionally render headers based on ownership
     let html = `
         <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px;">Singles & Vault Tracks</h4>
         <div style="max-height: 500px; overflow-y: auto; background: #121212; border: 1px solid #222; border-radius: 8px;">
@@ -273,25 +264,25 @@ function renderOrphansList(items, isOwner) {
                 
                 ${isOwner ? `
                 <td style="text-align: center; vertical-align: middle; padding: 8px;">
-                    <div class="position-relative ms-auto" style="display: flex; align-items: center; justify-content: center;">
+                    <div style="position: relative; display: flex; align-items: center; justify-content: center;">
                         <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 4px 8px; cursor: pointer; margin-right: 8px;" onclick="window.addToAudioCarouselDock(${targetId}, 1, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
                         
-                        <button class="msg-options-btn" style="position: static !important;" onclick="toggleAudioMenu('audio-menu-${targetId}')">
+                        <button class="msg-options-btn" style="position: static !important; background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 4px 8px; cursor: pointer;" onclick="toggleAudioMenu('audio-menu-${targetId}')">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         
-                        <div id="audio-menu-${targetId}" class="msg-context-menu" style="right: 0; top: 35px; width: max-content; text-align: left;">
-                            <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})">
-                                <i class="fas fa-edit"></i> Edit Details
+                        <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
+                            <button onclick="window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
+                                <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
                             </button>
                             
                             ${!isLocked ? `
-                            <button class="text-danger track-delete-btn" onclick="window.twoStepDeleteTrack(this, ${targetId})">
-                                <i class="fas fa-trash"></i> Delete Track
+                            <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteTrack(this, ${targetId})">
+                                <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track
                             </button>
                             ` : `
-                            <button class="text-muted" style="cursor: not-allowed;" title="Item is locked/sold">
-                                <i class="fas fa-lock"></i> Locked
+                            <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
+                                <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
                             </button>
                             `}
                         </div>
@@ -323,47 +314,63 @@ function renderAlbumsList(albums, isOwner) {
         const price = album.price !== undefined ? album.price : album.Price;
         const visibility = album.visibility !== undefined ? album.visibility : album.Visibility;
 
-        const lockIcon = isLocked ? '<i class="fas fa-lock text-warning"></i>' : '';
+        const lockIcon = isLocked ? '<i class="fas fa-lock" style="color: #ffc107; margin-left: 6px;"></i>' : '';
         const priceDisplay = price > 0 ? `$${price.toFixed(2)}` : 'Free';
 
         const visState = visibility !== undefined && visibility !== null ? parseInt(visibility) : 0;
 
         let statusIcon = '';
-        if (visState === 0) statusIcon = '<i class="fas fa-globe text-primary" title="Public"></i>';
-        else if (visState === 1) statusIcon = '<i class="fas fa-link text-info" title="Link Only"></i>';
-        else statusIcon = '<i class="fas fa-lock text-secondary" title="Private"></i>';
+        if (visState === 0) statusIcon = '<i class="fas fa-globe" style="color: #0d6efd;" title="Public"></i>';
+        else if (visState === 1) statusIcon = '<i class="fas fa-link" style="color: #0dcaf0;" title="Link Only"></i>';
+        else statusIcon = '<i class="fas fa-lock" style="color: #6c757d;" title="Private"></i>';
 
         const rawTitle = album.title || album.Title || "Untitled Album";
         const encodedTitle = encodeURIComponent(rawTitle);
-
-        const rawArtist = album.artistName || album.ArtistName || "Unknown Artist";
-        const encodedArtist = encodeURIComponent(rawArtist);
-
         const art = album.coverImageUrl || album.CoverImageUrl || '/img/default_cover.jpg';
         const id = album.id || album.Id;
-        const rawUrl = album.url || album.Url || '';
 
-        // Make the whole card open the Album Viewer
         const cardCursor = 'cursor: pointer;';
-        const cardClickEvent = `onclick="window.openAlbumView(${id}, '${encodedTitle}', '${art}')"`;
+        const cardClickEvent = `onclick="window.openAlbumView(${id}, '${encodedTitle}', '${art}', ${isOwner})"`;
 
+        // COMPLETELY BOOTSTRAP FREE GRID CARD
         html += `
-            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; transition: transform 0.2s; ${cardCursor}" class="album-card-hover shadow-sm" ${cardClickEvent}>
-                <div style="position: relative; padding-top: 100%;">
+            <div style="background: #1a1a1a; border: 1px solid #333; border-radius: 8px; transition: transform 0.2s; ${cardCursor} display: flex; flex-direction: column;" class="album-card-hover" ${cardClickEvent}>
+                <div style="position: relative; padding-top: 100%; border-radius: 8px 8px 0 0; overflow: hidden;">
                     <img src="${art}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">
                      <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'"><i class="fas fa-list" style="color: white; font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.5);"></i></div>
                 </div>
-                <div class="p-3">
-                    <div class="text-white fw-bold text-truncate mb-1" title="${rawTitle}">${rawTitle}</div>
-                    <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.8rem;">
-                        <span class="text-success">${priceDisplay}</span>
+                <div style="padding: 15px; display: flex; flex-direction: column; flex-grow: 1;">
+                    <div style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px;" title="${rawTitle}">${rawTitle}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-bottom: 10px;">
+                        <span style="color: #28a745; font-weight: bold;">${priceDisplay}</span>
                         <span>${statusIcon} ${lockIcon}</span>
                     </div>
                     
                     ${isOwner ? `
-                        <div class="d-flex gap-2" style="position: relative; z-index: 2;">
-                            <button class="btn btn-sm btn-outline-info flex-grow-1" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')"><i class="fas fa-star"></i></button>
-                            <button class="btn btn-sm btn-outline-light flex-grow-1" onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})"><i class="fas fa-edit"></i></button>
+                        <div style="display: flex; gap: 8px; position: relative; z-index: 2; margin-top: auto;">
+                            <button style="flex-grow: 1; height: 100%; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; padding: 6px 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel"><i class="fas fa-star"></i></button>
+                            
+                            <div style="position: relative; display: flex; align-items: stretch;">
+                                <button class="msg-options-btn" style="background: transparent; border: 1px solid #f8f9fa; color: #f8f9fa; border-radius: 4px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(248, 249, 250, 0.1)'" onmouseout="this.style.background='transparent'" onclick="toggleAudioMenu('album-menu-${id}')">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                
+                                <div id="album-menu-${id}" class="msg-context-menu" style="position: absolute; right: 0; bottom: 100%; margin-bottom: 5px; width: max-content; text-align: left; z-index: 1050;">
+                                    <button onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #fff; cursor: pointer;">
+                                        <i class="fas fa-edit" style="margin-right: 8px;"></i> Edit Details
+                                    </button>
+                                    
+                                    ${!isLocked ? `
+                                    <button class="text-danger track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepDeleteAlbum(this, ${id})">
+                                        <i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Album
+                                    </button>
+                                    ` : `
+                                    <button class="text-muted" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #6c757d; cursor: not-allowed;" title="Item is locked/sold">
+                                        <i class="fas fa-lock" style="margin-right: 8px;"></i> Locked
+                                    </button>
+                                    `}
+                                </div>
+                            </div>
                         </div>
                     ` : ''}
                 </div>
@@ -381,15 +388,12 @@ function renderAlbumsList(albums, isOwner) {
 
 // Toggle the 3-dot menu safely
 window.toggleAudioMenu = function (menuId) {
-    // Close any currently open menus first
     document.querySelectorAll('.msg-context-menu.active').forEach(menu => {
         if (menu.id !== menuId) menu.classList.remove('active');
     });
 
-    // Toggle the target menu
     const menu = document.getElementById(menuId);
     if (menu) {
-        // Prevent click from propagating and triggering other things
         if (window.event) window.event.stopPropagation();
         menu.classList.toggle('active');
     }
@@ -397,35 +401,31 @@ window.toggleAudioMenu = function (menuId) {
 
 // Close menus when clicking outside
 document.addEventListener('click', function (e) {
-    if (!e.target.closest('.position-relative')) {
+    if (!e.target.closest('.msg-options-btn') && !e.target.closest('.msg-context-menu')) {
         document.querySelectorAll('.msg-context-menu.active').forEach(m => m.classList.remove('active'));
     }
 });
 
 // The 2-Step Deletion Logic
 window.twoStepDeleteTrack = async function (btnElement, trackId) {
-    // Stop click from closing menu immediately or playing track
     if (window.event) window.event.stopPropagation();
 
-    // STEP 1: If it's the first click, ask for confirmation
     if (!btnElement.classList.contains('confirming-delete')) {
         btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm Delete?`;
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Delete?`;
         btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
 
-        // Auto-revert back to normal after 4 seconds if they hesitate
         setTimeout(() => {
             if (btnElement) {
                 btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash"></i> Delete Track`;
+                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Track`;
                 btnElement.style.backgroundColor = 'transparent';
             }
         }, 4000);
-        return; // Stop here, wait for second click
+        return;
     }
 
-    // STEP 2: Second click executed. Perform API Call.
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Deleting...`;
     btnElement.disabled = true;
 
     try {
@@ -437,7 +437,6 @@ window.twoStepDeleteTrack = async function (btnElement, trackId) {
         });
 
         if (response.ok) {
-            // Success! Refresh the UI
             const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
             if (userId) window.loadAudioHub(userId);
         } else {
@@ -448,6 +447,88 @@ window.twoStepDeleteTrack = async function (btnElement, trackId) {
     } catch (e) {
         console.error("Error deleting track:", e);
         alert("Network error occurred.");
+        btnElement.disabled = false;
+    }
+};
+
+window.twoStepDeleteAlbum = async function (btnElement, albumId) {
+    if (window.event) window.event.stopPropagation();
+
+    if (!btnElement.classList.contains('confirming-delete')) {
+        btnElement.classList.add('confirming-delete');
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Delete?`;
+        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+
+        setTimeout(() => {
+            if (btnElement) {
+                btnElement.classList.remove('confirming-delete');
+                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Delete Album`;
+                btnElement.style.backgroundColor = 'transparent';
+            }
+        }, 4000);
+        return;
+    }
+
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Deleting...`;
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch(`/api/collections/${albumId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (response.ok) {
+            const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
+            if (userId) window.loadAudioHub(userId);
+        } else {
+            alert("Delete failed: Cannot delete locked albums.");
+            btnElement.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error deleting album:", e);
+        btnElement.disabled = false;
+    }
+};
+
+window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId) {
+    if (window.event) window.event.stopPropagation();
+
+    if (!btnElement.classList.contains('confirming-delete')) {
+        btnElement.classList.add('confirming-delete');
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Remove?`;
+        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+
+        setTimeout(() => {
+            if (btnElement) {
+                btnElement.classList.remove('confirming-delete');
+                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track`;
+                btnElement.style.backgroundColor = 'transparent';
+            }
+        }, 4000);
+        return;
+    }
+
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Removing...`;
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch(`/api/collections/items/${linkId}?collectionId=${albumId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (response.ok) {
+            const coverUrl = document.getElementById('albumViewCover').src;
+            const encodedTitle = encodeURIComponent(document.getElementById('albumViewTitle').innerText);
+            window.openAlbumView(albumId, encodedTitle, coverUrl, true);
+        } else {
+            const err = await response.text();
+            alert("Failed to remove track: " + err);
+            btnElement.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error removing track:", e);
         btnElement.disabled = false;
     }
 };
@@ -542,7 +623,6 @@ window.saveAudioCarouselDock = async function () {
         });
     });
 
-    // THE FIX: Perfectly aligned DTO mapping
     const payload = {
         Title: "Featured Audio",
         Description: "My featured audio tracks",
@@ -704,7 +784,6 @@ window.toggleAudioDropzone = function () {
 };
 
 window.handleBatchAudioSelect = async function (eventOrInput) {
-    // Extract input correctly whether passed directly or via 'event'
     const input = eventOrInput.target ? eventOrInput.target : eventOrInput;
     if (!input.files || input.files.length === 0) return;
 
@@ -714,16 +793,15 @@ window.handleBatchAudioSelect = async function (eventOrInput) {
     const queueContainer = document.getElementById('batch-upload-queue');
 
     if (files.length > maxFiles) {
-        if (queueContainer) queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-circle"></i> Max ${maxFiles} tracks allowed at once.</div>`;
+        if (queueContainer) queueContainer.innerHTML = `<div style="color: #ff0055;"><i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i> Max ${maxFiles} tracks allowed at once.</div>`;
         input.value = '';
         return;
     }
 
     if (queueContainer) {
-        queueContainer.innerHTML = `<div class="text-info" style="font-weight:bold;"><i class="fas fa-spinner fa-spin me-2"></i> Securing ${files.length} tracks to your Vault...</div>`;
+        queueContainer.innerHTML = `<div style="color: #0dcaf0; font-weight: bold;"><i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Securing ${files.length} tracks to your Vault...</div>`;
     }
 
-    // Package the files for C#
     const formData = new FormData();
     files.forEach(file => {
         if (file.type.startsWith('audio/')) {
@@ -732,7 +810,6 @@ window.handleBatchAudioSelect = async function (eventOrInput) {
     });
 
     try {
-        // Hit the Batch Endpoint
         const response = await fetch('/api/upload/audio/batch', {
             method: 'POST',
             headers: {
@@ -745,16 +822,14 @@ window.handleBatchAudioSelect = async function (eventOrInput) {
             const result = await response.json();
 
             if (queueContainer) {
-                queueContainer.innerHTML = `<div class="text-success" style="font-weight:bold;"><i class="fas fa-check-circle me-2"></i> Successfully secured ${result.items ? result.items.length : files.length} tracks!</div>`;
+                queueContainer.innerHTML = `<div style="color: #28a745; font-weight: bold;"><i class="fas fa-check-circle" style="margin-right: 8px;"></i> Successfully secured ${result.items ? result.items.length : files.length} tracks!</div>`;
             }
 
-            // Reload the Audio Hub to instantly display the new Private tracks in the table
             const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
             if (userId) {
                 window.loadAudioHub(userId);
             }
 
-            // Auto-close the wizard after a short success delay
             setTimeout(() => {
                 window.toggleAudioDropzone();
                 if (queueContainer) queueContainer.innerHTML = '';
@@ -763,20 +838,19 @@ window.handleBatchAudioSelect = async function (eventOrInput) {
         } else {
             const errText = await response.text();
             if (queueContainer) {
-                queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i> Upload failed: ${errText}</div>`;
+                queueContainer.innerHTML = `<div style="color: #ff0055;"><i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Upload failed: ${errText}</div>`;
             }
         }
     } catch (err) {
         console.error("Batch upload error:", err);
         if (queueContainer) {
-            queueContainer.innerHTML = `<div class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i> An error occurred during the batch upload.</div>`;
+            queueContainer.innerHTML = `<div style="color: #ff0055;"><i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> An error occurred during the batch upload.</div>`;
         }
     } finally {
         input.value = '';
     }
 };
 
-// Hook up Drag and Drop functionality to your specific wizard
 window.initAudioDragAndDrop = function () {
     const dropZone = document.getElementById('audio-dropzone-wizard');
     const fileInput = document.getElementById('batchAudioInput');
@@ -807,7 +881,6 @@ window.initAudioDragAndDrop = function () {
     });
 };
 
-// Initialize Drag and Drop when the script loads
 document.addEventListener('DOMContentLoaded', () => {
     window.initAudioDragAndDrop();
 });
@@ -824,7 +897,6 @@ window.openAlbumBuilderModal = async function () {
     const modal = document.getElementById('albumBuilderModal');
     if (!modal) return;
 
-    // 1. Reset UI State
     window.albumAvailableTracks = [];
     window.albumSelectedTracks = [];
     window.albumCoverFile = null;
@@ -836,12 +908,11 @@ window.openAlbumBuilderModal = async function () {
     document.getElementById('albumCoverIcon').classList.remove('d-none');
     document.getElementById('album-track-count').innerText = "0";
 
-    document.getElementById('album-available-tracks').innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i></div>';
-    document.getElementById('album-selected-tracks').innerHTML = '<div class="text-center text-muted" style="margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
+    document.getElementById('album-available-tracks').innerHTML = '<div style="text-align: center; color: #6c757d; margin-top: 1.5rem;"><i class="fas fa-spinner fa-spin"></i></div>';
+    document.getElementById('album-selected-tracks').innerHTML = '<div style="text-align: center; color: #6c757d; margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
 
     modal.classList.remove('d-none');
 
-    // 2. Fetch Vault Tracks
     const userId = document.getElementById("audio-user-id").value;
     try {
         const res = await fetch(`/api/audiohub/orphans/${userId}`, {
@@ -880,9 +951,8 @@ window.renderAlbumBuilderLists = function () {
     const selContainer = document.getElementById('album-selected-tracks');
     document.getElementById('album-track-count').innerText = window.albumSelectedTracks.length;
 
-    // Render Available (Vault)
     if (window.albumAvailableTracks.length === 0) {
-        availContainer.innerHTML = '<div class="text-center text-muted mt-4" style="font-size:0.85rem;">No tracks available in Vault.</div>';
+        availContainer.innerHTML = '<div style="text-align: center; color: #6c757d; margin-top: 1.5rem; font-size:0.85rem;">No tracks available in Vault.</div>';
     } else {
         let availHtml = '';
         window.albumAvailableTracks.forEach(track => {
@@ -898,9 +968,8 @@ window.renderAlbumBuilderLists = function () {
         availContainer.innerHTML = availHtml;
     }
 
-    // Render Selected (Album)
     if (window.albumSelectedTracks.length === 0) {
-        selContainer.innerHTML = '<div class="text-center text-muted" style="margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
+        selContainer.innerHTML = '<div style="text-align: center; color: #6c757d; margin-top: 100px; font-size: 0.85rem;">Click \'+\' on a track to add it</div>';
     } else {
         let selHtml = '';
         window.albumSelectedTracks.forEach((track, index) => {
@@ -952,15 +1021,14 @@ window.saveNewAlbum = async function () {
     }
 
     const btn = document.getElementById('btnSaveAlbum');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Saving...';
     btn.disabled = true;
 
     try {
         let coverImageId = 0;
 
-        // 1. Upload Cover Art if exists
         if (window.albumCoverFile) {
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Art...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Uploading Art...';
             const imgData = new FormData();
             imgData.append("file", window.albumCoverFile);
 
@@ -978,25 +1046,23 @@ window.saveNewAlbum = async function () {
             }
         }
 
-        // 2. Build the structured payload
         const itemsPayload = window.albumSelectedTracks.map((track, index) => ({
             TargetId: parseInt(track.targetId || track.TargetId),
-            TargetType: 1, // 1 = AudioTrack according to Constants
+            TargetType: 1,
             SortOrder: index
         }));
 
         const payload = {
             Title: title,
             Description: desc,
-            Type: 7, // 7 = AudioAlbum according to Constants
+            Type: 7,
             DisplayContext: "album",
             CoverImageId: coverImageId,
             Items: itemsPayload
         };
 
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Album...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Creating Album...';
 
-        // 3. POST to Collections API
         const createRes = await fetch('/api/collections/create', {
             method: 'POST',
             headers: {
@@ -1016,7 +1082,6 @@ window.saveNewAlbum = async function () {
                 btn.style.background = '#28a745';
                 btn.disabled = false;
 
-                // Reload the entire Audio Hub to show the new Album and empty the Vault!
                 const userId = document.getElementById("audio-user-id")?.value || window.AuthState?.userId;
                 if (userId) window.loadAudioHub(userId);
             }, 1000);
@@ -1042,13 +1107,13 @@ window.saveNewAlbum = async function () {
 
 window.currentAlbumTracks = [];
 
-window.openAlbumView = async function (albumId, encodedTitle, coverUrl) {
+window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner = false) {
     const modal = document.getElementById('albumViewModal');
     document.getElementById('albumViewTitle').innerText = decodeURIComponent(encodedTitle);
     document.getElementById('albumViewCover').src = coverUrl;
     const trackListContainer = document.getElementById('albumViewTracklist');
 
-    trackListContainer.innerHTML = '<div class="text-center py-5"><i class="fas fa-spinner fa-spin fa-2x text-muted"></i></div>';
+    trackListContainer.innerHTML = '<div style="text-align: center; padding: 3rem 0;"><i class="fas fa-spinner fa-spin fa-2x" style="color: #6c757d;"></i></div>';
     modal.classList.remove('d-none');
 
     try {
@@ -1059,10 +1124,10 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl) {
         if (res.ok) {
             const data = await res.json();
             const items = data.items || data.Items || [];
-            window.currentAlbumTracks = items; // Store globally for the "Play Album" button
+            window.currentAlbumTracks = items;
 
             if (items.length === 0) {
-                trackListContainer.innerHTML = '<div class="text-muted text-center py-5">This album is empty.</div>';
+                trackListContainer.innerHTML = '<div style="color: #6c757d; text-align: center; padding: 3rem 0;">This album is empty.</div>';
                 return;
             }
 
@@ -1071,21 +1136,36 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl) {
                 const title = item.title || item.Title || "Untitled";
                 const url = item.url || item.Url;
                 const artist = item.artistName || item.ArtistName || "Unknown";
+                const linkId = item.linkId || item.LinkId;
 
-                // Secure quotes for inline HTML
                 const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
                 html += `
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; transition: background 0.2s; cursor: pointer;" 
-                         onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'" 
-                         onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${url}', { title: '${safeTitle}', artist: '${safeArtist}', cover: '${coverUrl}' });">
+                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; transition: background 0.2s;" 
+                         onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">
                         
-                        <div style="display: flex; align-items: center; gap: 15px;">
-                            <span style="color: #666; font-size: 0.9rem; width: 20px; text-align: right; font-weight: bold;">${index + 1}</span>
+                        <div style="display: flex; align-items: center; gap: 15px; flex-grow: 1; cursor: pointer;" onclick="if(window.AudioPlayer) window.AudioPlayer.playTrack('${url}', { title: '${safeTitle}', artist: '${safeArtist}', cover: '${coverUrl}' });">
+                            <i class="fas fa-play" style="color: #0dcaf0; font-size: 0.9rem; opacity: 0.7;"></i>
+                            <span style="color: #666; font-size: 0.9rem; width: 20px; text-align: right; font-weight: bold;">${index + 1}.</span>
                             <div style="color: #fff; font-weight: 500; font-size: 0.95rem;">${title}</div>
                         </div>
-                        <i class="fas fa-play text-info" style="font-size: 0.85rem; opacity: 0.7;"></i>
+
+                        <div style="display:flex; align-items:center;">
+                            ${isOwner ? `
+                                <div style="position: relative; display: flex; align-items: center;">
+                                    <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 0 10px; cursor: pointer;" onclick="toggleAudioMenu('album-track-menu-${linkId}')">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    
+                                    <div id="album-track-menu-${linkId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050;">
+                                        <button class="track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="window.twoStepRemoveTrackFromAlbum(this, ${linkId}, ${albumId})">
+                                            <i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track
+                                        </button>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             });
@@ -1093,7 +1173,49 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl) {
         }
     } catch (e) {
         console.error("Failed to load album tracks", e);
-        trackListContainer.innerHTML = '<div class="text-danger text-center py-5">Failed to load tracklist.</div>';
+        trackListContainer.innerHTML = '<div style="color: #ff0055; text-align: center; padding: 3rem 0;">Failed to load tracklist.</div>';
+    }
+};
+
+window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId) {
+    if (window.event) window.event.stopPropagation();
+
+    if (!btnElement.classList.contains('confirming-delete')) {
+        btnElement.classList.add('confirming-delete');
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i> Confirm Remove?`;
+        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+
+        setTimeout(() => {
+            if (btnElement) {
+                btnElement.classList.remove('confirming-delete');
+                btnElement.innerHTML = `<i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track`;
+                btnElement.style.backgroundColor = 'transparent';
+            }
+        }, 4000);
+        return;
+    }
+
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Removing...`;
+    btnElement.disabled = true;
+
+    try {
+        const response = await fetch(`/api/collections/items/${linkId}?collectionId=${albumId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+
+        if (response.ok) {
+            const coverUrl = document.getElementById('albumViewCover').src;
+            const encodedTitle = encodeURIComponent(document.getElementById('albumViewTitle').innerText);
+            window.openAlbumView(albumId, encodedTitle, coverUrl, true);
+        } else {
+            const err = await response.text();
+            alert("Failed to remove track: " + err);
+            btnElement.disabled = false;
+        }
+    } catch (e) {
+        console.error("Error removing track:", e);
+        btnElement.disabled = false;
     }
 };
 
@@ -1103,8 +1225,6 @@ window.closeAlbumView = function () {
 
 window.playEntireAlbum = function () {
     if (window.currentAlbumTracks && window.currentAlbumTracks.length > 0) {
-        // For now, kicks off the album by playing Track 1. 
-        // If your AudioPlayer supports arrays, you can pass the whole window.currentAlbumTracks array here!
         const firstTrack = window.currentAlbumTracks[0];
         const url = firstTrack.url || firstTrack.Url;
         const title = (firstTrack.title || firstTrack.Title || "Untitled").replace(/'/g, "\\'");
