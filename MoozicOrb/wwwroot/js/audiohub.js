@@ -358,10 +358,10 @@ function renderAlbumsList(albums, isOwner) {
                     
                     ${isOwner ? `
                         <div style="display: flex; justify-content: space-between; align-items: center; position: relative; z-index: 10; margin-top: auto; gap: 8px;">
-                            <button style="flex-grow: 1; background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; height: 32px; padding: 0 10px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 600;" 
+                            <button style="background: transparent; border: 1px solid #0dcaf0; color: #0dcaf0; border-radius: 4px; height: 32px; padding: 0 10px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 600;" 
                                     onmouseover="this.style.background='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.background='transparent'" 
                                     onclick="event.stopPropagation(); window.addToAudioCarouselDock(${id}, 0, decodeURIComponent('${encodedTitle}'), '${art}')" title="Add to Carousel">
-                                <i class="fas fa-star"></i> <span>Carousel</span>
+                                <i class="fas fa-star"></i> 
                             </button>
                             
                             <div style="position: relative; display: flex; align-items: center;">
