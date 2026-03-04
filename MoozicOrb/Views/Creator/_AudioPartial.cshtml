@@ -201,28 +201,6 @@
     </div>
 </div>
 
-<div id="albumViewModal" class="d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 2000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
-    <div style="background: #121212; border: 1px solid #333; border-radius: 12px; width: 95%; max-width: 500px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-
-        <div style="padding: 20px; border-bottom: 1px solid #333; background: #1a1a1a; display: flex; justify-content: space-between; align-items: flex-start;">
-            <div style="display: flex; gap: 15px; align-items: center;">
-                <img id="albumViewCover" src="" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                <div>
-                    <h4 id="albumViewTitle" style="margin: 0; color: #fff; font-weight: 700; font-size: 1.3rem;">Album Title</h4>
-                    <button onclick="window.playEntireAlbum()" style="background: #00d2ff; color: #000; font-weight: bold; border-radius: 20px; padding: 4px 15px; margin-top: 8px; border: none; cursor: pointer;">
-                        <i class="fas fa-play" style="margin-right: 4px;"></i> Play Album
-                    </button>
-                </div>
-            </div>
-            <button onclick="window.closeAlbumView()" style="background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer;"><i class="fas fa-times"></i></button>
-        </div>
-
-        <div id="albumViewTracklist" style="padding: 0; overflow-y: auto; flex-grow: 1; background: #0a0a0a;">
-            <div style="text-align: center; padding: 3rem 0;"><i class="fas fa-spinner fa-spin fa-2x" style="color: #6c757d;"></i></div>
-        </div>
-    </div>
-</div>
-
 <style>
     .audio-inspector {
         position: fixed;
