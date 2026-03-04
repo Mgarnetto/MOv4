@@ -505,48 +505,6 @@ window.twoStepDeleteAlbum = async function (btnElement, albumId) {
     }
 };
 
-window.twoStepRemoveTrackFromAlbum = async function (btnElement, linkId, albumId) {
-    if (window.event) window.event.stopPropagation();
-
-    if (!btnElement.classList.contains('confirming-delete')) {
-        btnElement.classList.add('confirming-delete');
-        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm?`;
-        btnElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-
-        setTimeout(() => {
-            if (btnElement) {
-                btnElement.classList.remove('confirming-delete');
-                btnElement.innerHTML = `<i class="fas fa-trash"></i> Remove Track`;
-                btnElement.style.backgroundColor = 'transparent';
-            }
-        }, 4000);
-        return;
-    }
-
-    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Removing...`;
-    btnElement.disabled = true;
-
-    try {
-        const response = await fetch(`/api/collections/items/${linkId}?collectionId=${albumId}`, {
-            method: 'DELETE',
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
-
-        if (response.ok) {
-            const coverUrl = document.getElementById('albumViewCover').src;
-            const encodedTitle = encodeURIComponent(document.getElementById('albumViewTitle').innerText);
-            window.openAlbumView(albumId, encodedTitle, coverUrl, true);
-        } else {
-            const err = await response.text();
-            alert("Failed to remove track: " + err);
-            btnElement.disabled = false;
-        }
-    } catch (e) {
-        console.error("Error removing track:", e);
-        btnElement.disabled = false;
-    }
-};
-
 // ============================================
 // AUDIO HUB: CAROUSEL DOCK LOGIC
 // ============================================
@@ -689,7 +647,7 @@ window.saveAudioCarouselDock = async function () {
 };
 
 // ============================================
-// AUDIO INSPECTOR (DECODE FIX)
+// AUDIO INSPECTOR (DECODE FIX & SLIDING VIEWPORT)
 // ============================================
 window.openAudioInspector = function (targetId, targetType, encodedTitle, currentPrice, currentVisibility, isLocked) {
     const sidebar = document.getElementById('audio-inspector-sidebar');
@@ -709,13 +667,28 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
     const titleInput = document.getElementById('edit-title');
 
     if (isLocked) {
-        lockWarning.classList.remove('d-none');
+        if (lockWarning) lockWarning.classList.remove('d-none');
         titleInput.disabled = true;
         titleInput.style.opacity = '0.5';
     } else {
-        lockWarning.classList.add('d-none');
+        if (lockWarning) lockWarning.classList.add('d-none');
         titleInput.disabled = false;
         titleInput.style.opacity = '1';
+    }
+
+    // Conditional Tracklist Tab Setup
+    const tracklistBtn = document.getElementById('tab-btn-tracklist');
+    if (targetType === 0) { // If it's an Album (Type 0)
+        if (tracklistBtn) tracklistBtn.classList.remove('d-none');
+
+        // NEW: Ensure the Vault drawer is pushed down when opening an album
+        const vaultPanel = document.getElementById('inspector-vault-panel');
+        if (vaultPanel) vaultPanel.style.transform = 'translateY(100%)';
+
+        window.loadInspectorTracklist(targetId);
+    } else {
+        if (tracklistBtn) tracklistBtn.classList.add('d-none');
+        window.switchInspectorTab('details'); // Force back to details if it's a single track
     }
 
     sidebar.classList.remove('closed');
@@ -728,15 +701,18 @@ window.closeAudioInspector = function () {
 
 window.switchInspectorTab = function (tabName) {
     document.querySelectorAll('.audio-inspector .tab-btn').forEach(btn => btn.classList.remove('active'));
+    if (window.event && window.event.target) window.event.target.classList.add('active');
 
-    if (window.event && window.event.target) {
-        window.event.target.classList.add('active');
-    }
+    const detailsTab = document.getElementById('inspector-tab-details');
+    const monTab = document.getElementById('inspector-tab-monetization');
+    const tracklistTab = document.getElementById('inspector-tab-tracklist');
 
-    document.getElementById('inspector-tab-details').classList.add('d-none');
-    document.getElementById('inspector-tab-monetization').classList.add('d-none');
+    if (detailsTab) detailsTab.classList.add('d-none');
+    if (monTab) monTab.classList.add('d-none');
+    if (tracklistTab) tracklistTab.classList.add('d-none');
 
-    document.getElementById(`inspector-tab-${tabName}`).classList.remove('d-none');
+    const activeTab = document.getElementById(`inspector-tab-${tabName}`);
+    if (activeTab) activeTab.classList.remove('d-none');
 };
 
 window.saveAudioInspector = async function () {
@@ -786,6 +762,116 @@ window.saveAudioInspector = async function () {
         btn.innerText = originalText;
         btn.disabled = false;
     }
+};
+
+window.inspectorAlbumTracks = [];
+window.inspectorVaultTracks = [];
+
+window.loadInspectorTracklist = async function (albumId) {
+    const albumContainer = document.getElementById('inspector-album-tracks-container');
+    const vaultContainer = document.getElementById('inspector-vault-tracks-container');
+
+    if (albumContainer) albumContainer.innerHTML = '<div class="text-center text-muted" style="margin-top: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    if (vaultContainer) vaultContainer.innerHTML = '';
+
+    try {
+        // Fetch Current Album Tracks
+        const albumRes = await fetch(`/api/collections/${albumId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+        let currentTracks = [];
+        if (albumRes.ok) {
+            const data = await albumRes.json();
+            currentTracks = data.items || data.Items || [];
+        }
+        window.inspectorAlbumTracks = currentTracks;
+
+        // Fetch Orphaned Vault Tracks
+        const userId = document.getElementById("audio-user-id").value;
+        const vaultRes = await fetch(`/api/audiohub/orphans/${userId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+        let allVault = [];
+        if (vaultRes.ok) {
+            const data = await vaultRes.json();
+            allVault = data.items || data.Items || [];
+        }
+
+        // The Smart Filter: Exclude tracks already in the album
+        const existingIds = currentTracks.map(t => t.targetId || t.TargetId);
+        window.inspectorVaultTracks = allVault.filter(t => !existingIds.includes(t.targetId || t.TargetId));
+
+        window.renderInspectorTracklist(albumId);
+    } catch (e) { console.error("Error loading inspector tracks", e); }
+};
+
+window.renderInspectorTracklist = function (albumId) {
+    const albumContainer = document.getElementById('inspector-album-tracks-container');
+    const vaultContainer = document.getElementById('inspector-vault-tracks-container');
+
+    // Render Top Half (Current Tracks)
+    if (albumContainer) {
+        let aHtml = '';
+        if (window.inspectorAlbumTracks.length === 0) {
+            aHtml = '<div style="color: #666; font-size: 0.85rem; text-align: center; padding: 20px 0;">No tracks in this album yet.</div>';
+        } else {
+            window.inspectorAlbumTracks.forEach((track, i) => {
+                const title = track.title || track.Title || "Untitled";
+                const linkId = track.linkId || track.LinkId;
+                aHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border: 1px solid #333;">
+                        <div style="overflow: hidden; display: flex; gap: 8px;">
+                            <span style="color: #666; font-size: 0.8rem;">${i + 1}.</span>
+                            <span style="color: #fff; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                        </div>
+                        <button onclick="window.inspectorRemoveTrack(this, ${linkId}, ${albumId})" style="background: rgba(220, 53, 69, 0.1); border: 1px solid #dc3545; color: #dc3545; border-radius: 4px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;"><i class="fas fa-minus" style="font-size: 10px;"></i></button>
+                    </div>
+                `;
+            });
+        }
+        albumContainer.innerHTML = aHtml;
+    }
+
+    // Render Bottom Half (Vault Tracks)
+    if (vaultContainer) {
+        let vHtml = '';
+        if (window.inspectorVaultTracks.length === 0) {
+            vHtml = '<div style="color: #666; font-size: 0.85rem; text-align: center; padding: 20px 0;">No available tracks in vault.</div>';
+        } else {
+            window.inspectorVaultTracks.forEach(track => {
+                const title = track.title || track.Title || "Untitled";
+                const targetId = track.targetId || track.TargetId;
+                vHtml += `
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: #121212; padding: 8px 12px; border-radius: 6px; margin-bottom: 6px; border: 1px solid #222;">
+                        <span style="color: #aaa; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80%;">${title}</span>
+                        <button onclick="window.inspectorAddTrack(this, ${targetId}, ${albumId})" style="background: rgba(40, 167, 69, 0.1); border: 1px solid #28a745; color: #28a745; border-radius: 4px; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0;"><i class="fas fa-plus" style="font-size: 10px;"></i></button>
+                    </div>
+                `;
+            });
+        }
+        vaultContainer.innerHTML = vHtml;
+    }
+};
+
+// The Action Buttons (Instant API Triggers)
+window.inspectorRemoveTrack = async function (btn, linkId, albumId) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 10px;"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`/api/collections/items/${linkId}?collectionId=${albumId}`, {
+            method: 'DELETE', headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+        if (res.ok) { window.loadInspectorTracklist(albumId); }
+        else { btn.innerHTML = '<i class="fas fa-minus" style="font-size: 10px;"></i>'; btn.disabled = false; }
+    } catch (e) { btn.disabled = false; }
+};
+
+window.inspectorAddTrack = async function (btn, targetId, albumId) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 10px;"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`/api/collections/${albumId}/add-item`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
+            body: JSON.stringify({ TargetId: targetId, TargetType: 1 }) // 1 = Audio Track
+        });
+        if (res.ok) { window.loadInspectorTracklist(albumId); }
+        else { btn.innerHTML = '<i class="fas fa-plus" style="font-size: 10px;"></i>'; btn.disabled = false; }
+    } catch (e) { btn.disabled = false; }
 };
 
 // ============================================
@@ -1121,7 +1207,7 @@ window.saveNewAlbum = async function () {
 };
 
 // ============================================
-// ALBUM VIEWER (TRACKLIST & PLAYBACK)
+// ALBUM VIEWER (PURE LISTENER PLAYBACK)
 // ============================================
 
 window.currentAlbumTracks = [];
@@ -1129,6 +1215,7 @@ window.currentAlbumTracks = [];
 window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner = false) {
     const modal = document.getElementById('albumViewModal');
     if (!modal) return;
+
     document.getElementById('albumViewTitle').innerText = decodeURIComponent(encodedTitle);
     document.getElementById('albumViewCover').src = coverUrl;
     const trackListContainer = document.getElementById('albumViewTracklist');
@@ -1156,11 +1243,11 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner 
                 const title = item.title || item.Title || "Untitled";
                 const url = item.url || item.Url;
                 const artist = item.artistName || item.ArtistName || "Unknown";
-                const linkId = item.linkId || item.LinkId;
 
                 const safeTitle = title.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeArtist = artist.replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
+                // Stripped out all the 3-dot menus and delete buttons to make it a pure listening experience
                 html += `
                     <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #1a1a1a; transition: background 0.2s;" 
                          onmouseover="this.style.background='#1a1a1a'" onmouseout="this.style.background='transparent'">
@@ -1169,22 +1256,6 @@ window.openAlbumView = async function (albumId, encodedTitle, coverUrl, isOwner 
                             <i class="fas fa-play" style="color: #0dcaf0; font-size: 0.9rem; opacity: 0.7;"></i>
                             <span style="color: #666; font-size: 0.9rem; width: 20px; text-align: right; font-weight: bold;">${index + 1}.</span>
                             <div style="color: #fff; font-weight: 500; font-size: 0.95rem;">${title}</div>
-                        </div>
-
-                        <div style="display:flex; align-items:center;">
-                            ${isOwner ? `
-                                <div style="position: relative; display: flex; align-items: center;">
-                                    <button class="msg-options-btn" style="background: transparent; border: none; color: #ccc; padding: 0 10px; cursor: pointer;" onclick="toggleAudioMenu('album-track-menu-${linkId}')">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    
-                                    <div id="album-track-menu-${linkId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: max-content; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
-                                        <button class="track-delete-btn" style="background: transparent; border: none; padding: 8px 12px; width: 100%; text-align: left; color: #ff0055; cursor: pointer;" onclick="event.stopPropagation(); window.twoStepRemoveTrackFromAlbum(this, ${linkId}, ${albumId})">
-                                            <i class="fas fa-trash" style="margin-right: 8px;"></i> Remove Track
-                                        </button>
-                                    </div>
-                                </div>
-                            ` : ''}
                         </div>
                     </div>
                 `;
