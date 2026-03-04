@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // <-- ADDED for IMediaResolverService
 using MoozicOrb.Extensions;
 using MoozicOrb.IO;
 using MoozicOrb.Models;
@@ -13,11 +14,14 @@ namespace MoozicOrb.Controllers
     {
         private readonly UserQuery _userQuery;
         private readonly GetPost _postQuery;
+        private readonly IMediaResolverService _resolver; // <-- ADDED
 
-        public DiscoverController()
+        // <-- ADDED resolver to DI constructor
+        public DiscoverController(IMediaResolverService resolver)
         {
             _userQuery = new UserQuery();
             _postQuery = new GetPost();
+            _resolver = resolver;
         }
 
         public IActionResult Index()
@@ -65,7 +69,20 @@ namespace MoozicOrb.Controllers
             if (!string.IsNullOrWhiteSpace(q))
             {
                 model.Users = _userQuery.SearchUsers(q);
-                // STRICT AUDIO SEARCH
+
+                // --- ADDED: RESOLVE CLOUD PROFILE PICTURES ---
+                foreach (var u in model.Users)
+                {
+                    if (!string.IsNullOrEmpty(u.ProfilePic) && !u.ProfilePic.StartsWith("/") && !u.ProfilePic.StartsWith("http"))
+                    {
+                        u.ProfilePic = _resolver.ResolveUrl(u.ProfilePic, 1); // 1 = Cloudflare Vault
+                    }
+                }
+                // ----------------------------------------------
+
+                // STRICT AUDIO SEARCH 
+                // Note: If GetPost.SearchPosts was also updated to take the resolver, you can pass it here: 
+                // model.Posts = _postQuery.SearchPosts(q, viewerId, _resolver);
                 model.Posts = _postQuery.SearchPosts(q, viewerId);
             }
 
