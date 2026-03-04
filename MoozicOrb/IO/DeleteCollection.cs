@@ -11,31 +11,16 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // THE FIX: Check lock status instead of just count
-                string checkSql = "SELECT is_locked FROM collections WHERE collection_id = @cid AND user_id = @uid";
-                using (var checkCmd = new MySqlCommand(checkSql, conn))
-                {
-                    checkCmd.Parameters.AddWithValue("@cid", collectionId);
-                    checkCmd.Parameters.AddWithValue("@uid", userId);
-                    
-                    var result = checkCmd.ExecuteScalar();
-                    
-                    if (result == null) return false; // Doesn't exist or isn't owner
-                    if (Convert.ToBoolean(result) == true) return false; // Locked! Cannot delete.
-                }
+                // Securely requires ownership AND unlocked status
+                string sql = "DELETE FROM collections WHERE collection_id = @cid AND user_id = @uid AND is_locked = 0;";
 
-                // Delete Items First
-                using (var delItems = new MySqlCommand("DELETE FROM collection_items WHERE collection_id = @cid", conn))
+                using (var cmd = new MySqlCommand(sql, conn))
                 {
-                    delItems.Parameters.AddWithValue("@cid", collectionId);
-                    delItems.ExecuteNonQuery();
-                }
+                    cmd.Parameters.AddWithValue("@cid", collectionId);
+                    cmd.Parameters.AddWithValue("@uid", userId);
 
-                // Delete Master Collection
-                using (var delCol = new MySqlCommand("DELETE FROM collections WHERE collection_id = @cid", conn))
-                {
-                    delCol.Parameters.AddWithValue("@cid", collectionId);
-                    return delCol.ExecuteNonQuery() > 0;
+                    int rows = cmd.ExecuteNonQuery();
+                    return rows > 0; // Returns false to the controller if locked, resulting in a clean "Delete failed" message.
                 }
             }
         }

@@ -13,48 +13,55 @@ namespace MoozicOrb.IO
                 conn.Open();
 
                 // ==========================================
-                // 1. UPDATE THE ASSET TITLE & VISIBILITY
+                // 1. CHECK OWNERSHIP & LOCK STATUS
                 // ==========================================
-                string updateBaseSql = "";
-                if (req.TargetType == 1) // 1 = Track
+                int isLocked = 0;
+                string checkSql = req.TargetType == 1
+                    ? "SELECT is_locked FROM media_audio WHERE audio_id = @id AND user_id = @uid"
+                    : "SELECT is_locked FROM collections WHERE collection_id = @id AND user_id = @uid";
+
+                using (var cmdCheck = new MySqlCommand(checkSql, conn))
                 {
-                    updateBaseSql = "UPDATE media_audio SET title = @title, visibility = @vis WHERE audio_id = @id AND user_id = @uid";
-                }
-                else if (req.TargetType == 0) // 0 = Album
-                {
-                    updateBaseSql = "UPDATE collections SET title = @title, visibility = @vis WHERE collection_id = @id AND user_id = @uid";
+                    cmdCheck.Parameters.AddWithValue("@id", req.TargetId);
+                    cmdCheck.Parameters.AddWithValue("@uid", userId);
+                    var result = cmdCheck.ExecuteScalar();
+
+                    if (result == null) throw new Exception("Asset not found or you do not have permission to edit it.");
+                    isLocked = Convert.ToInt32(result);
                 }
 
-                if (!string.IsNullOrEmpty(updateBaseSql))
+                // ==========================================
+                // 2. UPDATE THE ASSET TITLE & VISIBILITY (IF UNLOCKED)
+                // ==========================================
+                if (isLocked == 0)
                 {
+                    string updateBaseSql = req.TargetType == 1
+                        ? "UPDATE media_audio SET title = @title, visibility = @vis WHERE audio_id = @id"
+                        : "UPDATE collections SET title = @title, visibility = @vis WHERE collection_id = @id";
+
                     using (var cmd = new MySqlCommand(updateBaseSql, conn))
                     {
                         cmd.Parameters.AddWithValue("@title", req.Title ?? "Untitled");
                         cmd.Parameters.AddWithValue("@vis", req.Visibility);
                         cmd.Parameters.AddWithValue("@id", req.TargetId);
-                        cmd.Parameters.AddWithValue("@uid", userId); // Security check
-
-                        int rowsAffected = cmd.ExecuteNonQuery();
-                        if (rowsAffected == 0) throw new Exception("Asset not found or you do not have permission to edit it.");
+                        cmd.ExecuteNonQuery();
                     }
                 }
 
                 // ==========================================
-                // 2. SAFE UPSERT FOR MARKETPLACE OFFERS
+                // 3. SAFE UPSERT FOR MARKETPLACE OFFERS (ALWAYS ALLOWED)
                 // ==========================================
                 bool isMonetized = (req.Price.HasValue && req.Price.Value > 0);
                 decimal safePrice = req.Price ?? 0m;
 
-                // Step A: Safely check if an offer already exists
                 long existingCount = 0;
-                using (var cmdCheck = new MySqlCommand("SELECT COUNT(*) FROM marketplace_offers WHERE target_id = @tid AND target_type = @ttype", conn))
+                using (var cmdCheckOffer = new MySqlCommand("SELECT COUNT(*) FROM marketplace_offers WHERE target_id = @tid AND target_type = @ttype", conn))
                 {
-                    cmdCheck.Parameters.AddWithValue("@tid", req.TargetId);
-                    cmdCheck.Parameters.AddWithValue("@ttype", req.TargetType);
-                    existingCount = Convert.ToInt64(cmdCheck.ExecuteScalar());
+                    cmdCheckOffer.Parameters.AddWithValue("@tid", req.TargetId);
+                    cmdCheckOffer.Parameters.AddWithValue("@ttype", req.TargetType);
+                    existingCount = Convert.ToInt64(cmdCheckOffer.ExecuteScalar());
                 }
 
-                // Step B: Explicitly Update or Insert based on exact schema
                 if (existingCount > 0)
                 {
                     string updateOffer = "UPDATE marketplace_offers SET price = @price, is_active = @active WHERE target_id = @tid AND target_type = @ttype";
@@ -69,7 +76,6 @@ namespace MoozicOrb.IO
                 }
                 else
                 {
-                    // Inserting perfectly mapped to your provided schema columns
                     string insertOffer = @"
                         INSERT INTO marketplace_offers 
                         (target_type, target_id, price, license_type, is_active, is_locked, created_at) 

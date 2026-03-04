@@ -665,30 +665,56 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
 
     const lockWarning = document.getElementById('inspector-lock-warning');
     const titleInput = document.getElementById('edit-title');
+    const visibilityInput = document.getElementById('edit-visibility');
+    const priceInput = document.getElementById('edit-price');
 
+    // LOCKDOWN LOGIC FOR METADATA (Price remains unlocked)
     if (isLocked) {
         if (lockWarning) lockWarning.classList.remove('d-none');
+
         titleInput.disabled = true;
         titleInput.style.opacity = '0.5';
+
+        if (visibilityInput) {
+            visibilityInput.disabled = true;
+            visibilityInput.style.opacity = '0.5';
+        }
+
+        // PRICE REMAINS EDITABLE
+        if (priceInput) {
+            priceInput.disabled = false;
+            priceInput.style.opacity = '1';
+        }
     } else {
         if (lockWarning) lockWarning.classList.add('d-none');
+
         titleInput.disabled = false;
         titleInput.style.opacity = '1';
+
+        if (visibilityInput) {
+            visibilityInput.disabled = false;
+            visibilityInput.style.opacity = '1';
+        }
+
+        if (priceInput) {
+            priceInput.disabled = false;
+            priceInput.style.opacity = '1';
+        }
     }
 
     // Conditional Tracklist Tab Setup
     const tracklistBtn = document.getElementById('tab-btn-tracklist');
-    if (targetType === 0 && !isLocked) { // <-- ADDED !isLocked 
+    if (targetType === 0 && !isLocked) { // If it's an Album (Type 0) and not locked
         if (tracklistBtn) tracklistBtn.classList.remove('d-none');
 
-        // NEW: Ensure the Vault drawer is pushed down when opening an album
+        // Ensure the Vault drawer is pushed down when opening an album
         const vaultPanel = document.getElementById('inspector-vault-panel');
         if (vaultPanel) vaultPanel.style.transform = 'translateY(100%)';
 
         window.loadInspectorTracklist(targetId);
     } else {
         if (tracklistBtn) tracklistBtn.classList.add('d-none');
-        window.switchInspectorTab('details'); // Force back to details if it's a single track
+        window.switchInspectorTab('details'); // Force back to details if it's a single track or locked
     }
 
     sidebar.classList.remove('closed');
