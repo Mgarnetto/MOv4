@@ -279,7 +279,7 @@ function renderOrphansList(items, isOwner) {
                             </button>
                             
                             <div id="audio-menu-${targetId}" class="msg-context-menu" style="position: absolute; right: 0; top: 100%; margin-top: 5px; width: 160px; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
-                                <button onclick="event.stopPropagation(); window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" 
+                                <button onclick="event.stopPropagation(); window.openAudioInspector(${targetId}, 1, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked}, '${art}')" 
                                         style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
                                     <i class="fas fa-edit"></i> Edit Details
                                 </button>
@@ -372,7 +372,7 @@ function renderAlbumsList(albums, isOwner) {
                                 </button>
                                 
                                 <div id="album-menu-${id}" class="msg-context-menu" style="position: absolute; right: 0; bottom: 100%; margin-bottom: 8px; width: 160px; text-align: left; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); display: none;">
-                                    <button onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked})" 
+                                    <button onclick="event.stopPropagation(); window.openAudioInspector(${id}, 0, '${encodedTitle}', ${price || 0}, ${visState}, ${isLocked}, '${art}')" 
                                             style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 10px;">
                                         <i class="fas fa-edit"></i> Edit Details
                                     </button>
@@ -647,13 +647,20 @@ window.saveAudioCarouselDock = async function () {
 };
 
 // ============================================
-// AUDIO INSPECTOR (DECODE FIX & SLIDING VIEWPORT)
+// AUDIO INSPECTOR (IMAGE UPLOAD & LOCKDOWN)
 // ============================================
-window.openAudioInspector = function (targetId, targetType, encodedTitle, currentPrice, currentVisibility, isLocked) {
+window.openAudioInspector = function (targetId, targetType, encodedTitle, currentPrice, currentVisibility, isLocked, coverUrl) {
     const sidebar = document.getElementById('audio-inspector-sidebar');
     const typeLabel = targetType === 0 ? "Album" : "Track";
 
     const decodedTitle = decodeURIComponent(encodedTitle);
+
+    // Reset File Upload State for Cover Art
+    window.inspectorCoverFile = null;
+    const coverInput = document.getElementById('edit-cover-input');
+    if (coverInput) coverInput.value = '';
+    const coverPreview = document.getElementById('edit-cover-preview');
+    if (coverPreview) coverPreview.src = coverUrl || '/img/default_cover.jpg';
 
     document.getElementById('edit-target-id').value = targetId;
     document.getElementById('edit-target-type').value = targetType;
@@ -667,6 +674,7 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
     const titleInput = document.getElementById('edit-title');
     const visibilityInput = document.getElementById('edit-visibility');
     const priceInput = document.getElementById('edit-price');
+    const coverWrapper = document.getElementById('edit-cover-wrapper');
 
     // LOCKDOWN LOGIC FOR METADATA (Price remains unlocked)
     if (isLocked) {
@@ -685,6 +693,13 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
             priceInput.disabled = false;
             priceInput.style.opacity = '1';
         }
+
+        // LOCK IMAGE UPLOAD
+        if (coverWrapper) {
+            coverWrapper.classList.add('locked');
+            coverWrapper.style.cursor = 'not-allowed';
+            coverWrapper.style.opacity = '0.5';
+        }
     } else {
         if (lockWarning) lockWarning.classList.add('d-none');
 
@@ -699,6 +714,13 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
         if (priceInput) {
             priceInput.disabled = false;
             priceInput.style.opacity = '1';
+        }
+
+        // UNLOCK IMAGE UPLOAD
+        if (coverWrapper) {
+            coverWrapper.classList.remove('locked');
+            coverWrapper.style.cursor = 'pointer';
+            coverWrapper.style.opacity = '1';
         }
     }
 
@@ -741,21 +763,57 @@ window.switchInspectorTab = function (tabName) {
     if (activeTab) activeTab.classList.remove('d-none');
 };
 
+window.previewInspectorCover = function (input) {
+    if (input.files && input.files[0]) {
+        window.inspectorCoverFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const preview = document.getElementById('edit-cover-preview');
+            if (preview) preview.src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+};
+
 window.saveAudioInspector = async function () {
     const btn = document.querySelector('.audio-inspector .btn-dock-save');
     const originalText = btn.innerText;
-    btn.innerText = "Saving...";
     btn.disabled = true;
 
-    const payload = {
-        TargetId: parseInt(document.getElementById('edit-target-id').value),
-        TargetType: parseInt(document.getElementById('edit-target-type').value),
-        Title: document.getElementById('edit-title').value,
-        Visibility: parseInt(document.getElementById('edit-visibility').value),
-        Price: parseFloat(document.getElementById('edit-price').value) || 0.00
-    };
+    let newCoverImageId = 0;
 
     try {
+        // Step 1: Upload the image if they selected a new one
+        if (window.inspectorCoverFile) {
+            btn.innerText = "Uploading Art...";
+            const imgData = new FormData();
+            imgData.append("file", window.inspectorCoverFile);
+
+            const imgRes = await fetch("/api/upload/image", {
+                method: 'POST',
+                headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                body: imgData
+            });
+
+            if (imgRes.ok) {
+                const mediaResult = await imgRes.json();
+                newCoverImageId = mediaResult.id;
+            } else {
+                alert("Cover art upload failed. Saving metadata without new art.");
+            }
+        }
+
+        btn.innerText = "Saving Metadata...";
+
+        const payload = {
+            TargetId: parseInt(document.getElementById('edit-target-id').value),
+            TargetType: parseInt(document.getElementById('edit-target-type').value),
+            Title: document.getElementById('edit-title').value,
+            Visibility: parseInt(document.getElementById('edit-visibility').value),
+            Price: parseFloat(document.getElementById('edit-price').value) || 0.00,
+            CoverImageId: newCoverImageId > 0 ? newCoverImageId : null
+        };
+
         const response = await fetch('/api/audiohub/metadata', {
             method: 'POST',
             headers: {

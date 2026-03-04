@@ -178,5 +178,7 @@ namespace MoozicOrb.API.Models
         public int Visibility { get; set; }
 
         public decimal? Price { get; set; }
+
+        public long? CoverImageId { get; set; }
     }
 }

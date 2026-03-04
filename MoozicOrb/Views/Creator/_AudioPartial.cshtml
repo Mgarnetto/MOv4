@@ -79,8 +79,29 @@
             <input type="hidden" id="edit-target-id">
             <input type="hidden" id="edit-target-type">
 
-            <label class="inspector-label">Title</label>
-            <input type="text" id="edit-title" class="inspector-input" placeholder="Track/Album Title">
+            <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-end;">
+
+                <div style="flex-shrink: 0; position: relative;">
+                    <label class="inspector-label">Art</label>
+                    <input type="file" id="edit-cover-input" accept="image/*" style="display: none;" onchange="window.previewInspectorCover(this)">
+                    <div id="edit-cover-wrapper" onclick="if(!this.classList.contains('locked')) document.getElementById('edit-cover-input').click()"
+                         style="width: 80px; height: 80px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; transition: border-color 0.2s;"
+                         onmouseover="if(!this.classList.contains('locked')){ this.style.borderColor='#00d2ff'; this.querySelector('#edit-cover-overlay').style.opacity='1'; }"
+                         onmouseout="if(!this.classList.contains('locked')){ this.style.borderColor='#333'; this.querySelector('#edit-cover-overlay').style.opacity='0'; }">
+
+                        <img id="edit-cover-preview" src="/img/default_cover.jpg" style="width: 100%; height: 100%; object-fit: cover;">
+
+                        <div id="edit-cover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;">
+                            <i class="fas fa-camera text-white"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex-grow: 1;">
+                    <label class="inspector-label">Title</label>
+                    <input type="text" id="edit-title" class="inspector-input" style="margin-bottom: 0;" placeholder="Track/Album Title">
+                </div>
+            </div>
 
             <label class="inspector-label">Visibility</label>
             <select id="edit-visibility" class="inspector-input">

@@ -31,19 +31,31 @@ namespace MoozicOrb.IO
                 }
 
                 // ==========================================
-                // 2. UPDATE THE ASSET TITLE & VISIBILITY (IF UNLOCKED)
+                // 2. UPDATE THE ASSET TITLE, VISIBILITY & ART (IF UNLOCKED)
                 // ==========================================
                 if (isLocked == 0)
                 {
-                    string updateBaseSql = req.TargetType == 1
-                        ? "UPDATE media_audio SET title = @title, visibility = @vis WHERE audio_id = @id"
-                        : "UPDATE collections SET title = @title, visibility = @vis WHERE collection_id = @id";
+                    string updateBaseSql = req.TargetType == 1 
+                        ? "UPDATE media_audio SET title = @title, visibility = @vis" 
+                        : "UPDATE collections SET title = @title, visibility = @vis";
+
+                    // Dynamically append the cover update if a new image was uploaded
+                    if (req.CoverImageId.HasValue && req.CoverImageId.Value > 0)
+                    {
+                        updateBaseSql += ", cover_image_id = @cover";
+                    }
+
+                    updateBaseSql += req.TargetType == 1 ? " WHERE audio_id = @id" : " WHERE collection_id = @id";
 
                     using (var cmd = new MySqlCommand(updateBaseSql, conn))
                     {
                         cmd.Parameters.AddWithValue("@title", req.Title ?? "Untitled");
                         cmd.Parameters.AddWithValue("@vis", req.Visibility);
                         cmd.Parameters.AddWithValue("@id", req.TargetId);
+                        
+                        if (req.CoverImageId.HasValue && req.CoverImageId.Value > 0)
+                            cmd.Parameters.AddWithValue("@cover", req.CoverImageId.Value);
+
                         cmd.ExecuteNonQuery();
                     }
                 }
