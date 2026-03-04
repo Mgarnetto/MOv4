@@ -678,7 +678,7 @@ window.openAudioInspector = function (targetId, targetType, encodedTitle, curren
 
     // Conditional Tracklist Tab Setup
     const tracklistBtn = document.getElementById('tab-btn-tracklist');
-    if (targetType === 0) { // If it's an Album (Type 0)
+    if (targetType === 0 && !isLocked) { // <-- ADDED !isLocked 
         if (tracklistBtn) tracklistBtn.classList.remove('d-none');
 
         // NEW: Ensure the Vault drawer is pushed down when opening an album
