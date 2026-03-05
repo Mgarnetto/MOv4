@@ -86,7 +86,7 @@ namespace MoozicOrb.API.Controllers
         }
 
         // ==========================================
-        // 2. AUDIO UPLOAD (Hybrid Pipeline)
+        // 2. AUDIO UPLOAD (Clean Pipeline)
         // ==========================================
         [HttpPost("audio")]
         public async Task<IActionResult> UploadAudio([FromForm] IFormFile file)
@@ -98,51 +98,32 @@ namespace MoozicOrb.API.Controllers
             try
             {
                 string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
-                string snippetName = $"{Path.GetFileNameWithoutExtension(uniqueName)}_snippet.wav";
-
-                // FLATTENED
                 string cloudKey = $"audio/{uniqueName}";
-                string cloudSnippetKey = $"audio/{snippetName}";
 
                 string dbPath = await _fileService.SaveFileAsync(file, "Audio");
                 string physPath = _fileService.GetPhysicalPath(dbPath);
-                string snippetPath = "";
                 int duration = 0;
 
                 try
                 {
                     var meta = await _processor.ProcessAudioAsync(physPath, dbPath);
-                    snippetPath = meta.SnippetPath;
                     duration = (int)meta.DurationSeconds;
                 }
                 catch (Exception ex) { Console.WriteLine($"[Upload] Audio processing failed: {ex.Message}"); }
 
-                // Upload Main File
+                // Upload Main File Only
                 await _fileService.UploadToCloudAsync(physPath, cloudKey);
-
-                // Upload Snippet (if successful)
-                if (!string.IsNullOrEmpty(snippetPath))
-                {
-                    string physSnippet = _fileService.GetPhysicalPath(snippetPath);
-                    if (System.IO.File.Exists(physSnippet))
-                    {
-                        await _fileService.UploadToCloudAsync(physSnippet, cloudSnippetKey);
-                        await _fileService.DeleteLocalFileAsync(physSnippet);
-                    }
-                }
                 await _fileService.DeleteLocalFileAsync(physPath);
 
-                // CLEAN INSERT: IO class defaults to storage_provider = 1 under the hood
-                long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, cloudSnippetKey, duration);
+                // CLEAN INSERT: Pass an empty string for the snippet to leave it blank in the DB
+                long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, "", duration);
 
-                // Resolve the URLs before handing them back to the frontend
                 string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
-                string previewSnippet = _resolver.ResolveUrl(cloudSnippetKey, 1);
 
-                return Ok(new { id = newId, type = 1, url = previewUrl, snippetPath = previewSnippet });
+                return Ok(new { id = newId, type = 1, url = previewUrl, snippetPath = "" });
             }
             catch (Exception ex) { return BadRequest($"Audio Upload Error: {ex.Message}"); }
-        }
+        }        
 
         // ==========================================
         // 3. VIDEO UPLOAD (Direct Stream to Edge)
@@ -191,7 +172,7 @@ namespace MoozicOrb.API.Controllers
         }
 
         // ==========================================
-        // 4. BATCH AUDIO UPLOAD (Creator Hub)
+        // 4. BATCH AUDIO UPLOAD (Clean Pipeline)
         // ==========================================
         [HttpPost("audio/batch")]
         public async Task<IActionResult> UploadAudioBatch([FromForm] List<IFormFile> files)
@@ -209,43 +190,27 @@ namespace MoozicOrb.API.Controllers
                 try
                 {
                     string uniqueName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName).ToLower()}";
-                    string snippetName = $"{Path.GetFileNameWithoutExtension(uniqueName)}_snippet.wav";
-
                     string cloudKey = $"audio/{uniqueName}";
-                    string cloudSnippetKey = $"audio/{snippetName}";
 
                     string dbPath = await _fileService.SaveFileAsync(file, "Audio");
                     string physPath = _fileService.GetPhysicalPath(dbPath);
-                    string snippetPath = "";
                     int duration = 0;
 
                     try
                     {
                         var meta = await _processor.ProcessAudioAsync(physPath, dbPath);
-                        snippetPath = meta.SnippetPath;
                         duration = (int)meta.DurationSeconds;
                     }
                     catch (Exception ex) { Console.WriteLine($"[Batch Upload] Audio processing failed for {file.FileName}: {ex.Message}"); }
 
-                    // Upload Main File
+                    // Upload Main File Only
                     await _fileService.UploadToCloudAsync(physPath, cloudKey);
-
-                    // Upload Snippet
-                    if (!string.IsNullOrEmpty(snippetPath))
-                    {
-                        string physSnippet = _fileService.GetPhysicalPath(snippetPath);
-                        if (System.IO.File.Exists(physSnippet))
-                        {
-                            await _fileService.UploadToCloudAsync(physSnippet, cloudSnippetKey);
-                            await _fileService.DeleteLocalFileAsync(physSnippet);
-                        }
-                    }
                     await _fileService.DeleteLocalFileAsync(physPath);
 
-                    // Insert using existing method
-                    long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, cloudSnippetKey, duration);
+                    // Insert with blank snippet
+                    long newId = new InsertAudio().Execute(uid, file.FileName, cloudKey, "", duration);
 
-                    // SECURE THE ASSET: Force Visibility to 2 (Private) for batch uploads
+                    // SECURE THE ASSET
                     using (var conn = new MySqlConnection(DBConn1.ConnectionString))
                     {
                         conn.Open();
@@ -257,18 +222,15 @@ namespace MoozicOrb.API.Controllers
                         }
                     }
 
-                    // Resolve URLs for immediate frontend UI mapping
                     string previewUrl = _resolver.ResolveUrl(cloudKey, 1);
-                    string previewSnippet = _resolver.ResolveUrl(cloudSnippetKey, 1);
 
-                    // Push successful track to the return array
                     results.Add(new
                     {
                         targetId = newId,
                         type = 1,
                         title = file.FileName,
                         url = previewUrl,
-                        snippetPath = previewSnippet,
+                        snippetPath = "", // Pass empty snippet path back to UI
                         isLocked = false,
                         price = (decimal?)null,
                         visibility = 2
@@ -277,11 +239,9 @@ namespace MoozicOrb.API.Controllers
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[Batch Upload] Error saving {file.FileName}: {ex.Message}");
-                    // We catch here so one failed track doesn't kill the whole 20-track upload loop
                 }
             }
 
-            // Return array of processed files back to JS to instantly update the UI
             return Ok(new { success = true, items = results });
         }
     }

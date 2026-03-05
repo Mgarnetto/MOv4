@@ -22,20 +22,14 @@ namespace MoozicOrb.API.Services
             {
                 await Task.Run(() =>
                 {
+                    // OPEN ONCE: Get the duration and get out. No snippet generation.
                     using (var reader = new AudioFileReader(physicalPath))
                     {
                         meta.DurationSeconds = (int)reader.TotalTime.TotalSeconds;
                     }
 
-                    string snippetName = Path.GetFileNameWithoutExtension(physicalPath) + "_snippet.wav";
-                    string snippetPhys = Path.Combine(Path.GetDirectoryName(physicalPath), snippetName);
-
-                    using (var reader = new AudioFileReader(physicalPath))
-                    {
-                        TimeSpan cutOff = reader.TotalTime < TimeSpan.FromSeconds(30) ? reader.TotalTime : TimeSpan.FromSeconds(30);
-                        WaveFileWriter.CreateWaveFile(snippetPhys, new TrimWavStream(reader, TimeSpan.Zero, cutOff));
-                    }
-                    meta.SnippetPath = relativePath.Replace(Path.GetFileName(physicalPath), snippetName).Replace("\\", "/");
+                    // Explicitly leave SnippetPath blank
+                    meta.SnippetPath = "";
                 });
             }
             catch { meta.DurationSeconds = 0; }
@@ -73,7 +67,7 @@ namespace MoozicOrb.API.Services
         }
     }
 
-    // Refactored with strict BlockAlignment to prevent audio corruption
+    // SAVED FOR PHASE 3: We keep this class so we can use it for dynamic hook generation later!
     public class TrimWavStream : WaveStream
     {
         private readonly WaveStream _sourceStream;
