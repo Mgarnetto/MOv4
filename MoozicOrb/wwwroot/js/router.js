@@ -123,6 +123,15 @@
                         window.loadStoreCarousel(userId);
                     }
                 }
+                else if (groupValue && groupValue.startsWith('group_')) {
+                    const groupId = groupValue.split('_')[1];
+                    if (feedContainer && window.loadFeedHistory) window.loadFeedHistory(2, groupId); // 2 = Group
+                }
+                // --- NEW: CATCH PAGE FEEDS ---
+                else if (groupValue && groupValue.startsWith('page_')) {
+                    const pageId = groupValue.split('_')[1];
+                    if (feedContainer && window.loadFeedHistory) window.loadFeedHistory(3, pageId); // 3 = Page
+                }
             }
 
             // E. Audio Discovery Loader (Playlist)
