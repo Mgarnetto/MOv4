@@ -51,9 +51,9 @@ namespace MoozicOrb.IO
                 // ========================================================
                 // Notice we ask for cover_image_id ONLY if it's an audio track
                 string selectSql = mediaType == MarketplaceTargetTypes.AudioTrack
-                    ? $@"SELECT is_locked, relative_path, snippet_path, storage_provider, cover_image_id 
+                    ? $@"SELECT is_locked, file_path, snippet_path, storage_provider, cover_image_id 
                          FROM {tableName} WHERE {idColumn} = @id AND user_id = @uid"
-                    : $@"SELECT is_locked, relative_path, snippet_path, storage_provider 
+                    : $@"SELECT is_locked, file_path, snippet_path, storage_provider 
                          FROM {tableName} WHERE {idColumn} = @id AND user_id = @uid";
 
                 using (var cmd = new MySqlCommand(selectSql, conn))
@@ -76,8 +76,8 @@ namespace MoozicOrb.IO
                         }
 
                         // Collect paths for cloud deletion
-                        if (!reader.IsDBNull(reader.GetOrdinal("relative_path")))
-                            result.PathsToDelete.Add(reader.GetString("relative_path"));
+                        if (!reader.IsDBNull(reader.GetOrdinal("file_path")))
+                            result.PathsToDelete.Add(reader.GetString("file_path"));
 
                         if (!reader.IsDBNull(reader.GetOrdinal("snippet_path")))
                             result.PathsToDelete.Add(reader.GetString("snippet_path"));
