@@ -101,7 +101,7 @@ namespace MoozicOrb.IO
             return results;
         }
 
-        // 3. SOCIAL FEED
+        // 3. SOCIAL FEED (Restored to original logic)
         public List<PostDto> GetDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
@@ -117,7 +117,6 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     cmd.Parameters.AddWithValue("@limit", freshCount);
-                    // PASSED RESOLVER
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
 
@@ -128,7 +127,6 @@ namespace MoozicOrb.IO
                     {
                         cmd.Parameters.AddWithValue("@vid", viewerId);
                         cmd.Parameters.AddWithValue("@limit", vintageCount);
-                        // PASSED RESOLVER
                         using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                     }
                 }
@@ -143,7 +141,6 @@ namespace MoozicOrb.IO
                     {
                         cmd.Parameters.AddWithValue("@vid", viewerId);
                         cmd.Parameters.AddWithValue("@limit", count - results.Count);
-                        // PASSED RESOLVER
                         using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                     }
                 }
@@ -153,7 +150,7 @@ namespace MoozicOrb.IO
             return results.OrderBy(x => Guid.NewGuid()).ToList();
         }
 
-        // 4. AUDIO FEED
+        // 4. AUDIO FEED (Restored to original logic)
         public List<PostDto> GetAudioDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
@@ -166,13 +163,12 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     cmd.Parameters.AddWithValue("@limit", count);
-                    // PASSED RESOLVER
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results;
-        }
+        }            
 
         // 5. SEARCH
         public List<PostDto> SearchPosts(string term, int viewerId, IMediaResolverService resolver = null)

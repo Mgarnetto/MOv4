@@ -1,8 +1,8 @@
 ﻿@model MoozicOrb.Models.CreatorViewModel
 
 @{
-    var contextType = "user";
-    var contextId = Model.UserId.ToString();
+    var contextType = 1; // Was "user"
+    var contextId = Model.UserId; // Removed .ToString()
 }
 
 <input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
@@ -76,10 +76,10 @@
                     </div>
                     @await Component.InvokeAsync("PostFeed", new
                     {
-                        contextType = 1, // Was "user"
-                        contextId = Model.UserId, // Removed .ToString()
+                        contextType = 1,
+                        contextId = (long)Model.UserId,
                         allowPosting = Model.IsCurrentUser,
-                        inputType = 1 // Was "standard"
+                        inputType = 1
                         })
         </div>
                 }
@@ -96,10 +96,10 @@
                         </div>
                         @await Component.InvokeAsync("PostFeed", new
                         {
-                            contextType = 1, // Was "user"
-                        contextId = Model.UserId, // Removed .ToString()
+                            contextType = 1,
+                        contextId = (long)Model.UserId,
                         allowPosting = Model.IsCurrentUser,
-                        inputType = 1 // Was "standard"
+                        inputType = 1
                         })
                         }
                     else if (layoutItem == "music")

@@ -1,6 +1,6 @@
 ﻿@{
-    var contextType = "global";
-    var contextId = "0";
+    var contextType = 4; // 4 = Global
+    var contextId = 0;
 }
 
 <input type="hidden" id="page-signalr-context" value="feed_global" />
@@ -41,6 +41,7 @@
 
 <script>
     if (window.loadFeedHistory) {
-        window.loadFeedHistory('@contextType', '@contextId');
+        // REMOVED quotes so it outputs window.loadFeedHistory(4, 0);
+        window.loadFeedHistory(@contextType, @contextId);
     }
 </script>

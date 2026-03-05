@@ -14,7 +14,7 @@ namespace MoozicOrb.API.Models
         public bool AllowPosting { get; set; }
 
         // Input Mode: "What kind of form do we show?" (standard, article, classified)
-        public string InputType { get; set; }
+        public int InputType { get; set; }
 
         // Data: The initial list of posts to render immediately (Server-Side Rendering)
         public List<PostDto> InitialPosts { get; set; } = new List<PostDto>();
