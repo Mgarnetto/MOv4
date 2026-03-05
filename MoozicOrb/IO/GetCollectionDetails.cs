@@ -65,10 +65,12 @@ namespace MoozicOrb.IO
                     {
                         string hydrateSql = "";
 
+                        // STANDARDIZED OUTPUTS: custom_cover, img_storage_provider, post_image
                         if (item.TargetType == 0) // Albums
                         {
                             hydrateSql = @"SELECT NULL AS file_path, c.title AS media_title, 0 AS storage_provider, 
-                                           mi.file_path AS image_url, mi.storage_provider AS img_storage_provider, 
+                                           mi.file_path AS custom_cover, mi.storage_provider AS img_storage_provider, 
+                                           NULL AS post_image,
                                            u.display_name, u.profile_pic, NULL AS post_title, mo.price 
                                            FROM collections c 
                                            LEFT JOIN `user` u ON c.user_id = u.user_id 
@@ -79,8 +81,11 @@ namespace MoozicOrb.IO
                         else if (item.TargetType == 1) // Audio
                         {
                             hydrateSql = @"SELECT ma.file_path, ma.title AS media_title, ma.storage_provider, 
-                                           0 AS img_storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title, mo.price 
+                                           mi.file_path AS custom_cover, mi.storage_provider AS img_storage_provider, 
+                                           p.image_url AS post_image, 
+                                           u.display_name, u.profile_pic, p.title AS post_title, mo.price 
                                            FROM media_audio ma 
+                                           LEFT JOIN media_images mi ON ma.cover_image_id = mi.image_id
                                            LEFT JOIN post_media pm ON ma.audio_id = pm.media_id AND pm.media_type = 1 
                                            LEFT JOIN posts p ON pm.post_id = p.post_id 
                                            LEFT JOIN `user` u ON ma.user_id = u.user_id 
@@ -90,7 +95,9 @@ namespace MoozicOrb.IO
                         else if (item.TargetType == 2) // Video
                         {
                             hydrateSql = @"SELECT mv.file_path, p.title AS media_title, mv.storage_provider, 
-                                           0 AS img_storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title, mo.price 
+                                           NULL AS custom_cover, 0 AS img_storage_provider, 
+                                           p.image_url AS post_image, 
+                                           u.display_name, u.profile_pic, p.title AS post_title, mo.price 
                                            FROM media_video mv 
                                            LEFT JOIN post_media pm ON mv.video_id = pm.media_id AND pm.media_type = 2 
                                            LEFT JOIN posts p ON pm.post_id = p.post_id 
@@ -101,7 +108,9 @@ namespace MoozicOrb.IO
                         else if (item.TargetType == 3) // Image
                         {
                             hydrateSql = @"SELECT mi.file_path, p.title AS media_title, mi.storage_provider, 
-                                           0 AS img_storage_provider, p.image_url, u.display_name, u.profile_pic, p.title AS post_title, mo.price 
+                                           NULL AS custom_cover, 0 AS img_storage_provider, 
+                                           p.image_url AS post_image, 
+                                           u.display_name, u.profile_pic, p.title AS post_title, mo.price 
                                            FROM media_images mi 
                                            LEFT JOIN post_media pm ON mi.image_id = pm.media_id AND pm.media_type = 3 
                                            LEFT JOIN posts p ON pm.post_id = p.post_id 
@@ -142,7 +151,7 @@ namespace MoozicOrb.IO
                                         item.Price = rdr["price"] != DBNull.Value ? Convert.ToDecimal(rdr["price"]) : (decimal?)null;
 
                                         // ===============================================
-                                        // THE FIX: RESTORED RESOLVER HELPER
+                                        // SECURE RESOLVER HELPER
                                         // ===============================================
                                         string ResolveSafely(string inputUrl, bool isCloud)
                                         {
@@ -155,26 +164,38 @@ namespace MoozicOrb.IO
                                             return "/" + inputUrl;
                                         }
 
-                                        string postImg = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString();
+                                        // ===============================================
+                                        // IMAGE PRIORITY LOGIC
+                                        // ===============================================
+                                        string customCover = rdr["custom_cover"] == DBNull.Value ? null : rdr["custom_cover"].ToString();
+                                        string postImg = rdr["post_image"] == DBNull.Value ? null : rdr["post_image"].ToString();
                                         string profPic = rdr["profile_pic"] == DBNull.Value ? null : rdr["profile_pic"].ToString();
                                         int imgProv = rdr["img_storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["img_storage_provider"]);
 
-                                        if (item.TargetType == 0) // Album explicitly checks img_storage_provider
+                                        if (!string.IsNullOrEmpty(customCover))
                                         {
-                                            item.ArtUrl = ResolveSafely(postImg, imgProv == 1) ?? "";
+                                            // Priority 1: The custom uploaded track/album cover
+                                            item.ArtUrl = ResolveSafely(customCover, imgProv == 1) ?? "";
                                         }
-                                        else // Audio/Video/Singles fallback
+                                        else if (!string.IsNullOrEmpty(postImg))
                                         {
-                                            // We explicitly pass 'true' here because profile pics and post images lacking a leading slash are almost exclusively S3 keys
-                                            string finalPostImg = ResolveSafely(postImg, true);
-                                            string finalProfPic = ResolveSafely(profPic, true);
-
-                                            if (!string.IsNullOrEmpty(finalPostImg)) item.ArtUrl = finalPostImg;
-                                            else if (!string.IsNullOrEmpty(finalProfPic)) item.ArtUrl = finalProfPic;
-                                            else item.ArtUrl = "";
+                                            // Priority 2: Fallback to an attached post image
+                                            item.ArtUrl = ResolveSafely(postImg, true) ?? "";
+                                        }
+                                        else if (!string.IsNullOrEmpty(profPic))
+                                        {
+                                            // Priority 3: Fallback to the Artist's Avatar
+                                            item.ArtUrl = ResolveSafely(profPic, true) ?? "";
+                                        }
+                                        else
+                                        {
+                                            // Default
+                                            item.ArtUrl = "/img/default_cover.jpg";
                                         }
 
+                                        // ===============================================
                                         // RESOLVE MEDIA PATH
+                                        // ===============================================
                                         string rawPath = rdr["file_path"] == DBNull.Value ? "" : rdr["file_path"].ToString();
                                         int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
 
