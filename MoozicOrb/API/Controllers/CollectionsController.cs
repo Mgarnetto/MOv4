@@ -16,11 +16,13 @@ namespace MoozicOrb.API.Controllers
     {
         private readonly IHttpContextAccessor _http;
         private readonly IMediaResolverService _resolver;
+        private readonly IMediaFileService _mediaFileService;
 
-        public CollectionsController(IHttpContextAccessor http, IMediaResolverService resolver)
+        public CollectionsController(IHttpContextAccessor http, IMediaResolverService resolver, IMediaFileService mediaFileService)
         {
             _http = http;
             _resolver = resolver;
+            _mediaFileService = mediaFileService;
         }
 
         private int GetUserId()
@@ -173,17 +175,23 @@ namespace MoozicOrb.API.Controllers
         {
             try
             {
-                int userId = GetUserId();
+                var sid = HttpContext.Request.Headers["X-Session-Id"].ToString();
+                var session = MoozicOrb.Services.SessionStore.GetSession(sid);
+                if (session == null) return Unauthorized();
 
-                // APPLICATION-LEVEL SECURITY PRE-CHECK
-                if (!new CheckCollectionOwner().Execute(id, userId)) return StatusCode(403, "Access denied.");
+                // Fire the new IO class
+                var result = new MoozicOrb.IO.DeleteCollection().Execute(id, session.UserId);
 
-                bool success = new DeleteCollection().Execute(id, userId);
+                if (!result.Success) return BadRequest(result.ErrorMessage);
 
-                if (!success) return BadRequest("Delete failed.");
+                // FIRE THE CLOUDFLARE WRECKING BALL FOR ORPHANED ARTWORK!
+                if (result.PathsToDelete != null && result.PathsToDelete.Count > 0)
+                {
+                    _ = _mediaFileService.DeleteMediaFilesAsync(result.PathsToDelete, result.StorageProvider);
+                }
+
                 return Ok(new { success = true });
             }
-            catch (UnauthorizedAccessException) { return Unauthorized(); }
             catch (Exception ex) { return BadRequest(ex.Message); }
         }
 

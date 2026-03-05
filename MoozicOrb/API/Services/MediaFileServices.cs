@@ -106,20 +106,23 @@ namespace MoozicOrb.API.Services
 
                 try
                 {
-                    if (storageProvider == 1 || storageProvider == 2) // Amazon S3 or Cloudflare R2
+                    // 1. THE LOCAL SWEEP (Always check local first)
+                    // This is instantaneous. If a legacy file or temp upload is sitting on the server, nuke it.
+                    string localPath = GetPhysicalPath(path);
+                    await DeleteLocalFileAsync(localPath);
+
+                    // 2. THE CLOUD SWEEP (Execute if flagged as S3/R2)
+                    if (storageProvider == 1 || storageProvider == 2)
                     {
-                        // The AWS SDK handles both S3 and R2 natively
                         var deleteRequest = new DeleteObjectRequest
                         {
                             BucketName = BUCKET_NAME,
-                            Key = path.TrimStart('/') // Keys shouldn't start with slash
+                            Key = path.TrimStart('/') // Prevents S3 path errors
                         };
+
+                        // Cloudflare R2 will silently succeed even if the file is already gone, 
+                        // making this incredibly safe for missing files.
                         await _s3Client.DeleteObjectAsync(deleteRequest);
-                    }
-                    else // Local Storage (0)
-                    {
-                        string localPath = GetPhysicalPath(path);
-                        await DeleteLocalFileAsync(localPath);
                     }
                 }
                 catch (Exception ex)
