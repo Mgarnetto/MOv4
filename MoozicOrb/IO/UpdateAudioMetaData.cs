@@ -35,8 +35,8 @@ namespace MoozicOrb.IO
                 // ==========================================
                 if (isLocked == 0)
                 {
-                    string updateBaseSql = req.TargetType == 1 
-                        ? "UPDATE media_audio SET title = @title, visibility = @vis" 
+                    string updateBaseSql = req.TargetType == 1
+                        ? "UPDATE media_audio SET title = @title, visibility = @vis"
                         : "UPDATE collections SET title = @title, visibility = @vis";
 
                     // Dynamically append the cover update if a new image was uploaded
@@ -52,7 +52,7 @@ namespace MoozicOrb.IO
                         cmd.Parameters.AddWithValue("@title", req.Title ?? "Untitled");
                         cmd.Parameters.AddWithValue("@vis", req.Visibility);
                         cmd.Parameters.AddWithValue("@id", req.TargetId);
-                        
+
                         if (req.CoverImageId.HasValue && req.CoverImageId.Value > 0)
                             cmd.Parameters.AddWithValue("@cover", req.CoverImageId.Value);
 

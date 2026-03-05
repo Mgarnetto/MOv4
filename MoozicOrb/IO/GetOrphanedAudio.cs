@@ -19,6 +19,7 @@ namespace MoozicOrb.IO
                 Items = new List<ApiCollectionItemDto>()
             };
 
+            // CORRECTED: Using mi.file_path instead of relative_path
             string sql = @"
             SELECT 
                 ma.audio_id AS media_id, 
@@ -28,17 +29,19 @@ namespace MoozicOrb.IO
                 ma.storage_provider,
                 ma.visibility,
                 ma.is_locked,
-                mo.price
+                mo.price,
+                mi.file_path AS cover_path,
+                mi.storage_provider AS cover_storage
             FROM media_audio ma
             JOIN user u ON ma.user_id = u.user_id
             LEFT JOIN marketplace_offers mo ON mo.target_id = ma.audio_id AND mo.target_type = 1 AND mo.is_active = 1
+            LEFT JOIN media_images mi ON ma.cover_image_id = mi.image_id
             WHERE ma.user_id = @uid 
                   AND (@isOwner = 1 OR IFNULL(ma.visibility, 0) = 0)
                   AND ma.audio_id NOT IN (
                       SELECT ci.target_id 
                       FROM collection_items ci
                       JOIN collections c ON ci.collection_id = c.collection_id
-                      -- THE FIX: Hides tracks if they are in a Playlist (2) OR an Album (7) (2,7) was both before
                       WHERE ci.target_type = 1 AND c.collection_type IN (7)
                   )
             ORDER BY ma.created_at DESC";
@@ -58,13 +61,19 @@ namespace MoozicOrb.IO
                             string rawPath = rdr["file_path"]?.ToString();
                             int storageProv = rdr["storage_provider"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["storage_provider"]);
 
-                            if (resolver != null && storageProv == 1)
+                            // Handle Cover Art Path
+                            string coverPath = rdr["cover_path"]?.ToString();
+                            int coverStorage = rdr["cover_storage"] == DBNull.Value ? 0 : Convert.ToInt32(rdr["cover_storage"]);
+
+                            if (resolver != null)
                             {
-                                rawPath = resolver.ResolveUrl(rawPath, 1);
+                                if (storageProv == 1) rawPath = resolver.ResolveUrl(rawPath, 1);
+                                if (!string.IsNullOrEmpty(coverPath)) coverPath = resolver.ResolveUrl(coverPath, coverStorage);
                             }
-                            else if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/") && !rawPath.StartsWith("http"))
+                            else
                             {
-                                rawPath = "/" + rawPath;
+                                if (!string.IsNullOrEmpty(rawPath) && !rawPath.StartsWith("/") && !rawPath.StartsWith("http")) rawPath = "/" + rawPath;
+                                if (!string.IsNullOrEmpty(coverPath) && !coverPath.StartsWith("/") && !coverPath.StartsWith("http")) coverPath = "/" + coverPath;
                             }
 
                             collection.Items.Add(new ApiCollectionItemDto
@@ -73,7 +82,7 @@ namespace MoozicOrb.IO
                                 TargetType = 1,
                                 Title = rdr["song_title"]?.ToString() ?? "Untitled Track",
                                 Url = rawPath,
-                                ArtUrl = null,
+                                ArtUrl = string.IsNullOrEmpty(coverPath) ? "/img/default_cover.jpg" : coverPath,
                                 ArtistName = rdr["display_name"]?.ToString(),
                                 Visibility = rdr["visibility"] != DBNull.Value ? Convert.ToInt32(rdr["visibility"]) : 0,
                                 IsLocked = rdr["is_locked"] != DBNull.Value ? Convert.ToBoolean(rdr["is_locked"]) : false,
