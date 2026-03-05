@@ -42,26 +42,26 @@ namespace MoozicOrb.IO
         }
 
         // 2. GET FEED
-        public List<PostDto> Execute(string contextType, string contextId, int viewerId, int page = 1, int pageSize = 20, string postType = null, int? mediaType = null, IMediaResolverService resolver = null)
+        public List<PostDto> Execute(int contextType, long contextId, int viewerId, int page = 1, int pageSize = 20, int? postType = null, int? mediaType = null, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
             int offset = (page - 1) * pageSize;
             string sql;
 
-            string typeFilter = string.IsNullOrEmpty(postType) ? "" : " AND p.post_type = @postType";
+            string typeFilter = postType.HasValue ? " AND p.post_type = @postType" : "";
             string mediaFilter = "";
 
             if (mediaType.HasValue)
             {
                 mediaFilter = " AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = @mediaType)";
 
-                if (string.IsNullOrEmpty(postType))
+                if (!postType.HasValue)
                 {
-                    mediaFilter += " AND p.post_type != 'merch'";
+                    mediaFilter += " AND p.post_type != 3"; // Was 'merch'
                 }
             }
 
-            if (contextType == "user" || contextType == "page_profile")
+            if (contextType == 1 || contextType == 3) // Was "user" or "page_profile"
             {
                 sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter}{mediaFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
@@ -81,9 +81,9 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@limit", pageSize);
                     cmd.Parameters.AddWithValue("@offset", offset);
 
-                    if (!string.IsNullOrEmpty(postType))
+                    if (postType.HasValue)
                     {
-                        cmd.Parameters.AddWithValue("@postType", postType);
+                        cmd.Parameters.AddWithValue("@postType", postType.Value);
                     }
 
                     if (mediaType.HasValue)
@@ -93,7 +93,6 @@ namespace MoozicOrb.IO
 
                     using (var rdr = cmd.ExecuteReader())
                     {
-                        // PASSED RESOLVER
                         while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver));
                     }
                 }
@@ -300,7 +299,6 @@ namespace MoozicOrb.IO
         {
             var createdAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc);
 
-            // Raw DB Values
             string rawProfPic = rdr["profile_pic"] == DBNull.Value ? null : rdr["profile_pic"].ToString();
             string rawImgUrl = rdr["image_url"] == DBNull.Value ? null : rdr["image_url"].ToString();
 
@@ -309,14 +307,15 @@ namespace MoozicOrb.IO
                 Id = rdr.GetInt64("post_id"),
                 AuthorId = rdr.GetInt32("user_id"),
                 AuthorName = rdr["display_name"].ToString(),
-                // RESOLVED: Profile Picture
                 AuthorPic = SafeResolve(rawProfPic, resolver) ?? "/img/profile_default.jpg",
-                ContextType = rdr["context_type"].ToString(),
-                ContextId = rdr["context_id"].ToString(),
-                Type = rdr["post_type"].ToString(),
+
+                // FIXED: Read as integers
+                ContextType = rdr.GetInt32("context_type"), // DTO expects string for JS backwards compatibility 
+                ContextId = rdr.GetInt64("context_id"),
+                Type = rdr.GetInt32("post_type"),
+
                 Title = rdr["title"] == DBNull.Value ? null : rdr["title"].ToString(),
                 Text = rdr["content_text"] == DBNull.Value ? null : rdr["content_text"].ToString(),
-                // RESOLVED: Legacy image URLs (if any exist)
                 ImageUrl = SafeResolve(rawImgUrl, resolver),
                 CreatedAt = createdAt,
                 Price = rdr["price"] == DBNull.Value ? null : (decimal?)rdr.GetDecimal("price"),

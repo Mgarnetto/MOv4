@@ -1,6 +1,31 @@
 ﻿namespace MoozicOrb.Constants
 {
     /// <summary>
+    /// Master Reference for Feed Post Types.
+    /// Maps directly to the 'post_type' column in the 'posts' table.
+    /// </summary>
+    public static class PostTypes
+    {
+        public const int Standard = 1;     // Was "post"
+        public const int Tutorial = 2;     // Was "tutorial"
+        public const int Merch = 3;        // Was "merch"
+        public const int Classified = 4;   // Was "classified"
+        public const int Article = 5;      // Was "article"
+        public const int Video = 6;        // Was "video"
+    }
+
+    /// <summary>
+    /// Master Reference for Feed Contexts (Where the post lives).
+    /// Maps directly to the 'context_type' column in the 'posts' table.
+    /// </summary>
+    public static class ContextTypes
+    {
+        public const int User = 1;         // Was "user"
+        public const int Group = 2;        // Was "group"
+        public const int Page = 3;         // Was "page_profile"
+    }
+
+    /// <summary>
     /// Master Reference for Marketplace Target Types.
     /// Maps directly to the 'target_type' column in the 'marketplace_offers' table.
     /// </summary>

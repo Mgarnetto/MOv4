@@ -76,10 +76,10 @@
                     </div>
                     @await Component.InvokeAsync("PostFeed", new
                     {
-                        contextType = "user",
-                        contextId = Model.UserId.ToString(),
+                        contextType = 1, // Was "user"
+                        contextId = Model.UserId, // Removed .ToString()
                         allowPosting = Model.IsCurrentUser,
-                        inputType = "standard"
+                        inputType = 1 // Was "standard"
                         })
         </div>
                 }
@@ -96,10 +96,10 @@
                         </div>
                         @await Component.InvokeAsync("PostFeed", new
                         {
-                            contextType = "user",
-                        contextId = Model.UserId.ToString(),
+                            contextType = 1, // Was "user"
+                        contextId = Model.UserId, // Removed .ToString()
                         allowPosting = Model.IsCurrentUser,
-                        inputType = "standard"
+                        inputType = 1 // Was "standard"
                         })
                         }
                     else if (layoutItem == "music")

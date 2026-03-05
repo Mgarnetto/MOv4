@@ -235,7 +235,7 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 };
 
 window.editSelectedFiles = [];
-window.currentEditPostType = 'standard';
+window.currentEditPostType = 1; // Integer update
 window.currentEditExistingImagesCount = 0;
 window.pendingMediaDeletions = [];
 
@@ -246,7 +246,7 @@ window.checkEditImageLimit = function () {
     const label = input.previousElementSibling;
     const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
-    if (window.currentEditPostType !== 'merch') {
+    if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3') { // Integer update
         input.removeAttribute('multiple');
         if (total >= 1) {
             input.style.display = 'none';
@@ -277,7 +277,7 @@ window.FeedService.openEditModal = async (id) => {
         document.querySelectorAll('.post-options-menu.show').forEach(el => el.classList.remove('show'));
 
         window.editSelectedFiles = [];
-        window.currentEditPostType = 'standard';
+        window.currentEditPostType = 1; // Integer update
         window.currentEditExistingImagesCount = 0;
         window.pendingMediaDeletions = [];
 
@@ -292,15 +292,15 @@ window.FeedService.openEditModal = async (id) => {
         const post = await res.json();
 
         document.getElementById('editPostId').value = post.id !== undefined ? post.id : post.Id;
-        document.getElementById('editPostType').value = post.type || post.Type || "standard";
-        window.currentEditPostType = post.type || post.Type || "standard";
+        document.getElementById('editPostType').value = post.type || post.Type || 1; // Integer update
+        window.currentEditPostType = post.type || post.Type || 1; // Integer update
 
         document.getElementById('editPostTitle').value = post.title || post.Title || "";
         document.getElementById('editPostText').value = post.text || post.Text || "";
 
         const merchFields = document.getElementById('editMerchFields');
         if (merchFields) {
-            if (window.currentEditPostType === 'merch') {
+            if (window.currentEditPostType === 3 || window.currentEditPostType === '3') { // Integer update
                 merchFields.classList.remove('d-none');
                 document.getElementById('editPostPrice').value = post.price !== null && post.price !== undefined ? post.price : (post.Price !== null ? post.Price : "");
                 document.getElementById('editPostQuantity').value = post.quantity !== null && post.quantity !== undefined ? post.quantity : (post.Quantity !== null ? post.Quantity : "");
@@ -378,11 +378,11 @@ window.previewEditImage = function (input) {
         for (let i = 0; i < input.files.length; i++) {
             const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
-            if (window.currentEditPostType !== 'merch' && total >= 1) {
+            if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3' && total >= 1) { // Integer update
                 alert("Standard posts can only have 1 media file limit.");
                 break;
             }
-            if (window.currentEditPostType === 'merch' && total >= 5) {
+            if ((window.currentEditPostType === 3 || window.currentEditPostType === '3') && total >= 5) { // Integer update
                 alert("Store items can have up to 5 images max.");
                 break;
             }
@@ -451,7 +451,7 @@ window.FeedService.submitEdit = async () => {
         let parsedPrice = null;
         let parsedQty = null;
 
-        if (type === 'merch') {
+        if (parseInt(type) === 3) { // Integer update
             const rawPrice = document.getElementById('editPostPrice').value;
             const rawQty = document.getElementById('editPostQuantity').value;
             parsedPrice = rawPrice ? parseFloat(rawPrice) : null;
@@ -550,14 +550,14 @@ window.FeedService.submitEdit = async () => {
         if (res.ok) {
             closeAllModals();
 
-            let currentType = 'global';
-            let currentId = '0';
+            let currentType = 4; // Integer update ('global')
+            let currentId = 0;
 
             const sigCtx = document.getElementById('page-signalr-context')?.value;
             if (sigCtx) {
                 if (sigCtx.startsWith('user_')) {
-                    currentType = 'user';
-                    currentId = sigCtx.split('_')[1];
+                    currentType = 1; // Integer update ('user')
+                    currentId = parseInt(sigCtx.split('_')[1]);
                 }
             }
 
@@ -643,7 +643,7 @@ function renderNewPost(post) {
     const pType = post.type || post.Type;
 
     // 1. ROUTE MERCH POSTS (Defensively Blocked from Social Feed)
-    if (pType === 'merch') {
+    if (pType === 3 || pType === '3') { // Integer update
         const storefrontGrid = document.getElementById('storefront-grid-container');
         if (storefrontGrid) {
             if (storefrontGrid.innerHTML.includes("No products available")) storefrontGrid.innerHTML = '';
@@ -1008,9 +1008,9 @@ document.addEventListener('submit', async function (e) {
             submitBtn.innerText = "Posting...";
 
             const payload = {
-                ContextType: cType,
-                ContextId: cId,
-                Type: "standard",
+                ContextType: parseInt(cType) || 1, // Integer update
+                ContextId: parseInt(cId) || 0, // Integer update
+                Type: 1, // Integer update (Standard post)
                 Title: titleInput.value.trim(),
                 Text: textArea.value,
                 MediaAttachments: attachments
@@ -1271,7 +1271,7 @@ function appendHistoricalPost(post, container) {
     const pType = post.type || post.Type;
 
     // BUG FIX: Completely block merch items from the social feed container
-    if (pType === 'merch') {
+    if (pType === 3 || pType === '3') { // Integer update
         return;
     }
 
@@ -1383,7 +1383,7 @@ window.loadAudioPlaylist = async () => {
     if (!container) return;
 
     try {
-        const res = await fetch('/api/posts?contextType=discover&contextId=0', {
+        const res = await fetch('/api/posts?contextType=5&contextId=0', { // Integer update
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -1491,7 +1491,7 @@ window.triggerSocialShuffle = async function () {
     const globe = document.getElementById('social-globe-icon');
     if (globe) globe.classList.add('spin-y-axis');
     const minTimer = new Promise(resolve => setTimeout(resolve, 800));
-    const dataLoad = window.loadFeedHistory ? window.loadFeedHistory('global', '0') : Promise.resolve();
+    const dataLoad = window.loadFeedHistory ? window.loadFeedHistory(4, 0) : Promise.resolve(); // Integer update
 
     try {
         await Promise.all([dataLoad, minTimer]);
@@ -1697,9 +1697,9 @@ document.addEventListener('submit', async function (e) {
             const parsedQty = parseInt(document.getElementById('commerceQuantity').value);
 
             const payload = {
-                ContextType: document.getElementById('commerceContextType').value,
-                ContextId: document.getElementById('commerceContextId').value,
-                Type: document.getElementById('commercePostType').value,
+                ContextType: parseInt(document.getElementById('commerceContextType').value) || 1, // Integer update
+                ContextId: parseInt(document.getElementById('commerceContextId').value) || 0, // Integer update
+                Type: parseInt(document.getElementById('commercePostType').value) || 3, // Integer update
                 Title: document.getElementById('commerceTitle').value.trim(),
                 Text: document.getElementById('commerceDescription').value.trim(),
                 Price: parseFloat(document.getElementById('commercePrice').value),
@@ -1846,7 +1846,7 @@ window.loadStorefront = async function (userId) {
     window.storeCarouselDockItems = [];
 
     try {
-        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
+        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, { // Integer update
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -1972,7 +1972,7 @@ window.loadPhotoGallery = async function (userId) {
     window.isGalleryInventoryMode = false;
 
     try {
-        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=3`, {
+        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=3`, { // Integer update
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -2069,7 +2069,7 @@ window.loadVideoHub = async function (userId) {
     window.isVideoInventoryMode = false;
 
     try {
-        const res = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&mediaType=2`, {
+        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=2`, { // Integer update
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -2375,7 +2375,7 @@ window.loadStoreCarousel = async function (userId) {
         // FALLBACK LOGIC: No custom collection found
         // ==========================================
         if (!collections || collections.length === 0) {
-            const fallbackRes = await fetch(`/api/posts?contextType=user&contextId=${userId}&page=1&postType=merch`, {
+            const fallbackRes = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, { // Integer update
                 headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
             });
 

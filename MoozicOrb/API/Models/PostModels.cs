@@ -24,11 +24,10 @@ namespace MoozicOrb.API.Models
         public string AuthorPic { get; set; }
 
         // --- Context ---
-        public string ContextType { get; set; }
-        public string ContextId { get; set; }
-
-        // --- Content ---
-        public string Type { get; set; }
+        // CHANGE THESE FROM string TO:
+        public int ContextType { get; set; }
+        public long ContextId { get; set; }
+        public int Type { get; set; }
         public string Title { get; set; }
         public string Text { get; set; }
         public string ImageUrl { get; set; }

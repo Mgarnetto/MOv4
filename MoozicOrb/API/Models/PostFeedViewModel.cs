@@ -7,8 +7,8 @@ namespace MoozicOrb.API.Models
     {
         // Context: "Where are we?" (e.g., User Profile 105, State Page GA)
         public int ViewerId { get; set; } = 0; // This user's ID (0 if not logged in)
-        public string ContextType { get; set; }
-        public string ContextId { get; set; }
+        public int ContextType { get; set; }
+        public long ContextId { get; set; }
 
         // Permissions: "Can the current user post here?"
         public bool AllowPosting { get; set; }

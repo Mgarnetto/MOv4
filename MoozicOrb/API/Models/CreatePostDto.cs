@@ -6,9 +6,10 @@ namespace MoozicOrb.API.Models
     public class CreatePostDto
     {
         // Context (Required)
-        [Required] public string ContextType { get; set; }
-        [Required] public string ContextId { get; set; }
-        [Required] public string Type { get; set; }
+        // CHANGE THESE FROM string TO:
+        [Required]public int ContextType { get; set; }
+        [Required] public long ContextId { get; set; }
+        [Required] public int Type { get; set; }
 
         // Optional Core Data (Must be nullable '?' to be optional)
         public string? Title { get; set; }

@@ -106,14 +106,16 @@
 
                 if (groupValue === 'feed_global') {
                     if (feedContainer && window.loadFeedHistory) {
-                        window.loadFeedHistory('global', '0');
+                        // FIX: Pass Integers (4 = Global)
+                        window.loadFeedHistory(4, 0);
                     }
                 }
                 else if (groupValue && groupValue.startsWith('user_')) {
                     const userId = groupValue.split('_')[1];
 
                     if (feedContainer && window.loadFeedHistory) {
-                        window.loadFeedHistory('user', userId);
+                        // FIX: Pass Integers (1 = User)
+                        window.loadFeedHistory(1, userId);
                     }
 
                     // CAROUSEL TRIGGER

@@ -55,16 +55,15 @@ namespace MoozicOrb.API.Controllers
             catch { return 0; }
         }
 
-        private string GetSignalRGroupName(string type, string id)
+        private string GetSignalRGroupName(int type, long id)
         {
-            return (type?.ToLower()) switch
+            return type switch
             {
-                "loc" => $"loc_{id}",
-                "page" => $"page_{id}",
-                "user" => $"user_{id}",
-                "creator" => $"user_{id}",
-                "feed" => "feed_global",
-                "discover" => "page_discover",
+                1 => $"user_{id}",      // User
+                2 => $"group_{id}",     // Group
+                3 => $"page_{id}",      // Page
+                4 => "feed_global",     // Global
+                5 => "page_discover",   // Discover
                 _ => "feed_global"
             };
         }
@@ -79,7 +78,7 @@ namespace MoozicOrb.API.Controllers
                 int userId = GetUserId();
 
                 // ENFORCEMENT: Limit standard posts to 1 media attachment
-                if (req.Type == "standard" && req.MediaAttachments != null && req.MediaAttachments.Count > 1)
+                if (req.Type == 1 && req.MediaAttachments != null && req.MediaAttachments.Count > 1)
                 {
                     return BadRequest("Standard posts only support one media attachment.");
                 }
@@ -171,10 +170,10 @@ namespace MoozicOrb.API.Controllers
 
         [HttpGet]
         public IActionResult GetPosts(
-            [FromQuery] string contextType,
-            [FromQuery] string contextId,
+            [FromQuery] int contextType,     // Changed to int
+            [FromQuery] long contextId,      // Changed to long
             [FromQuery] int page = 1,
-            [FromQuery] string postType = null,
+            [FromQuery] int? postType = null, // Changed to int?
             [FromQuery] int? mediaType = null)
         {
             try
@@ -183,17 +182,17 @@ namespace MoozicOrb.API.Controllers
                 var io = new GetPost();
                 List<PostDto> posts;
 
-                if (contextType == "global" || contextType == "feed_global")
+                if (contextType == 4) // Global Feed
                 {
-                    posts = io.GetDiscoveryFeed(viewerId, 20, _resolver); // <-- PASSED RESOLVER
+                    posts = io.GetDiscoveryFeed(viewerId, 20, _resolver);
                 }
-                else if (contextType == "discover")
+                else if (contextType == 5) // Discover Audio
                 {
-                    posts = io.GetAudioDiscoveryFeed(viewerId, 20, _resolver); // <-- PASSED RESOLVER
+                    posts = io.GetAudioDiscoveryFeed(viewerId, 20, _resolver);
                 }
                 else
                 {
-                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType, mediaType, _resolver); // <-- PASSED RESOLVER
+                    posts = io.Execute(contextType, contextId, viewerId, page, 20, postType, mediaType, _resolver);
                 }
 
                 if (posts != null)

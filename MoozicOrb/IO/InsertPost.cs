@@ -40,9 +40,9 @@ namespace MoozicOrb.IO
                 {
                     // Core
                     cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@ctype", req.ContextType ?? "user");
-                    cmd.Parameters.AddWithValue("@cid", req.ContextId ?? userId.ToString());
-                    cmd.Parameters.AddWithValue("@type", req.Type);
+                    cmd.Parameters.AddWithValue("@ctype", req.ContextType > 0 ? req.ContextType : 1);
+                    cmd.Parameters.AddWithValue("@cid", req.ContextId > 0 ? req.ContextId : userId);
+                    cmd.Parameters.AddWithValue("@type", req.Type > 0 ? req.Type : 1);
                     cmd.Parameters.AddWithValue("@title", req.Title ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@content", req.Text ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@img", req.ImageUrl ?? (object)DBNull.Value);
