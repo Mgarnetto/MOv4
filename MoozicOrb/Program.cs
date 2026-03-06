@@ -99,7 +99,18 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache CSS for 1 year; mobile browsers will be less likely to drop it
+        if (ctx.File.Name.EndsWith(".css"))
+        {
+            ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=31536000");
+        }
+    }
+});
 
 // Serves your "MoozicOrb/media" folder at the URL "/media"
 //string mediaPath = Path.Combine(builder.Environment.ContentRootPath, "MoozicOrb", "media");
