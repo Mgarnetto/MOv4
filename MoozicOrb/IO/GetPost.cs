@@ -21,7 +21,8 @@ namespace MoozicOrb.IO
         public PostDto Execute(long postId, int viewerId, IMediaResolverService resolver = null)
         {
             PostDto post = null;
-            string sql = GetBaseSql("WHERE p.post_id = @pid");
+            // FILTER: Public (0) and Link-Only (1) are viewable if they have the ID. Private (2) is blocked unless they are the owner.
+            string sql = GetBaseSql("WHERE p.post_id = @pid AND (p.visibility < 2 OR p.user_id = @vid)");
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -32,7 +33,6 @@ namespace MoozicOrb.IO
                     cmd.Parameters.AddWithValue("@vid", viewerId);
                     using (var rdr = cmd.ExecuteReader())
                     {
-                        // PASSED RESOLVER
                         if (rdr.Read()) post = MapReaderToDto(rdr, resolver);
                     }
                 }
@@ -50,6 +50,7 @@ namespace MoozicOrb.IO
 
             string typeFilter = postType.HasValue ? " AND p.post_type = @postType" : "";
             string mediaFilter = "";
+            string visFilter = " AND (p.visibility = 0 OR p.user_id = @vid)"; // FILTER: Public Only, unless owner
 
             if (mediaType.HasValue)
             {
@@ -57,17 +58,17 @@ namespace MoozicOrb.IO
 
                 if (!postType.HasValue)
                 {
-                    mediaFilter += " AND p.post_type != 3"; // Was 'merch'
+                    mediaFilter += " AND p.post_type != 3"; // Hide merch from standard streams
                 }
             }
 
-            if (contextType == 1 || contextType == 3) // Was "user" or "page_profile"
+            if (contextType == 1 || contextType == 3) // "user" or "page_profile"
             {
-                sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter}{mediaFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.user_id = @cid{typeFilter}{mediaFilter}{visFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
             else
             {
-                sql = GetBaseSql($"WHERE p.context_type = @ctype AND p.context_id = @cid{typeFilter}{mediaFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
+                sql = GetBaseSql($"WHERE p.context_type = @ctype AND p.context_id = @cid{typeFilter}{mediaFilter}{visFilter} ORDER BY p.created_at DESC LIMIT @limit OFFSET @offset");
             }
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
@@ -101,7 +102,7 @@ namespace MoozicOrb.IO
             return results;
         }
 
-        // 3. SOCIAL FEED (Restored to original logic)
+        // 3. SOCIAL FEED
         public List<PostDto> GetDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
@@ -112,7 +113,7 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                string freshSql = GetBaseSql("WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
+                string freshSql = GetBaseSql("WHERE (p.visibility = 0 OR p.user_id = @vid) AND p.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
                 using (var cmd = new MySqlCommand(freshSql, conn))
                 {
                     cmd.Parameters.AddWithValue("@vid", viewerId);
@@ -122,7 +123,7 @@ namespace MoozicOrb.IO
 
                 if (vintageCount > 0)
                 {
-                    string vintageSql = GetBaseSql("WHERE p.created_at < DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
+                    string vintageSql = GetBaseSql("WHERE (p.visibility = 0 OR p.user_id = @vid) AND p.created_at < DATE_SUB(NOW(), INTERVAL 14 DAY) ORDER BY RAND() LIMIT @limit");
                     using (var cmd = new MySqlCommand(vintageSql, conn))
                     {
                         cmd.Parameters.AddWithValue("@vid", viewerId);
@@ -135,7 +136,7 @@ namespace MoozicOrb.IO
                 {
                     var existingIds = results.Select(p => p.Id).ToList();
                     string excludeClause = existingIds.Any() ? $"AND p.post_id NOT IN ({string.Join(",", existingIds)})" : "";
-                    string fallbackSql = GetBaseSql($"WHERE 1=1 {excludeClause} ORDER BY p.created_at DESC LIMIT @limit");
+                    string fallbackSql = GetBaseSql($"WHERE (p.visibility = 0 OR p.user_id = @vid) {excludeClause} ORDER BY p.created_at DESC LIMIT @limit");
 
                     using (var cmd = new MySqlCommand(fallbackSql, conn))
                     {
@@ -150,11 +151,11 @@ namespace MoozicOrb.IO
             return results.OrderBy(x => Guid.NewGuid()).ToList();
         }
 
-        // 4. AUDIO FEED (Restored to original logic)
+        // 4. AUDIO FEED
         public List<PostDto> GetAudioDiscoveryFeed(int viewerId, int count = 20, IMediaResolverService resolver = null)
         {
             var results = new List<PostDto>();
-            string sql = GetBaseSql(@"WHERE EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY RAND() LIMIT @limit");
+            string sql = GetBaseSql(@"WHERE (p.visibility = 0 OR p.user_id = @vid) AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY RAND() LIMIT @limit");
 
             using (var conn = new MySqlConnection(DBConn1.ConnectionString))
             {
@@ -168,17 +169,17 @@ namespace MoozicOrb.IO
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
             }
             return results;
-        }            
+        }
 
         // 5. SEARCH
         public List<PostDto> SearchPosts(string term, int viewerId, IMediaResolverService resolver = null)
         {
-            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) ORDER BY p.created_at DESC LIMIT 20", resolver);
+            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) AND (p.visibility = 0 OR p.user_id = @vid) ORDER BY p.created_at DESC LIMIT 20", resolver);
         }
 
         public List<PostDto> SearchAudio(string term, int viewerId, IMediaResolverService resolver = null)
         {
-            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY p.created_at DESC LIMIT 20", resolver);
+            return ExecuteSearch(term, viewerId, "WHERE (p.content_text LIKE @term OR p.title LIKE @term) AND (p.visibility = 0 OR p.user_id = @vid) AND EXISTS (SELECT 1 FROM post_media pm WHERE pm.post_id = p.post_id AND pm.media_type = 1) ORDER BY p.created_at DESC LIMIT 20", resolver);
         }
 
         private List<PostDto> ExecuteSearch(string term, int viewerId, string whereClause, IMediaResolverService resolver = null)
@@ -192,7 +193,6 @@ namespace MoozicOrb.IO
                 {
                     cmd.Parameters.AddWithValue("@term", "%" + term + "%");
                     cmd.Parameters.AddWithValue("@vid", viewerId);
-                    // PASSED RESOLVER
                     using (var rdr = cmd.ExecuteReader()) { while (rdr.Read()) results.Add(MapReaderToDto(rdr, resolver)); }
                 }
                 if (results.Count > 0) AttachMediaToPosts(conn, results, resolver);
@@ -207,6 +207,7 @@ namespace MoozicOrb.IO
                     p.post_id, p.user_id, p.context_type, p.context_id,
                     p.post_type, p.title, p.content_text, p.image_url, p.created_at,
                     p.price, p.quantity, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
+                    p.visibility,
                     u.display_name, u.profile_pic,
                     (SELECT COUNT(*) FROM post_likes WHERE post_id = p.post_id) AS likes_count,
                     (SELECT COUNT(*) FROM comments WHERE post_id = p.post_id) AS comments_count,
@@ -290,7 +291,6 @@ namespace MoozicOrb.IO
             }
         }
 
-        // PASSED RESOLVER TO DTO MAPPER
         private PostDto MapReaderToDto(MySqlDataReader rdr, IMediaResolverService resolver)
         {
             var createdAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc);
@@ -305,8 +305,7 @@ namespace MoozicOrb.IO
                 AuthorName = rdr["display_name"].ToString(),
                 AuthorPic = SafeResolve(rawProfPic, resolver) ?? "/img/profile_default.jpg",
 
-                // FIXED: Read as integers
-                ContextType = rdr.GetInt32("context_type"), // DTO expects string for JS backwards compatibility 
+                ContextType = rdr.GetInt32("context_type"),
                 ContextId = rdr.GetInt64("context_id"),
                 Type = rdr.GetInt32("post_type"),
 
@@ -319,6 +318,8 @@ namespace MoozicOrb.IO
                 LocationLabel = rdr["location_label"] == DBNull.Value ? null : rdr["location_label"].ToString(),
                 DifficultyLevel = rdr["difficulty_level"] == DBNull.Value ? null : rdr["difficulty_level"].ToString(),
                 VideoUrl = rdr["video_url"] == DBNull.Value ? null : rdr["video_url"].ToString(),
+                Visibility = rdr["visibility"] != DBNull.Value ? rdr.GetInt32("visibility") : 0, // Mapped Visibility
+
                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
                 IsLiked = Convert.ToInt32(rdr["is_liked"]) > 0,

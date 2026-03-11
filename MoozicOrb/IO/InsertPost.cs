@@ -1,5 +1,5 @@
 ﻿using MySql.Data.MySqlClient;
-using MoozicOrb.API.Models; // Ensure you reference where CreatePostDto lives
+using MoozicOrb.API.Models;
 using System;
 
 namespace MoozicOrb.IO
@@ -17,7 +17,7 @@ namespace MoozicOrb.IO
                     title, content_text, image_url,
                     price, quantity, location_label, 
                     difficulty_level, video_url, 
-                    media_id, category,
+                    media_id, category, visibility,
                     created_at
                 )
                 VALUES 
@@ -28,7 +28,7 @@ namespace MoozicOrb.IO
                     @title, @content, @img,
                     @price, @qty, @loc, 
                     @diff, @vid, 
-                    @mid, @cat,
+                    @mid, @cat, @vis,
                     UTC_TIMESTAMP()
                 );
                 SELECT LAST_INSERT_ID();";
@@ -49,12 +49,15 @@ namespace MoozicOrb.IO
 
                     // Polymorphic Extras
                     cmd.Parameters.AddWithValue("@price", req.Price ?? (object)DBNull.Value);
-                    cmd.Parameters.AddWithValue("@qty", req.Quantity ?? (object)DBNull.Value); // <-- ADDED QUANTITY
+                    cmd.Parameters.AddWithValue("@qty", req.Quantity ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@loc", req.LocationLabel ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@diff", req.DifficultyLevel ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@vid", req.VideoUrl ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@mid", req.MediaId ?? (object)DBNull.Value);
                     cmd.Parameters.AddWithValue("@cat", req.Category ?? (object)DBNull.Value);
+
+                    // Added Visibility
+                    cmd.Parameters.AddWithValue("@vis", req.Visibility);
 
                     return Convert.ToInt64(cmd.ExecuteScalar());
                 }

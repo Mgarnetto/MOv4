@@ -50,6 +50,18 @@ feedConnection.on("UpdatePost", function (msg) {
             }
         }
 
+        // Visually update the privacy icon if present
+        const metaLine = card.querySelector('.post-meta-line');
+        if (metaLine) {
+            const visIconSpan = metaLine.querySelector('.vis-badge');
+            if (visIconSpan) {
+                const pVisibility = msg.data.visibility !== undefined ? msg.data.visibility : (msg.data.Visibility || 0);
+                if (pVisibility === 2) visIconSpan.innerHTML = '<i class="fas fa-lock text-danger" title="Private"></i>';
+                else if (pVisibility === 1) visIconSpan.innerHTML = '<i class="fas fa-link text-warning" title="Link Only"></i>';
+                else visIconSpan.innerHTML = '<i class="fas fa-globe-americas" title="Public"></i>';
+            }
+        }
+
         card.style.transition = "background-color 0.5s";
         card.style.backgroundColor = "#2a2a2a";
         setTimeout(() => card.style.backgroundColor = "", 500);
@@ -235,7 +247,7 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
 };
 
 window.editSelectedFiles = [];
-window.currentEditPostType = 1; // Integer update
+window.currentEditPostType = 1;
 window.currentEditExistingImagesCount = 0;
 window.pendingMediaDeletions = [];
 
@@ -246,7 +258,7 @@ window.checkEditImageLimit = function () {
     const label = input.previousElementSibling;
     const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
-    if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3') { // Integer update
+    if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3') {
         input.removeAttribute('multiple');
         if (total >= 1) {
             input.style.display = 'none';
@@ -277,7 +289,7 @@ window.FeedService.openEditModal = async (id) => {
         document.querySelectorAll('.post-options-menu.show').forEach(el => el.classList.remove('show'));
 
         window.editSelectedFiles = [];
-        window.currentEditPostType = 1; // Integer update
+        window.currentEditPostType = 1;
         window.currentEditExistingImagesCount = 0;
         window.pendingMediaDeletions = [];
 
@@ -291,19 +303,33 @@ window.FeedService.openEditModal = async (id) => {
 
         const post = await res.json();
 
-        document.getElementById('editPostId').value = post.id !== undefined ? post.id : post.Id;
-        document.getElementById('editPostType').value = post.type || post.Type || 1; // Integer update
-        window.currentEditPostType = post.type || post.Type || 1; // Integer update
+        // DEFENSIVE BINDINGS - Will not crash if an element is missing
+        const elId = document.getElementById('editPostId');
+        if (elId) elId.value = post.id !== undefined ? post.id : post.Id;
 
-        document.getElementById('editPostTitle').value = post.title || post.Title || "";
-        document.getElementById('editPostText').value = post.text || post.Text || "";
+        const elType = document.getElementById('editPostType');
+        if (elType) elType.value = post.type || post.Type || 1;
+        window.currentEditPostType = post.type || post.Type || 1;
+
+        const elTitle = document.getElementById('editPostTitle');
+        if (elTitle) elTitle.value = post.title || post.Title || "";
+
+        const elText = document.getElementById('editPostText');
+        if (elText) elText.value = post.text || post.Text || "";
+
+        const visInput = document.getElementById('editPostVisibility');
+        if (visInput) visInput.value = post.visibility !== undefined ? post.visibility : (post.Visibility !== undefined ? post.Visibility : 0);
 
         const merchFields = document.getElementById('editMerchFields');
         if (merchFields) {
-            if (window.currentEditPostType === 3 || window.currentEditPostType === '3') { // Integer update
+            if (window.currentEditPostType === 3 || window.currentEditPostType === '3') {
                 merchFields.classList.remove('d-none');
-                document.getElementById('editPostPrice').value = post.price !== null && post.price !== undefined ? post.price : (post.Price !== null ? post.Price : "");
-                document.getElementById('editPostQuantity').value = post.quantity !== null && post.quantity !== undefined ? post.quantity : (post.Quantity !== null ? post.Quantity : "");
+
+                const elPrice = document.getElementById('editPostPrice');
+                if (elPrice) elPrice.value = post.price !== null && post.price !== undefined ? post.price : (post.Price !== null ? post.Price : "");
+
+                const elQty = document.getElementById('editPostQuantity');
+                if (elQty) elQty.value = post.quantity !== null && post.quantity !== undefined ? post.quantity : (post.Quantity !== null ? post.Quantity : "");
             } else {
                 merchFields.classList.add('d-none');
             }
@@ -378,11 +404,11 @@ window.previewEditImage = function (input) {
         for (let i = 0; i < input.files.length; i++) {
             const total = window.currentEditExistingImagesCount + window.editSelectedFiles.length;
 
-            if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3' && total >= 1) { // Integer update
+            if (window.currentEditPostType !== 3 && window.currentEditPostType !== '3' && total >= 1) {
                 alert("Standard posts can only have 1 media file limit.");
                 break;
             }
-            if ((window.currentEditPostType === 3 || window.currentEditPostType === '3') && total >= 5) { // Integer update
+            if ((window.currentEditPostType === 3 || window.currentEditPostType === '3') && total >= 5) {
                 alert("Store items can have up to 5 images max.");
                 break;
             }
@@ -407,11 +433,13 @@ window.renderEditImagePreviews = function () {
         wrapper.style.margin = '10px 15px 10px 0';
 
         let previewHtml = '';
+        const fileUrl = URL.createObjectURL(file);
 
         if (file.type.startsWith('video/')) {
             previewHtml = `
-                <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #000; display: flex; align-items: center; justify-content: center;">
-                    <i class="fas fa-video text-white" style="font-size: 24px;"></i>
+                <div style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF; background: #000; display: flex; align-items: center; justify-content: center; position:relative; overflow:hidden;">
+                    <video src="${fileUrl}#t=0.1" style="width:100%; height:100%; object-fit:cover; opacity:0.6;" muted playsinline></video>
+                    <i class="fas fa-video text-white" style="font-size: 24px; position:absolute;"></i>
                 </div>`;
         } else if (file.type.startsWith('audio/')) {
             previewHtml = `
@@ -419,7 +447,7 @@ window.renderEditImagePreviews = function () {
                     <i class="fas fa-music text-warning" style="font-size: 24px;"></i>
                 </div>`;
         } else {
-            previewHtml = `<img src="${URL.createObjectURL(file)}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">`;
+            previewHtml = `<img src="${fileUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; border: 2px dashed #00AEEF;">`;
         }
 
         wrapper.innerHTML = `
@@ -448,10 +476,14 @@ window.FeedService.submitEdit = async () => {
         const id = document.getElementById('editPostId').value;
         const type = document.getElementById('editPostType').value;
 
+        // GRAB NEW VISIBILITY VALUE
+        const visInput = document.getElementById('editPostVisibility');
+        const visValue = visInput ? parseInt(visInput.value) : 0;
+
         let parsedPrice = null;
         let parsedQty = null;
 
-        if (parseInt(type) === 3) { // Integer update
+        if (parseInt(type) === 3) {
             const rawPrice = document.getElementById('editPostPrice').value;
             const rawQty = document.getElementById('editPostQuantity').value;
             parsedPrice = rawPrice ? parseFloat(rawPrice) : null;
@@ -535,6 +567,7 @@ window.FeedService.submitEdit = async () => {
             Text: document.getElementById('editPostText').value,
             Price: parsedPrice,
             Quantity: isNaN(parsedQty) ? null : parsedQty,
+            Visibility: visValue, // INJECT VISIBILITY INTO PAYLOAD
             MediaAttachments: newAttachments
         };
 
@@ -550,13 +583,13 @@ window.FeedService.submitEdit = async () => {
         if (res.ok) {
             closeAllModals();
 
-            let currentType = 4; // Integer update ('global')
+            let currentType = 4;
             let currentId = 0;
 
             const sigCtx = document.getElementById('page-signalr-context')?.value;
             if (sigCtx) {
                 if (sigCtx.startsWith('user_')) {
-                    currentType = 1; // Integer update ('user')
+                    currentType = 1;
                     currentId = parseInt(sigCtx.split('_')[1]);
                 }
             }
@@ -642,8 +675,7 @@ document.addEventListener('click', function (e) {
 function renderNewPost(post) {
     const pType = post.type || post.Type;
 
-    // 1. ROUTE MERCH POSTS (Defensively Blocked from Social Feed)
-    if (pType === 3 || pType === '3') { // Integer update
+    if (pType === 3 || pType === '3') {
         const storefrontGrid = document.getElementById('storefront-grid-container');
         if (storefrontGrid) {
             if (storefrontGrid.innerHTML.includes("No products available")) storefrontGrid.innerHTML = '';
@@ -651,12 +683,11 @@ function renderNewPost(post) {
             renderStorefrontCard(post, dummyContainer);
             storefrontGrid.insertBefore(dummyContainer.firstElementChild, storefrontGrid.firstChild);
         }
-        return; // Exits here. Merch never enters the global feed.
+        return;
     }
 
     const attachments = post.attachments || post.Attachments || [];
 
-    // 2. ROUTE PHOTO GALLERY
     const photoGrid = document.getElementById('photo-gallery-container');
     if (photoGrid && attachments.some(a => (a.mediaType || a.MediaType) === 3)) {
         if (photoGrid.innerHTML.includes("No images found")) photoGrid.innerHTML = '';
@@ -665,7 +696,6 @@ function renderNewPost(post) {
         photoGrid.insertBefore(dummyContainer.firstElementChild, photoGrid.firstChild);
     }
 
-    // 3. ROUTE VIDEO HUB
     const videoGrid = document.getElementById('video-hub-container');
     if (videoGrid && attachments.some(a => (a.mediaType || a.MediaType) === 2)) {
         if (videoGrid.innerHTML.includes("No videos found")) videoGrid.innerHTML = '';
@@ -674,7 +704,6 @@ function renderNewPost(post) {
         videoGrid.insertBefore(dummyContainer.firstElementChild, videoGrid.firstChild);
     }
 
-    // 4. ROUTE STANDARD FEED
     const container = document.getElementById('feed-stream-container');
     if (!container) return;
 
@@ -692,8 +721,15 @@ function renderNewPost(post) {
     const pIsLiked = post.isLiked !== undefined ? post.isLiked : (post.IsLiked || false);
     const pCreatedAt = post.createdAt || post.CreatedAt;
 
+    // EXTRACT VISIBILITY
+    const pVisibility = post.visibility !== undefined ? post.visibility : (post.Visibility || 0);
+
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(pAuthorId);
     const timeDisplay = (window.timeAgo && pCreatedAt) ? window.timeAgo(pCreatedAt) : 'Just now';
+
+    let visIcon = '<i class="fas fa-globe-americas" title="Public"></i>';
+    if (pVisibility === 1) visIcon = '<i class="fas fa-link text-warning" title="Link Only"></i>';
+    if (pVisibility === 2) visIcon = '<i class="fas fa-lock text-danger" title="Private"></i>';
 
     const div = document.createElement('div');
 
@@ -708,7 +744,10 @@ function renderNewPost(post) {
                         <div class="d-flex align-items-center gap-2">
                             <a href="/creator/${pAuthorId}" class="post-author-name">${pAuthorName}</a>
                         </div>
-                        <div class="post-meta-line"><span>${timeDisplay}</span></div>
+                        <div class="post-meta-line">
+                            <span>${timeDisplay}</span> 
+                            <span class="ms-2 text-muted small vis-badge">${visIcon}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="ms-auto position-relative">
@@ -823,7 +862,7 @@ function renderAttachments(attachments, postTitle, postAuthor) {
             const safeTitle = (postTitle && postTitle !== '') ? postTitle.replace(/'/g, "\\'") : "Track";
             const safeArtist = (postAuthor && postAuthor !== '') ? postAuthor.replace(/'/g, "\\'") : "Unknown";
             const trackUrl = mUrl;
-            // NEW SAVE BUTTON ADDED HERE FOR DYNAMIC AUDIO CARDS
+
             html += `
             <div class="track-card">
                 <button class="btn-track-play" 
@@ -886,9 +925,19 @@ window.handleFileSelect = function (input, type) {
             titleGroup.style.display = 'none';
         }
 
+        // GENERATE INSTANT VISUAL PREVIEW
+        const fileUrl = URL.createObjectURL(file);
+        let mediaVisual = `<i class="fas ${icon} ${color} me-3 fs-4"></i>`;
+
+        if (type === 'image') {
+            mediaVisual = `<img src="${fileUrl}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; margin-right: 15px; border: 1px solid #333;">`;
+        } else if (type === 'video') {
+            mediaVisual = `<video src="${fileUrl}#t=0.1" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px; margin-right: 15px; border: 1px solid #333;" muted playsinline></video>`;
+        }
+
         preview.innerHTML = `
             <div class="d-flex align-items-center bg-dark p-2 rounded border border-secondary">
-                <i class="fas ${icon} ${color} me-3 fs-4"></i>
+                ${mediaVisual}
                 <div class="flex-grow-1 text-truncate">
                     <span class="text-white small">${file.name}</span>
                 </div>
@@ -923,6 +972,10 @@ document.addEventListener('submit', async function (e) {
         const titleInput = document.getElementById('postTitle');
         const cType = form.querySelector('input[name="ContextType"]')?.value;
         const cId = form.querySelector('input[name="ContextId"]')?.value;
+
+        // GRAB VISIBILITY VALUE
+        const visibilitySelect = document.getElementById('postVisibility');
+        const visValue = visibilitySelect ? parseInt(visibilitySelect.value) : 0;
 
         if (!cType || !cId) { alert("Error: Page Context is missing."); return; }
 
@@ -1008,11 +1061,12 @@ document.addEventListener('submit', async function (e) {
             submitBtn.innerText = "Posting...";
 
             const payload = {
-                ContextType: parseInt(cType) || 1, // Integer update
-                ContextId: parseInt(cId) || 0, // Integer update
-                Type: 1, // Integer update (Standard post)
+                ContextType: parseInt(cType) || 1,
+                ContextId: parseInt(cId) || 0,
+                Type: 1,
                 Title: titleInput.value.trim(),
                 Text: textArea.value,
+                Visibility: visValue, // INJECT VISIBILITY INTO PAYLOAD
                 MediaAttachments: attachments
             };
 
@@ -1027,6 +1081,7 @@ document.addEventListener('submit', async function (e) {
 
             if (postRes.ok) {
                 textArea.value = '';
+                if (visibilitySelect) visibilitySelect.value = '0'; // Reset visibility to public
                 clearAttachment();
             } else {
                 const errText = await postRes.text();
@@ -1270,8 +1325,7 @@ window.loadFeedHistory = async function (contextType, contextId) {
 function appendHistoricalPost(post, container) {
     const pType = post.type || post.Type;
 
-    // BUG FIX: Completely block merch items from the social feed container
-    if (pType === 3 || pType === '3') { // Integer update
+    if (pType === 3 || pType === '3') {
         return;
     }
 
@@ -1289,8 +1343,15 @@ function appendHistoricalPost(post, container) {
     const pCreatedAt = post.createdAt || post.CreatedAt;
     const attachments = post.attachments || post.Attachments || [];
 
+    // EXTRACT VISIBILITY
+    const pVisibility = post.visibility !== undefined ? post.visibility : (post.Visibility || 0);
+
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(pAuthorId);
     const timeDisplay = (window.timeAgo && pCreatedAt) ? window.timeAgo(pCreatedAt) : 'Just now';
+
+    let visIcon = '<i class="fas fa-globe-americas" title="Public"></i>';
+    if (pVisibility === 1) visIcon = '<i class="fas fa-link text-warning" title="Link Only"></i>';
+    if (pVisibility === 2) visIcon = '<i class="fas fa-lock text-danger" title="Private"></i>';
 
     const div = document.createElement('div');
     div.innerHTML = `
@@ -1304,7 +1365,10 @@ function appendHistoricalPost(post, container) {
                         <div class="d-flex align-items-center gap-2">
                             <a href="/creator/${pAuthorId}" class="post-author-name">${pAuthorName}</a>
                         </div>
-                        <div class="post-meta-line"><span>${timeDisplay}</span></div>
+                        <div class="post-meta-line">
+                            <span>${timeDisplay}</span>
+                            <span class="ms-2 text-muted small vis-badge">${visIcon}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="ms-auto position-relative">
@@ -1491,7 +1555,7 @@ window.triggerSocialShuffle = async function () {
     const globe = document.getElementById('social-globe-icon');
     if (globe) globe.classList.add('spin-y-axis');
     const minTimer = new Promise(resolve => setTimeout(resolve, 800));
-    const dataLoad = window.loadFeedHistory ? window.loadFeedHistory(4, 0) : Promise.resolve(); // Integer update
+    const dataLoad = window.loadFeedHistory ? window.loadFeedHistory(4, 0) : Promise.resolve();
 
     try {
         await Promise.all([dataLoad, minTimer]);
@@ -1697,9 +1761,9 @@ document.addEventListener('submit', async function (e) {
             const parsedQty = parseInt(document.getElementById('commerceQuantity').value);
 
             const payload = {
-                ContextType: parseInt(document.getElementById('commerceContextType').value) || 1, // Integer update
-                ContextId: parseInt(document.getElementById('commerceContextId').value) || 0, // Integer update
-                Type: parseInt(document.getElementById('commercePostType').value) || 3, // Integer update
+                ContextType: parseInt(document.getElementById('commerceContextType').value) || 1,
+                ContextId: parseInt(document.getElementById('commerceContextId').value) || 0,
+                Type: parseInt(document.getElementById('commercePostType').value) || 3,
                 Title: document.getElementById('commerceTitle').value.trim(),
                 Text: document.getElementById('commerceDescription').value.trim(),
                 Price: parseFloat(document.getElementById('commercePrice').value),
@@ -1840,13 +1904,12 @@ window.loadStorefront = async function (userId) {
     const container = document.getElementById('storefront-grid-container');
     if (!container) return;
 
-    // BUG FIX: Reset the global states so overlays don't get stuck!
     window.isInventoryMode = false;
     window.isStoreCarouselManagerActive = false;
     window.storeCarouselDockItems = [];
 
     try {
-        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, { // Integer update
+        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -1968,11 +2031,10 @@ window.loadPhotoGallery = async function (userId) {
     const container = document.getElementById('photo-gallery-container');
     if (!container) return;
 
-    // BUG FIX: Reset gallery state
     window.isGalleryInventoryMode = false;
 
     try {
-        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=3`, { // Integer update
+        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=3`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
 
@@ -2037,106 +2099,6 @@ function renderPhotoCard(post, container) {
 // 17. DEDICATED VIDEO HUB
 // ============================================
 
-window.isVideoInventoryMode = false;
-
-window.toggleVideoInventoryMode = function () {
-    window.isVideoInventoryMode = !window.isVideoInventoryMode;
-    const btn = document.getElementById('btnToggleVideoInventory');
-
-    if (btn) {
-        if (window.isVideoInventoryMode) {
-            btn.style.backgroundColor = '#ffc107';
-            btn.style.color = '#000';
-            btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
-        } else {
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = '#ffc107';
-            btn.innerHTML = '<i class="fas fa-tasks"></i> <span>Manage Videos</span>';
-        }
-    }
-
-    document.querySelectorAll('.video-edit-overlay').forEach(el => {
-        if (window.isVideoInventoryMode) el.classList.remove('d-none');
-        else el.classList.add('d-none');
-    });
-};
-
-window.loadVideoHub = async function (userId) {
-    const container = document.getElementById('video-hub-container');
-    if (!container) return;
-
-    // BUG FIX: Reset video state
-    window.isVideoInventoryMode = false;
-
-    try {
-        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=2`, { // Integer update
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
-
-        if (res.ok) {
-            const posts = await res.json();
-            container.innerHTML = '';
-
-            if (posts.length === 0) {
-                container.innerHTML = '<div class="text-center w-100 text-muted p-5" style="grid-column: 1 / -1;"><h3>No videos found.</h3><p>Upload some videos!</p></div>';
-                return;
-            }
-
-            posts.forEach(post => {
-                renderVideoCard(post, container);
-            });
-        } else {
-            container.innerHTML = '<div class="text-danger text-center w-100 p-3">Failed to load videos.</div>';
-        }
-    } catch (err) {
-        console.error(err);
-        container.innerHTML = '<div class="text-danger text-center w-100 p-3">Connection error.</div>';
-    }
-};
-
-function renderVideoCard(post, container) {
-    const attachments = post.attachments || post.Attachments || [];
-    const vidAttach = attachments.find(a => (a.mediaType || a.MediaType) === 2);
-    if (!vidAttach) return;
-
-    let sPath = vidAttach.snippetPath || vidAttach.SnippetPath;
-    const thumbSrc = (sPath && sPath !== "null") ? sPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
-    const title = post.title || post.Title || 'Untitled Video';
-    const pId = post.id !== undefined ? post.id : post.Id;
-    const createdAgo = post.createdAgo || post.CreatedAgo || 'Recently';
-
-    const div = document.createElement('div');
-    div.style.position = "relative";
-    div.style.display = "block";
-    div.style.width = "100%";
-    div.style.borderRadius = "8px";
-    div.style.overflow = "hidden";
-    div.style.backgroundColor = "#111";
-    div.style.border = "1px solid #333";
-
-    div.innerHTML = `
-      <div style="width: 100%; aspect-ratio: 16/9; position: relative; cursor: pointer;" onclick="window.FeedService.openPostModal('${pId}')">
-          <img src="${thumbSrc}" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.8; transition: opacity 0.3s;" onmouseover="this.style.opacity='1';" onmouseout="this.style.opacity='0.8';">
-          <i class="fas fa-play-circle" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 3rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8); pointer-events: none;"></i>
-      </div>
-      <div style="padding: 12px;">
-          <div style="color: white; font-weight: bold; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${title}">${title}</div>
-          <div style="color: #888; font-size: 0.85rem; margin-top: 5px;"><i class="far fa-clock me-1"></i> ${createdAgo}</div>
-      </div>
-      
-      <div class="video-edit-overlay ${window.isVideoInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px; border: 1px solid #ffc107;">
-         <button class="btn btn-warning fw-bold" style="width: 75%;" onclick="window.FeedService.openEditModal('${pId}')">
-            <i class="fas fa-edit me-2"></i> Edit
-         </button>
-         <button class="btn btn-danger fw-bold" style="width: 75%;" onclick="window.FeedService.deletePost('${pId}')">
-            <i class="fas fa-trash me-2"></i> Delete
-         </button>
-      </div>
-    `;
-
-    container.appendChild(div);
-}
-
 // ============================================
 // STOREFRONT CAROUSEL MANAGER (DOCK)
 // ============================================
@@ -2155,7 +2117,6 @@ window.toggleStoreCarouselManager = async function () {
     const dock = document.getElementById('storeCarouselManagerDock');
 
     if (window.isStoreCarouselManagerActive) {
-        // TURN ON - Set to loading state
         if (btn) {
             btn.classList.add('is-active');
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Loading...</span>';
@@ -2163,7 +2124,6 @@ window.toggleStoreCarouselManager = async function () {
         }
         if (dock) dock.classList.remove('d-none');
 
-        // Show empty slots while loading
         window.renderStoreCarouselDockSlots();
 
         try {
@@ -2213,7 +2173,6 @@ window.toggleStoreCarouselManager = async function () {
             console.error("Failed to load existing carousel for dock", e);
         }
 
-        // Finish Loading
         if (btn) {
             btn.innerHTML = '<i class="fas fa-check"></i> <span>Close Manager</span>';
             btn.disabled = false;
@@ -2222,7 +2181,6 @@ window.toggleStoreCarouselManager = async function () {
         window.renderStoreCarouselDockSlots();
 
     } else {
-        // TURN OFF
         if (btn) {
             btn.classList.remove('is-active');
             btn.innerHTML = '<i class="fas fa-star"></i> <span>Manage Carousel</span>';
@@ -2240,7 +2198,7 @@ window.renderStoreCarouselDockSlots = function () {
     if (!container) return;
     container.innerHTML = '';
 
-    const maxSlots = 10; // User request: Cap at 10 items
+    const maxSlots = 10;
 
     for (let i = 0; i < maxSlots; i++) {
         if (window.storeCarouselDockItems[i]) {
@@ -2264,7 +2222,6 @@ window.renderStoreCarouselDockSlots = function () {
 window.addToStoreCarouselDock = function (postId, imgUrl) {
     if (!window.isStoreCarouselManagerActive) return;
 
-    // Strict string comparison to prevent toggle errors
     if (window.storeCarouselDockItems.find(x => String(x.id) === String(postId))) {
         window.removeFromStoreCarouselDock(postId);
         return;
@@ -2280,7 +2237,6 @@ window.addToStoreCarouselDock = function (postId, imgUrl) {
 };
 
 window.removeFromStoreCarouselDock = function (postId) {
-    // Strict string comparison
     window.storeCarouselDockItems = window.storeCarouselDockItems.filter(x => String(x.id) !== String(postId));
     window.renderStoreCarouselDockSlots();
 };
@@ -2295,7 +2251,6 @@ window.saveStoreCarouselDock = async function () {
     try {
         const userId = window.AuthState?.userId;
 
-        // 1. Map the dock items into the CollectionItemRequest format the C# API expects
         const itemsPayload = window.storeCarouselDockItems.map(item => ({
             TargetId: parseInt(item.id),
             TargetType: 4
@@ -2327,7 +2282,6 @@ window.saveStoreCarouselDock = async function () {
                 btn.innerText = "Save to Profile";
                 btn.disabled = false;
 
-                // FORCE THE UI TO RELOAD IMMEDIATELY AFTER SAVING
                 if (window.loadStoreCarousel) {
                     window.loadStoreCarousel(userId);
                 }
@@ -2343,6 +2297,7 @@ window.saveStoreCarouselDock = async function () {
         }
     }
 };
+
 // ============================================
 // 18. DEFENSIVE CAROUSEL LOADER
 // ============================================
@@ -2351,7 +2306,6 @@ window.loadStoreCarousel = async function (userId) {
     const storeContainer = document.getElementById('store-carousel-container');
     if (!storeContainer) return;
 
-    // BUG FIX: Completely abort if we are on the global feed (user 0)
     if (!userId || String(userId) === '0') {
         storeContainer.innerHTML = '';
         return;
@@ -2371,11 +2325,8 @@ window.loadStoreCarousel = async function (userId) {
 
         const collections = await res.json();
 
-        // ==========================================
-        // FALLBACK LOGIC: No custom collection found
-        // ==========================================
         if (!collections || collections.length === 0) {
-            const fallbackRes = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, { // Integer update
+            const fallbackRes = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&postType=3`, {
                 headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
             });
 
@@ -2388,7 +2339,6 @@ window.loadStoreCarousel = async function (userId) {
                     return;
                 }
 
-                // Render up to 5 default items exactly as requested
                 const defaultPosts = fallbackPosts.slice(0, 5);
                 defaultPosts.forEach(post => {
                     renderMerchCard(post, storeContainer);
@@ -2397,9 +2347,6 @@ window.loadStoreCarousel = async function (userId) {
             return;
         }
 
-        // ==========================================
-        // CURATED LOGIC: Defensive mapping
-        // ==========================================
         const latestCollectionId = collections[0].id !== undefined ? collections[0].id : collections[0].Id;
 
         const detailRes = await fetch(`/api/collections/${latestCollectionId}`, {
@@ -2411,8 +2358,6 @@ window.loadStoreCarousel = async function (userId) {
         if (!detailRes.ok) return;
 
         const collectionDetails = await detailRes.json();
-
-        // Defensively check for array casing
         const rawItems = collectionDetails.items || collectionDetails.Items || [];
 
         if (rawItems.length === 0) {
@@ -2425,7 +2370,6 @@ window.loadStoreCarousel = async function (userId) {
             const tType = item.targetType !== undefined ? item.targetType : item.TargetType;
             const tId = item.targetId !== undefined ? item.targetId : item.TargetId;
 
-            // Only fetch if it's a valid post mapped from the DB
             if (tType === 4 || tType === 0) {
                 return fetch(`/api/posts/${tId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } })
                     .then(r => r.ok ? r.json() : null)

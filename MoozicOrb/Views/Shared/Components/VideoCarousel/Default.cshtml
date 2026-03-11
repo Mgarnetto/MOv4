@@ -1,0 +1,49 @@
+﻿@model MoozicOrb.API.Models.VideoCarouselViewModel
+
+@if (Model.Items == null || !Model.Items.Any())
+{
+    <div class="text-muted text-center p-4">No featured videos yet.</div>
+}
+else
+{
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+        <h4 style="color:white; margin: 0; font-weight: 700;">@(Model.IsFallback ? "Recent Videos" : "Featured Premieres")</h4>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="document.getElementById('video-carousel-track').scrollBy({left: -320, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-left"></i></button>
+            <button onclick="document.getElementById('video-carousel-track').scrollBy({left: 320, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+    <div id="video-carousel-track" style="display: flex; gap: 20px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: none; scroll-behavior: smooth;">
+        @foreach (var item in Model.Items)
+        {
+            var attachments = item.Attachments ?? new List<MoozicOrb.API.Models.MediaAttachmentDto>();
+            var vidAttach = attachments.FirstOrDefault(a => a.MediaType == 2);
+            string thumbSrc = "/img/default_cover.jpg";
+
+            if (vidAttach != null && !string.IsNullOrEmpty(vidAttach.SnippetPath) && vidAttach.SnippetPath != "null")
+            {
+                thumbSrc = vidAttach.SnippetPath.Replace("\\", "/");
+            }
+            string safeTitle = string.IsNullOrEmpty(item.Title) ? "Untitled Video" : item.Title;
+
+            <div style="flex: 0 0 300px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; transition: transform 0.2s;"
+                 onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
+                 onclick="window.openCinemaMode('@item.Id')">
+
+                <div style="position: relative; width: 100%; aspect-ratio: 16/9;">
+                    <img src="@thumbSrc" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+                        <i class="fas fa-play-circle" style="color: white; font-size: 4rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8);"></i>
+                    </div>
+                </div>
+                <div style="padding: 12px;">
+                    <div style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@safeTitle">@safeTitle</div>
+                </div>
+            </div>
+        }
+    </div>
+    <style>
+        #video-carousel-track::-webkit-scrollbar {
+            display: none;
+        }</style>
+}

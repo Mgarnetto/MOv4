@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using MoozicOrb.API.Models;
-using MoozicOrb.API.Services; // <-- ADDED
+using MoozicOrb.API.Services;
 using MoozicOrb.Hubs;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
@@ -22,20 +22,20 @@ namespace MoozicOrb.API.Controllers
         private readonly IHttpContextAccessor _http;
         private readonly IUserService _userService;
         private readonly NotificationService _notify;
-        private readonly IMediaResolverService _resolver; // <-- ADDED
+        private readonly IMediaResolverService _resolver;
 
         public PostController(
             IHubContext<PostHub> hub,
             IHttpContextAccessor http,
             IUserService userService,
             NotificationService notify,
-            IMediaResolverService resolver) // <-- ADDED
+            IMediaResolverService resolver)
         {
             _hub = hub;
             _http = http;
             _userService = userService;
             _notify = notify;
-            _resolver = resolver; // <-- ADDED
+            _resolver = resolver;
         }
 
         // --- HELPERS ----------------------------------------------------
@@ -102,7 +102,7 @@ namespace MoozicOrb.API.Controllers
                 if (req.MediaAttachments != null && req.MediaAttachments.Count > 0)
                 {
                     var mediaIo = new InsertPostMedia();
-                    var updateAudioTitleIo = new UpdateAudioTitle(); // Instantiate new IO class
+                    var updateAudioTitleIo = new UpdateAudioTitle();
 
                     int sort = 0;
                     foreach (var item in req.MediaAttachments)
@@ -134,6 +134,7 @@ namespace MoozicOrb.API.Controllers
                     ImageUrl = req.ImageUrl,
                     CreatedAt = DateTime.UtcNow,
                     CreatedAgo = "Just now",
+                    Visibility = req.Visibility, // <-- ADDED GLOBAL VISIBILITY
 
                     // Because feed.js now sends SnippetPath in the JSON, it automatically exists right here!
                     Attachments = req.MediaAttachments ?? new List<MediaAttachmentDto>(),
@@ -170,10 +171,10 @@ namespace MoozicOrb.API.Controllers
 
         [HttpGet]
         public IActionResult GetPosts(
-            [FromQuery] int contextType,     // Changed to int
-            [FromQuery] long contextId,      // Changed to long
+            [FromQuery] int contextType,
+            [FromQuery] long contextId,
             [FromQuery] int page = 1,
-            [FromQuery] int? postType = null, // Changed to int?
+            [FromQuery] int? postType = null,
             [FromQuery] int? mediaType = null)
         {
             try
@@ -212,7 +213,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int viewerId = GetViewerId();
                 var io = new GetPost();
-                var post = io.Execute(id, viewerId, _resolver); // <-- PASSED RESOLVER
+                var post = io.Execute(id, viewerId, _resolver);
 
                 if (post == null) return NotFound("Post not found");
 
@@ -232,7 +233,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int viewerId = GetViewerId();
                 var io = new GetPost();
-                var post = io.Execute(id, viewerId, _resolver); // <-- PASSED RESOLVER
+                var post = io.Execute(id, viewerId, _resolver);
 
                 if (post == null) return NotFound("Post not found");
 
@@ -281,7 +282,7 @@ namespace MoozicOrb.API.Controllers
 
                 // NOTIFY POST AUTHOR
                 var postIo = new GetPost();
-                var post = postIo.Execute(req.PostId, userId, _resolver); // <-- PASSED RESOLVER
+                var post = postIo.Execute(req.PostId, userId, _resolver);
 
                 if (post != null && post.AuthorId != userId)
                 {
@@ -322,7 +323,7 @@ namespace MoozicOrb.API.Controllers
                 if (liked)
                 {
                     var postIo = new GetPost();
-                    var post = postIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
+                    var post = postIo.Execute(id, userId, _resolver);
 
                     if (post != null && post.AuthorId != userId)
                     {
@@ -345,11 +346,13 @@ namespace MoozicOrb.API.Controllers
             {
                 int userId = GetUserId();
 
-                // 1. Update text, title, price, and quantity
+                // 1. Update text, title, price, quantity, and VISIBILITY
                 var io = new UpdatePost();
-                io.Execute(userId, id, req);
 
-                // 2. NEW: Intercept newly uploaded files and append them to the post
+                // FIXED: Passed explicit parameters matching our new IO class, including Visibility
+                io.Execute(id, userId, req.Title, req.Text, req.Price, req.Quantity, req.Visibility);
+
+                // 2. Intercept newly uploaded files and append them to the post
                 if (req.MediaAttachments != null && req.MediaAttachments.Count > 0)
                 {
                     var mediaIo = new InsertPostMedia();
@@ -362,7 +365,7 @@ namespace MoozicOrb.API.Controllers
 
                 // 3. Get updated post to broadcast via SignalR
                 var getIo = new GetPost();
-                var updatedPost = getIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
+                var updatedPost = getIo.Execute(id, userId, _resolver);
 
                 if (updatedPost != null)
                 {
@@ -390,7 +393,7 @@ namespace MoozicOrb.API.Controllers
             {
                 int userId = GetUserId();
                 var getIo = new GetPost();
-                var existing = getIo.Execute(id, userId, _resolver); // <-- PASSED RESOLVER
+                var existing = getIo.Execute(id, userId, _resolver);
                 if (existing == null) return NotFound();
 
                 var delIo = new DeletePost();
@@ -441,7 +444,7 @@ namespace MoozicOrb.API.Controllers
                 if (!success) return BadRequest("Could not edit comment (Access Denied or Not Found)");
 
                 // Get Post to find the correct SignalR group
-                var post = new GetPost().Execute(id, userId, _resolver); // <-- PASSED RESOLVER
+                var post = new GetPost().Execute(id, userId, _resolver);
                 if (post != null)
                 {
                     string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);
@@ -476,7 +479,7 @@ namespace MoozicOrb.API.Controllers
                 if (!success) return BadRequest("Could not delete comment (Access Denied or Not Found)");
 
                 // Get Post to find the correct SignalR group
-                var post = new GetPost().Execute(id, userId, _resolver); // <-- PASSED RESOLVER
+                var post = new GetPost().Execute(id, userId, _resolver);
                 if (post != null)
                 {
                     string targetGroup = GetSignalRGroupName(post.ContextType, post.ContextId);

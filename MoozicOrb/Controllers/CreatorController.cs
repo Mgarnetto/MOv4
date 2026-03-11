@@ -232,7 +232,7 @@ namespace MoozicOrb.Controllers
             if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
                 return PartialView("_PhotoGalleryPartial", model);
 
-            return View("PhotoGallery", model);
+            return RedirectToAction("Index", "Home");
         }
 
         // ==========================================
@@ -261,7 +261,7 @@ namespace MoozicOrb.Controllers
             if (Request.IsSpaRequest() || Request.Headers["X-Spa-Request"] == "true")
                 return PartialView("_VideoHubPartial", model);
 
-            return View("VideoHub", model);
+            return RedirectToAction("Index", "Home");
         }
 
         // ==========================================

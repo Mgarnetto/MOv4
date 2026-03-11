@@ -3,7 +3,6 @@
 <input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
 <input type="hidden" id="video-user-id" value="@Model.UserId" />
 <input type="hidden" id="video-is-owner" value="@Model.IsCurrentUser.ToString().ToLower()" />
-<input type="hidden" id="videoCarouselCollectionId" value="0" />
 
 <div class="video-container" style="padding: 20px 0; position: relative;">
 
@@ -18,27 +17,52 @@
 
         @if (Model.IsCurrentUser)
         {
-            <div style="display: flex; gap: 10px;">
-                <button id="btnToggleVideoCarouselManager" onclick="window.toggleVideoCarouselManager()" style="background-color: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="window.toggleVideoDropZone()" style="background-color: transparent; color: #20c997; border: 1px solid #20c997; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+                    <i class="fas fa-cloud-upload-alt"></i> <span>Upload</span>
+                </button>
+                <input type="file" id="videoBatchUploadInput" accept="video/*" multiple class="d-none" onchange="window.handleBatchVideoUpload(this)">
+
+                <button onclick="window.openVideoCollectionBuilder()" style="background-color: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+                    <i class="fas fa-folder-plus"></i> <span>New Collection</span>
+                </button>
+
+                <button id="btnToggleVideoCarouselManager" onclick="window.toggleVideoCarouselManager()" style="background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
                     <i class="fas fa-star"></i> <span>Manage Carousel</span>
                 </button>
             </div>
         }
     </div>
 
+    @if (Model.IsCurrentUser)
+    {
+        <div id="videoDropZoneWrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease, opacity 0.4s ease, margin-bottom 0.4s ease; opacity: 0; margin-bottom: 0;">
+            <div id="videoDropZone" style="border: 2px dashed #444; border-radius: 12px; padding: 40px; text-align: center; background: #111; cursor: pointer; transition: all 0.3s; margin-bottom: 30px;"
+                 onclick="document.getElementById('videoBatchUploadInput').click()"
+                 ondragover="event.preventDefault(); this.style.borderColor='#0dcaf0'; this.style.background='#1a1a1a';"
+                 ondragleave="event.preventDefault(); this.style.borderColor='#444'; this.style.background='#111';"
+                 ondrop="window.handleVideoDrop(event)">
+
+                <div id="videoDropZoneContent">
+                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                    <h4 style="color: #fff; font-weight: bold;">Drag & Drop Videos Here</h4>
+                    <p style="color: #888; font-size: 0.9rem; margin: 0;">or click to browse your files. Videos are saved privately to your Vault.</p>
+                </div>
+            </div>
+        </div>
+    }
+
     <div id="video-carousel-container" style="margin-bottom: 30px;">
-        <div class="text-center w-100 text-muted p-4"><i class="fas fa-spinner fa-spin"></i> Loading featured videos...</div>
+        @await Component.InvokeAsync("VideoCarousel", new { userId = Model.UserId })
     </div>
 
-    <div id="video-series-container" style="margin-bottom: 30px;">
-        <div class="text-center w-100 text-muted p-4"><i class="fas fa-spinner fa-spin"></i> Loading series...</div>
-    </div>
+    <div id="video-collections-container" style="margin-bottom: 30px;"></div>
 
-    <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">All Videos</h4>
+    <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">Vault Videos</h4>
     <div class="video-hub-grid" id="video-hub-container">
         <div style="text-align: center; width: 100%; padding: 50px 0; color: #888; grid-column: 1 / -1;">
             <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 15px;"></i>
-            <p>Loading videos...</p>
+            <p>Loading vault...</p>
         </div>
     </div>
 </div>
@@ -53,76 +77,180 @@
             </button>
         </div>
         <div class="dock-slots-wrapper" style="flex-grow: 1; padding: 15px 20px; overflow-x: auto; display: flex; align-items: center;">
-            <div id="videoCarouselDockSlotsContainer" style="display: flex; gap: 15px;">
-            </div>
+            <div id="videoCarouselDockSlotsContainer" style="display: flex; gap: 15px;"></div>
         </div>
     </div>
 }
 
-@if (Model.IsCurrentUser)
-{
-    <div id="video-inspector-sidebar" class="audio-inspector closed">
-        <div class="inspector-header">
-            <h5 id="vid-inspector-title" style="margin:0; font-weight: bold; color: #fff;">Edit Video</h5>
-            <button onclick="window.closeVideoInspector()" class="btn-close-inspector"><i class="fas fa-times"></i></button>
+<div id="cinemaModal" class="modal-overlay d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+    <button onclick="window.closeCinemaModal()" style="position: absolute; top: 20px; right: 30px; background: transparent; border: none; color: white; font-size: 2rem; cursor: pointer; z-index: 2005;">&times;</button>
+
+    <div class="cinema-content-wrapper" style="display: flex; width: 90%; max-width: 1400px; height: 85vh; background: #0a0a0a; border-radius: 12px; overflow: hidden; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+        <div class="cinema-player-col" style="flex: 7; background: #000; position: relative; display: flex; align-items: center; justify-content: center;">
+            <video id="cinemaVideoPlayer" controls style="width: 100%; max-height: 100%; outline: none;"></video>
         </div>
 
-        <input type="hidden" id="vid-edit-target-id" />
-        <input type="hidden" id="vid-edit-target-type" />
+        <div class="cinema-details-col" style="flex: 3; background: #111; border-left: 1px solid #333; display: flex; flex-direction: column;">
+            <div style="padding: 20px; border-bottom: 1px solid #222;">
+                <h4 id="cinemaVideoTitle" style="color: white; margin: 0 0 10px 0; font-weight: bold;">Loading...</h4>
+                <div style="display: flex; align-items: center; gap: 10px; color: #888; font-size: 0.9rem;">
+                    <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                    <span>@Model.DisplayName</span>
+                </div>
+                <div id="cinemaVideoDesc" style="color: #ccc; font-size: 0.9rem; margin-top: 15px; line-height: 1.4;"></div>
+            </div>
 
-        <div class="inspector-body">
+            <div style="padding: 10px 20px; display: flex; justify-content: space-around; border-bottom: 1px solid #222;">
+                <button id="cinemaLikeBtn" class="btn-post-action btn-like" data-id="" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;">
+                    <i class="far fa-heart fa-lg"></i> <span id="cinemaLikeCount" style="margin-left: 5px;">0</span>
+                </button>
+                <button class="btn-post-action" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;">
+                    <i class="fas fa-share fa-lg"></i> <span style="margin-left: 5px;">Share</span>
+                </button>
+            </div>
 
-            <div style="margin-bottom: 20px;">
-                <label style="color: #ccc; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Custom Thumbnail</label>
-                <div id="vid-edit-cover-wrapper" style="position: relative; width: 100%; aspect-ratio: 16/9; background: #1a1a1a; border: 1px dashed #444; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: pointer;" onclick="document.getElementById('vid-edit-cover-input').click()">
-                    <img id="vid-edit-cover-preview" src="" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top:0; left:0;">
-                    <div style="position: absolute; background: rgba(0,0,0,0.5); padding: 5px 10px; border-radius: 4px; color: #fff; font-size: 0.8rem; z-index: 2;"><i class="fas fa-camera"></i> Change Image</div>
+            <div id="cinemaCommentsWrapper" style="flex-grow: 1; overflow-y: auto; padding: 20px;"></div>
+
+            <div style="padding: 15px; background: #1a1a1a; border-top: 1px solid #333; display: flex; gap: 10px;">
+                <input type="text" id="cinemaCommentInput" class="form-control" style="background: #000; border: 1px solid #444; color: white;" placeholder="Add a comment...">
+                <button class="btn btn-primary btn-sm" onclick="window.submitCinemaComment()" style="background: #0dcaf0; color: #000; font-weight: bold; border: none;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.IsCurrentUser)
+{
+    <div id="videoCollectionBuilderModal" class="modal-overlay d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1050; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="background: #111; border: 1px solid #333; border-radius: 12px; width: 90%; max-width: 900px; height: 80vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+
+            <div style="padding: 15px 20px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; border-radius: 12px 12px 0 0;">
+                <h4 id="vcBuilderHeaderTitle" style="margin: 0; color: #fff; font-weight: bold;"><i class="fas fa-layer-group text-info me-2"></i> Build Video Collection</h4>
+                <button onclick="window.closeVideoCollectionBuilder()" style="background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer;"><i class="fas fa-times"></i></button>
+            </div>
+
+            <input type="hidden" id="vcBuilderTargetId" value="" />
+
+            <div style="display: flex; padding: 20px; gap: 20px; border-bottom: 1px solid #222;">
+                <div style="flex: 1;">
+                    <label class="text-muted small fw-bold text-uppercase">Collection Title</label>
+                    <input type="text" id="vcBuilderTitle" class="form-control" style="background: #000; border: 1px solid #333; color: white;" placeholder="e.g. Tour Vlogs 2026">
+                </div>
+            </div>
+
+            <div style="display: flex; flex-grow: 1; overflow: hidden;">
+                <div style="flex: 1; border-right: 1px solid #333; display: flex; flex-direction: column;">
+                    <div style="padding: 10px; background: #1a1a1a; text-align: center; font-weight: bold; color: #aaa; font-size: 0.9rem;">Your Vault</div>
+                    <div id="vcBuilderVaultList" style="flex-grow: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start;"></div>
+                </div>
+
+                <div style="flex: 1; display: flex; flex-direction: column; background: #0a0a0a;">
+                    <div style="padding: 10px; background: #1a1a1a; text-align: center; font-weight: bold; color: #0dcaf0; font-size: 0.9rem;">Collection Episodes</div>
+                    <div id="vcBuilderSelectedList" style="flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <div style="padding: 15px 20px; border-top: 1px solid #222; text-align: right; background: #1a1a1a; border-radius: 0 0 12px 12px;">
+                <button class="btn btn-secondary me-2" onclick="window.closeVideoCollectionBuilder()">Cancel</button>
+                <button class="btn btn-info fw-bold" id="vcBuilderSaveBtn" onclick="window.saveVideoCollection()">Save Collection</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="video-inspector-sidebar" class="audio-inspector closed">
+        <div class="inspector-header">
+            <h5 id="vid-inspector-header-title" style="margin: 0; font-weight: 700;">Edit Video</h5>
+            <button onclick="window.closeVideoInspector()" style="background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div id="vid-inspector-lock-warning" class="d-none" style="background: rgba(255, 193, 7, 0.1); border-left: 4px solid #ffc107; padding: 10px; margin: 15px; border-radius: 4px;">
+            <i class="fas fa-lock text-warning" style="margin-right: 5px;"></i>
+            <span style="font-size: 0.85rem; color: #ddd;">This item has been sold. Media files and tracklists are locked.</span>
+        </div>
+
+        <div class="inspector-tabs">
+            <button id="tab-vid-details" class="tab-btn active" onclick="window.switchVidInspectorTab('details')">Details</button>
+            <button id="tab-vid-monetization" class="tab-btn" onclick="window.switchVidInspectorTab('monetization')">Monetization</button>
+            <button id="tab-vid-episodes" class="tab-btn d-none" onclick="window.switchVidInspectorTab('episodes')">Episodes</button>
+        </div>
+
+        <div class="inspector-body" style="position: relative; flex-grow: 1; overflow: hidden;">
+
+            <div id="vid-tab-content-details" class="tab-content active" style="position: absolute; inset: 0; padding: 20px; overflow-y: auto;">
+                <input type="hidden" id="vid-edit-target-id">
+                <input type="hidden" id="vid-edit-target-type">
+
+                <div style="margin-bottom: 20px;">
+                    <label class="inspector-label">Cover Art</label>
                     <input type="file" id="vid-edit-cover-input" accept="image/*" class="d-none" onchange="window.previewVideoInspectorCover(this)">
+                    <div id="vid-edit-cover-wrapper" onclick="document.getElementById('vid-edit-cover-input').click()"
+                         style="width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; transition: border-color 0.2s;"
+                         onmouseover="this.style.borderColor='#0dcaf0'; this.querySelector('.cover-overlay').style.opacity='1';"
+                         onmouseout="this.style.borderColor='#333'; this.querySelector('.cover-overlay').style.opacity='0';">
+
+                        <img id="vid-edit-cover-preview" src="/img/default_cover.jpg" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.7;">
+                        <div class="cover-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s;">
+                            <span style="color: white; font-weight: bold; background: rgba(0,0,0,0.8); padding: 8px 16px; border-radius: 20px; border: 1px solid #555;"><i class="fas fa-camera me-2"></i> Change Art</span>
+                        </div>
+                    </div>
                 </div>
+
+                <label class="inspector-label">Title</label>
+                <input type="text" id="vid-edit-title" class="inspector-input" placeholder="Video/Series Title">
+
+                <label class="inspector-label">Description</label>
+                <textarea id="vid-edit-desc" class="inspector-input" rows="3" style="resize: none;"></textarea>
+
+                <label class="inspector-label">Visibility</label>
+                <select id="vid-edit-visibility" class="inspector-input">
+                    <option value="0">Public</option>
+                    <option value="1">Link Only</option>
+                    <option value="2">Private / Draft</option>
+                </select>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label style="color: #ccc; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Video Title</label>
-                <input type="text" id="vid-edit-title" class="form-control" style="background: #1a1a1a; border: 1px solid #333; color: white;" placeholder="Enter title...">
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <label style="color: #ccc; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Description</label>
-                <textarea id="vid-edit-desc" class="form-control" style="background: #1a1a1a; border: 1px solid #333; color: white; resize: none;" rows="3" placeholder="Enter description..."></textarea>
-            </div>
-
-            <div style="display: flex; gap: 15px; margin-bottom: 20px;">
-                <div style="flex: 1;">
-                    <label style="color: #ccc; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Visibility</label>
-                    <select id="vid-edit-visibility" class="form-select" style="background: #1a1a1a; border: 1px solid #333; color: white;">
-                        <option value="0">Public</option>
-                        <option value="1">Link Only</option>
-                        <option value="2">Private</option>
-                    </select>
+            <div id="vid-tab-content-monetization" class="tab-content d-none" style="position: absolute; inset: 0; padding: 20px; overflow-y: auto;">
+                <label class="inspector-label">Price (USD)</label>
+                <div style="position: relative;">
+                    <span style="position: absolute; left: 10px; top: 10px; color: #aaa;">$</span>
+                    <input type="number" id="vid-edit-price" class="inspector-input" style="padding-left: 25px;" placeholder="0.00" step="0.01" min="0">
                 </div>
-                <div style="flex: 1;">
-                    <label style="color: #ccc; font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 8px;">Price (Unlock)</label>
-                    <div class="input-group">
-                        <span class="input-group-text" style="background: #222; border: 1px solid #333; border-right: none; color: #aaa;">$</span>
-                        <input type="number" id="vid-edit-price" class="form-control" style="background: #1a1a1a; border: 1px solid #333; border-left: none; color: white;" placeholder="0.00" step="0.01" min="0">
+                <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">Set a price to lock content behind a paywall.</p>
+            </div>
+
+            <div id="vid-tab-content-episodes" class="tab-content d-none" style="position: absolute; inset: 0; overflow: hidden; background: #121212;">
+                <div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+                    <div style="flex-grow: 1; overflow-y: auto; padding: 20px;">
+                        <div id="inspector-series-episodes-container"></div>
+                    </div>
+                    <div style="padding: 15px 20px; border-top: 1px solid #222; background: #121212; text-align: center; flex-shrink: 0;">
+                        <button onclick="document.getElementById('vid-inspector-vault-panel').style.transform = 'translateY(0)'" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; box-shadow: 0 -2px 10px rgba(0,0,0,0.2);">
+                            <i class="fas fa-arrow-up"></i> Add Videos from Vault
+                        </button>
+                    </div>
+                </div>
+
+                <div id="vid-inspector-vault-panel" style="position: absolute; inset: 0; background: #0a0a0a; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; z-index: 10;">
+                    <div style="padding: 15px 20px; border-bottom: 1px solid #333; background: #0a0a0a; text-align: center; flex-shrink: 0;">
+                        <button onclick="document.getElementById('vid-inspector-vault-panel').style.transform = 'translateY(100%)'" style="background: #333; color: white; border: 1px solid #444; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                            <i class="fas fa-arrow-down"></i> Back to Series Episodes
+                        </button>
+                    </div>
+                    <div style="flex-grow: 1; overflow-y: auto; padding: 20px;">
+                        <div id="inspector-vault-videos-container"></div>
                     </div>
                 </div>
             </div>
-
-            <div id="vid-inspector-lock-warning" class="alert alert-warning d-none" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); color: #ffc107; font-size: 0.85rem; padding: 10px;">
-                <i class="fas fa-lock me-2"></i> This video has been purchased. Metadata and thumbnails are locked to preserve the buyer's copy.
-            </div>
-
         </div>
 
         <div class="inspector-footer">
-            <button class="btn-dock-save" style="width: 100%; background: linear-gradient(135deg, #00d2ff, #007bff); color: white; border: none; padding: 10px; border-radius: 6px; font-weight: bold;" onclick="window.saveVideoInspector()">Save Changes</button>
+            <button class="btn-dock-save" onclick="window.saveVideoInspector()" style="width: 100%; background: linear-gradient(135deg, #00d2ff, #007bff); border: none; color: white; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Save Changes</button>
         </div>
     </div>
 }
 
 <style>
-    /* CSS FOR VIDEO HUB COMPONENTS */
+    /* --- GRID & CARDS --- */
     .video-hub-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -132,16 +260,16 @@
     }
 
     .vid-card {
-        background: #1a1a1a;
+        background: #111;
         border: 1px solid #333;
-        border-radius: 8px;
+        border-radius: 12px;
         overflow: hidden;
-        transition: transform 0.2s;
         position: relative;
+        transition: transform 0.2s ease, border-color 0.2s ease;
     }
 
         .vid-card:hover {
-            transform: scale(1.02);
+            transform: translateY(-4px);
             border-color: #555;
         }
 
@@ -149,19 +277,22 @@
         width: 100%;
         aspect-ratio: 16/9;
         position: relative;
+        background: #000;
         cursor: pointer;
+        overflow: hidden;
     }
 
     .vid-thumb-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        opacity: 0.9;
-        transition: opacity 0.3s;
+        opacity: 0.8;
+        transition: opacity 0.3s, transform 0.3s;
     }
 
     .vid-card:hover .vid-thumb-img {
         opacity: 1;
+        transform: scale(1.05);
     }
 
     .vid-play-overlay {
@@ -173,16 +304,70 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0,0,0,0.2);
-        opacity: 0;
-        transition: opacity 0.2s;
+        background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
         pointer-events: none;
     }
 
-    .vid-card:hover .vid-play-overlay {
-        opacity: 1;
+    /* --- OVERLAYS & ACTIONS --- */
+    .vid-actions-overlay {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 5;
     }
 
+    .vid-btn-translucent {
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .vid-btn-translucent:hover {
+            background: rgba(0,0,0,0.9);
+            border-color: #fff;
+        }
+
+    .vid-top-right-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 8px;
+        z-index: 20;
+    }
+
+    .vid-action-circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(4px);
+        transition: background 0.2s;
+    }
+
+        .vid-action-circle:hover {
+            background: rgba(0,0,0,0.9);
+        }
+
+    /* --- CAROUSEL SLOTS --- */
     .vid-carousel-slot {
         width: 220px;
         height: 140px;
@@ -197,6 +382,7 @@
         position: relative;
         flex-shrink: 0;
         transition: all 0.2s;
+        cursor: pointer;
     }
 
         .vid-carousel-slot.filled-slot {
@@ -217,23 +403,135 @@
         pointer-events: none;
     }
 
-    /* REUSE AUDIO INSPECTOR STYLES */
+    /* --- VIDEO INSPECTOR (AudioHub Style Fixed) --- */
     .audio-inspector {
         position: fixed;
-        top: 0;
+        top: 70px;
+        bottom: 0;
         right: 0;
-        width: 350px;
-        height: 100vh;
+        width: 380px;
+        max-width: 100vw;
         background: #121212;
         border-left: 1px solid #333;
-        z-index: 1050;
-        box-shadow: -5px 0 20px rgba(0,0,0,0.8);
-        transition: transform 0.3s ease;
+        z-index: 1060;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.9);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         display: flex;
         flex-direction: column;
+        overflow: hidden;
     }
 
         .audio-inspector.closed {
             transform: translateX(100%);
         }
+
+    .inspector-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #333;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #1a1a1a;
+        flex-shrink: 0;
+    }
+
+    .inspector-tabs {
+        display: flex;
+        border-bottom: 1px solid #333;
+        background: #111;
+        flex-shrink: 0;
+    }
+
+    .tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        color: #888;
+        padding: 12px 0;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+        .tab-btn.active {
+            color: #0dcaf0 !important;
+            border-bottom: 2px solid #0dcaf0 !important;
+        }
+
+    .inspector-body {
+        flex-grow: 1;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .tab-content {
+        display: none;
+        height: 100%;
+        overflow-y: auto;
+    }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    .inspector-label {
+        display: block;
+        color: #aaa;
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .inspector-input {
+        width: 100%;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+
+        .inspector-input:focus {
+            outline: none;
+            border-color: #0dcaf0;
+        }
+
+    .inspector-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #333;
+        background: #1a1a1a;
+        flex-shrink: 0;
+    }
+
+    /* --- RESPONSIVENESS --- */
+    @@media (max-width: 768px) {
+        .cinema-content-wrapper
+
+    {
+        flex-direction: column;
+        height: 95vh;
+    }
+
+    .cinema-player-col {
+        flex: 4;
+    }
+
+    .cinema-details-col {
+        flex: 6;
+        border-left: none;
+        border-top: 1px solid #333;
+    }
+
+    .audio-inspector {
+        width: 100%;
+    }
+
+    }
 </style>

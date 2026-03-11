@@ -47,6 +47,7 @@ namespace MoozicOrb.API.Models
         public int LikesCount { get; set; }    // Total likes
         public int CommentsCount { get; set; } // Total comments
         public int? Quantity { get; set; }
+        public int Visibility { get; set; } = 0;
 
         public List<MediaAttachmentDto> Attachments { get; set; } = new List<MediaAttachmentDto>();
     }
@@ -161,6 +162,7 @@ namespace MoozicOrb.API.Models
         public string? LocationLabel { get; set; }
         public string? DifficultyLevel { get; set; }
         public int? Quantity { get; set; }
+        public int Visibility { get; set; } = 0; 
         public List<MediaAttachmentDto>? MediaAttachments { get; set; }
     }
 

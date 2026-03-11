@@ -19,7 +19,7 @@
                 </div>
 
                 <div class="d-flex gap-3">
-                    <img src="/img/profile_default.jpg" class="rounded-circle border border-secondary" width="50" height="50" style="object-fit:cover;">
+                    @* <img src="/img/profile_default.jpg" class="rounded-circle border border-secondary" width="50" height="50" style="object-fit:cover;"> *@
                     <textarea name="Content" id="postContent"
                               class="form-control create-post-input"
                               placeholder="Share a track, update, or thought..."
@@ -53,10 +53,17 @@
                         <button type="button" class="post-action-btn" title="Location">
                             <i class="fas fa-map-marker-alt"></i>
                         </button>
-                    </div>
+                </div>
 
+                <div class="d-flex align-items-center gap-2">
+                    <select id="postVisibility" class="form-select form-select-sm" style="background:#050505; border:1px solid #333; color:#aaa; font-weight:bold; cursor:pointer; outline:none; box-shadow:none;">
+                        <option value="0">🌐 Public</option>
+                        <option value="1">🔗 Link Only</option>
+                        <option value="2">🔒 Private</option>
+                    </select>
                     <button type="submit" class="btn-post-submit">Post</button>
                 </div>
+            </div>
             </form>
         </div>
 }

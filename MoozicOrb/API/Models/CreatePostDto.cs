@@ -26,6 +26,7 @@ namespace MoozicOrb.API.Models
         public string? Category { get; set; }
 
         public int? Quantity { get; set; }
+        public int Visibility { get; set; } = 0; 
 
         public List<MediaAttachmentDto> MediaAttachments { get; set; } = new List<MediaAttachmentDto>();
     }

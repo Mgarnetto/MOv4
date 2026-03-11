@@ -287,8 +287,12 @@
                     <input type="hidden" id="editPostType">
 
                     <div class="mb-3">
-                        <label class="text-muted small fw-bold text-uppercase">Title</label>
-                        <input type="text" id="editPostTitle" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px;">
+                        <label class="text-muted small fw-bold text-uppercase">Visibility</label>
+                        <select id="editPostVisibility" style="width: 100%; background: #000; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; outline: none; margin-top: 5px;">
+                            <option value="0">🌐 Public</option>
+                            <option value="1">🔗 Link Only</option>
+                            <option value="2">🔒 Private</option>
+                        </select>
                     </div>
 
                     <div id="editMerchFields" class="d-none mb-3">
