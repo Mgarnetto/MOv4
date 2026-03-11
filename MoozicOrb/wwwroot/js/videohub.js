@@ -1,6 +1,6 @@
 ﻿/* ============================================
    VIDEO HUB v2.0: JAVASCRIPT ENGINE
-   Handles Cinematic Grid, Drag & Drop, Collections, and Carousel
+   Handles Cinematic Grid, Drag & Drop, Collections, Carousel, & Comments
    ============================================ */
 
 window.currentVaultVideos = [];
@@ -63,6 +63,7 @@ function renderVaultGrid(posts, isOwner) {
 
         const likes = post.likesCount || 0;
         const comments = post.commentsCount || 0;
+        const isLiked = post.isLiked === true;
 
         let visIcon = '';
         if (vis === 1) visIcon = '<i class="fas fa-link text-warning position-absolute" style="top:10px; left:10px; z-index:10;"></i>';
@@ -79,7 +80,7 @@ function renderVaultGrid(posts, isOwner) {
                 ${visIcon}
                 ${priceBadge}
 
-                <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments})">
+                <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, ${isLiked})">
                     <img src="${thumbSrc}" class="vid-thumb-img">
                     <div class="vid-play-overlay"><i class="fas fa-play-circle" style="color: white; font-size: 3rem;"></i></div>
                     
@@ -101,8 +102,12 @@ function renderVaultGrid(posts, isOwner) {
                     </div>
 
                     <div class="vid-actions-overlay">
-                        <button class="vid-btn-translucent" onclick="event.stopPropagation();"><i class="fas fa-heart ${post.isLiked ? 'text-danger' : ''}"></i> ${likes}</button>
-                        <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, true)"><i class="fas fa-comment"></i> ${comments}</button>
+                        <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.toggleGridLike(this, '${pId}')">
+                            <i class="${isLiked ? 'fas text-danger' : 'far'} fa-heart"></i> <span>${likes}</span>
+                        </button>
+                        <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, ${isLiked}, true)">
+                            <i class="fas fa-comment"></i> ${comments}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -152,7 +157,7 @@ function renderCollectionsGrid(collections, isOwner) {
                     </div>
                     ` : ''}
 
-                    <div style="position: absolute; bottom: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5;">
+                    <div style="position: absolute; bottom: 10px; left: 10px; right: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                         ${title}
                     </div>
                 </div>
@@ -192,14 +197,16 @@ window.viewVideoCollection = async function (collectionId, title) {
                     const safeUrl = encodeURIComponent(item.url || item.Url);
                     let thumbSrc = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
                     thumbSrc = thumbSrc.replace(/\\/g, '/');
-
+                    
+                    const activePostId = item.postId || item.PostId || item.targetId;
+                    
                     html += `
                         <div class="vid-card">
-                            <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${item.targetId}', '${safeUrl}', '${safeTitle}', '', 0, 0)">
+                            <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${activePostId}', '${safeUrl}', '${safeTitle}', '', 0, 0, false)">
                                 <img src="${thumbSrc}" class="vid-thumb-img">
                                 <div class="vid-play-overlay"><i class="fas fa-play-circle" style="color: white; font-size: 3rem;"></i></div>
                                 
-                                <div style="position: absolute; bottom: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5;">
+                                <div style="position: absolute; bottom: 10px; left: 10px; right: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                     ${item.title || item.Title}
                                 </div>
                             </div>
@@ -369,7 +376,7 @@ window.previewVideoInspectorCover = function (input) {
     }
 };
 
-// --- EPISODE LIST LOGIC ---
+// --- EPISODE LIST LOGIC (Instant API Triggers) ---
 window.inspectorSeriesEpisodes = [];
 window.inspectorVaultVideos = [];
 
@@ -395,7 +402,7 @@ window.loadInspectorEpisodeList = async function (collectionId) {
             const att = t.attachments || t.Attachments || [];
             const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
             const mId = vid ? String(vid.mediaId || vid.MediaId) : "0";
-            return !existingMediaIds.includes(mId);
+            return !existingMediaIds.includes(mId); 
         });
 
         window.renderInspectorEpisodeList(collectionId);
@@ -413,7 +420,7 @@ window.renderInspectorEpisodeList = function (collectionId) {
         } else {
             window.inspectorSeriesEpisodes.forEach((track, i) => {
                 const title = track.title || track.Title || "Untitled";
-                const linkId = track.linkId || track.LinkId;
+                const linkId = track.linkId || track.LinkId; 
                 eHtml += `
                     <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; flex-grow: 1;">
@@ -471,7 +478,7 @@ window.inspectorAddEpisode = async function (btn, targetId, collectionId) {
         const res = await fetch(`/api/collections/${collectionId}/add-item`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
-            body: JSON.stringify({ TargetId: targetId, TargetType: 2 })
+            body: JSON.stringify({ TargetId: targetId, TargetType: 2 }) 
         });
         if (res.ok) { window.loadInspectorEpisodeList(collectionId); }
         else { btn.innerHTML = '<i class="fas fa-plus" style="font-size: 10px;"></i>'; btn.disabled = false; }
@@ -889,9 +896,9 @@ window.saveVideoCarouselDock = async function () {
 };
 
 // ============================================
-// 7. THE CINEMA MODAL (Comments & Likes Additions)
+// 7. THE CINEMA MODAL (Comments & Likes Addition)
 // ============================================
-window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, comments, autoFocusComments = false) {
+window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, comments, isLiked, autoFocusComments = false) {
     const modal = document.getElementById('cinemaModal');
     const player = document.getElementById('cinemaVideoPlayer');
     const titleEl = document.getElementById('cinemaVideoTitle');
@@ -901,12 +908,22 @@ window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, 
 
     if (!modal || !player) return;
 
+    // Reset Reply State explicitly
+    window.cancelCinemaReply();
+
     titleEl.innerText = decodeURIComponent(titleEnc);
     descEl.innerText = decodeURIComponent(descEnc);
     player.src = decodeURIComponent(vidUrlEnc);
 
     likeBtn.dataset.id = postId;
     likeCount.innerText = likes;
+    
+    const icon = likeBtn.querySelector('i');
+    if (isLiked) {
+        icon.className = 'fas fa-heart fa-lg text-danger';
+    } else {
+        icon.className = 'far fa-heart fa-lg';
+    }
 
     // Load Local Comments
     window.loadCinemaComments(postId);
@@ -925,66 +942,141 @@ window.closeCinemaModal = function () {
     }
 };
 
-window.toggleCinemaLike = async function () {
+window.toggleCinemaLike = async function() {
     const btn = document.getElementById('cinemaLikeBtn');
     const countSpan = document.getElementById('cinemaLikeCount');
     if (!btn) return;
-
+    
     const postId = btn.dataset.id;
-    if (!postId) return;
+    if(!postId) return;
+    
+    btn.disabled = true;
 
     try {
-        let currentCount = parseInt(countSpan.innerText) || 0;
-        const icon = btn.querySelector('i');
-        const isLiked = icon.classList.contains('fas');
-
-        if (isLiked) {
-            icon.classList.remove('fas', 'text-danger');
-            icon.classList.add('far');
-            countSpan.innerText = Math.max(0, currentCount - 1);
-        } else {
-            icon.classList.remove('far');
-            icon.classList.add('fas', 'text-danger');
-            countSpan.innerText = currentCount + 1;
-        }
-
-        await fetch(`/api/posts/${postId}/like`, {
+        const res = await fetch(`/api/posts/${postId}/like`, {
             method: 'POST',
             headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
         });
-    } catch (e) { console.error(e); }
+        
+        if (res.ok) {
+            const data = await res.json();
+            let currentCount = parseInt(countSpan.innerText) || 0;
+            const icon = btn.querySelector('i');
+            const wasLiked = icon.classList.contains('fas'); 
+
+            if (data.liked) {
+                icon.className = 'fas fa-heart fa-lg text-danger';
+                if (!wasLiked) countSpan.innerText = currentCount + 1;
+            } else {
+                icon.className = 'far fa-heart fa-lg';
+                if (wasLiked) countSpan.innerText = Math.max(0, currentCount - 1);
+            }
+        }
+    } catch(e) { console.error(e); }
+    finally { btn.disabled = false; }
 };
 
-window.loadCinemaComments = async function (postId) {
+window.toggleGridLike = async function(btn, postId) {
+    btn.disabled = true;
+    try {
+        const res = await fetch(`/api/posts/${postId}/like`, {
+            method: 'POST',
+            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
+        });
+        if(res.ok) {
+            const data = await res.json();
+            const icon = btn.querySelector('i');
+            const span = btn.querySelector('span');
+            let count = parseInt(span.innerText) || 0;
+
+            if(data.liked) {
+                icon.className = 'fas fa-heart text-danger';
+                span.innerText = count + 1;
+            } else {
+                icon.className = 'far fa-heart';
+                span.innerText = Math.max(0, count - 1);
+            }
+        }
+    } catch(e) { console.error(e); }
+    finally { btn.disabled = false; }
+};
+
+window.loadCinemaComments = async function(postId) {
     const wrapper = document.getElementById('cinemaCommentsWrapper');
-    if (!wrapper) return;
-
+    if(!wrapper) return;
+    
     wrapper.innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
-
+    
     try {
         const res = await fetch(`/api/posts/${postId}/comments`, {
             headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
         });
-        if (res.ok) {
+        if(res.ok) {
             const comments = await res.json();
-            if (comments.length === 0) {
+            if(comments.length === 0) {
                 wrapper.innerHTML = '<div class="text-center text-muted mt-4 small">No comments yet. Be the first!</div>';
                 return;
             }
 
-            wrapper.innerHTML = comments.map(c => `
-                <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px;">
-                    <img src="${c.authorPic || '/img/profile_default.jpg'}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #333;">
-                    <div>
-                        <div style="font-weight: bold; font-size: 0.85rem; color: #fff;">${c.authorName} <span style="color: #666; font-size: 0.75rem; font-weight: normal; margin-left: 5px;">${c.createdAgo}</span></div>
-                        <div style="color: #ccc; font-size: 0.95rem; margin-top: 4px; line-height: 1.3;">${c.content}</div>
+            // Safe Image Resolver
+            const resolvePic = (pic) => {
+                if (!pic || pic === 'null') return '/img/profile_default.jpg';
+                if (pic.startsWith('http') || pic.startsWith('/')) return pic;
+                return '/' + pic;
+            };
+
+            // Recursive Comment Renderer
+            const renderComment = (c, isReply = false) => {
+                const pic = resolvePic(c.authorPic);
+                let html = `
+                    <div style="display: flex; gap: 12px; margin-bottom: ${isReply ? '12' : '20'}px; ${!isReply ? 'border-bottom: 1px solid #222; padding-bottom: 15px;' : ''}">
+                        <img src="${pic}" style="width: ${isReply ? '28' : '40'}px; height: ${isReply ? '28' : '40'}px; border-radius: 50%; object-fit: cover; border: 1px solid #333; flex-shrink: 0;">
+                        <div style="flex-grow: 1;">
+                            <div style="font-weight: bold; font-size: ${isReply ? '0.8' : '0.85'}rem; color: #fff;">
+                                ${c.authorName} 
+                                <span style="color: #666; font-size: 0.75rem; font-weight: normal; margin-left: 8px;">${c.createdAgo}</span>
+                            </div>
+                            <div style="color: #ccc; font-size: ${isReply ? '0.85' : '0.95'}rem; margin-top: 4px; line-height: 1.4; word-break: break-word;">${c.content}</div>
+                            ${!isReply ? `
+                            <div style="margin-top: 6px;">
+                                <button onclick="window.prepareCinemaReply(${c.commentId}, '${encodeURIComponent(c.authorName)}')" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 2px 10px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.2)'" onmouseout="this.style.background='rgba(13, 202, 240, 0.1)'">Reply</button>
+                            </div>
+                            ` : ''}
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+                
+                // Recursively attach replies if they exist
+                if (c.replies && c.replies.length > 0) {
+                    html += `
+                        <div style="margin-left: 52px; border-left: 2px solid #333; padding-left: 15px; margin-bottom: 15px;">
+                            ${c.replies.map(r => renderComment(r, true)).join('')}
+                        </div>
+                    `;
+                }
+                return html;
+            };
+            
+            wrapper.innerHTML = comments.map(c => renderComment(c, false)).join('');
         }
-    } catch (e) {
+    } catch(e) {
         wrapper.innerHTML = '<div class="text-danger small mt-4 text-center">Failed to load comments.</div>';
     }
+};
+
+window.prepareCinemaReply = function(commentId, authorNameEnc) {
+    document.getElementById('cinemaReplyParentId').value = commentId;
+    document.getElementById('cinemaReplyName').innerText = decodeURIComponent(authorNameEnc);
+    const badge = document.getElementById('cinemaReplyBadge');
+    badge.classList.remove('d-none');
+    document.getElementById('cinemaCommentInput').focus();
+};
+
+window.cancelCinemaReply = function() {
+    const parentInput = document.getElementById('cinemaReplyParentId');
+    if (parentInput) parentInput.value = '';
+    const badge = document.getElementById('cinemaReplyBadge');
+    if (badge) badge.classList.add('d-none');
 };
 
 window.submitCinemaComment = async function () {
@@ -993,21 +1085,27 @@ window.submitCinemaComment = async function () {
     const postId = btn.dataset.id;
 
     const input = document.getElementById('cinemaCommentInput');
+    const parentInput = document.getElementById('cinemaReplyParentId');
+    
     const content = input.value.trim();
     if (!content) return;
+
+    // Parse the parent ID if it exists
+    const parentId = parentInput.value ? parseInt(parentInput.value) : null;
 
     try {
         const res = await fetch('/api/posts/comment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
-            body: JSON.stringify({ PostId: postId, Content: content })
+            body: JSON.stringify({ PostId: parseInt(postId), Content: content, ParentId: parentId })
         });
-
+        
         if (res.ok) {
             input.value = '';
-            window.loadCinemaComments(postId);
+            window.cancelCinemaReply(); // Hide the badge
+            window.loadCinemaComments(postId); // Refresh the feed
         }
-    } catch (e) { console.error(e); }
+    } catch(e) { console.error(e); }
 };
 
 document.addEventListener('click', function (e) {

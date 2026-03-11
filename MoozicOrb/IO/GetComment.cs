@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using MoozicOrb.API.Models;
+using MoozicOrb.API.Services; // Added for the Resolver
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,8 @@ namespace MoozicOrb.IO
 {
     public class GetComments
     {
-        public List<CommentDto> Execute(long postId)
+        // ADDED THE RESOLVER HERE
+        public List<CommentDto> Execute(long postId, IMediaResolverService resolver = null)
         {
             var flatList = new List<CommentDto>();
 
@@ -31,9 +33,22 @@ namespace MoozicOrb.IO
                     {
                         while (rdr.Read())
                         {
-                            // --- FIX: ROBUST IMAGE HANDLING ---
+                            // --- GLOBAL ARCHITECTURAL FIX FOR COMMENT PROFILE PICS ---
                             string dbPic = rdr["profile_pic"] != DBNull.Value ? rdr["profile_pic"].ToString() : "";
-                            if (string.IsNullOrEmpty(dbPic))
+
+                            if (!string.IsNullOrEmpty(dbPic))
+                            {
+                                // Route through Cloudflare/S3 resolver if injected
+                                if (resolver != null && !dbPic.StartsWith("/") && !dbPic.StartsWith("http"))
+                                {
+                                    dbPic = resolver.ResolveUrl(dbPic, 1);
+                                }
+                                else if (!dbPic.StartsWith("/") && !dbPic.StartsWith("http"))
+                                {
+                                    dbPic = "/" + dbPic;
+                                }
+                            }
+                            else
                             {
                                 dbPic = "/img/profile_default.jpg";
                             }
@@ -46,7 +61,7 @@ namespace MoozicOrb.IO
                                 UserId = rdr.GetInt32("user_id"),
                                 Content = rdr["content_text"].ToString(),
                                 AuthorName = rdr["display_name"].ToString(),
-                                AuthorPic = dbPic, // Now guaranteed to be valid
+                                AuthorPic = dbPic, // Now globally resolved and perfectly formatted!
                                 CreatedAt = rdr.GetDateTime("created_at"),
                                 CreatedAgo = TimeAgo(rdr.GetDateTime("created_at")),
                                 Replies = new List<CommentDto>()

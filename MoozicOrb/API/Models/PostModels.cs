@@ -125,6 +125,7 @@ namespace MoozicOrb.API.Models
         public decimal? Price { get; set; }
         public int Visibility { get; set; }
         public bool IsLocked { get; set; }
+        public long? PostId { get; set; }
     }
 
     public class CommentDto

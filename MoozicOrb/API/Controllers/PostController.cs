@@ -263,7 +263,8 @@ namespace MoozicOrb.API.Controllers
                 if (req.ParentId.HasValue)
                 {
                     var commentsIo = new GetComments();
-                    var allComments = commentsIo.Execute(req.PostId);
+                    // FIXED: Passed _resolver to GetComments
+                    var allComments = commentsIo.Execute(req.PostId, _resolver);
 
                     bool isParentAReply = false;
                     foreach (var root in allComments)
@@ -307,7 +308,8 @@ namespace MoozicOrb.API.Controllers
             try
             {
                 var io = new GetComments();
-                var comments = io.Execute(id);
+                // FIXED: Passed _resolver to GetComments
+                var comments = io.Execute(id, _resolver);
                 return Ok(comments);
             }
             catch (Exception ex) { return BadRequest(ex.Message); }
