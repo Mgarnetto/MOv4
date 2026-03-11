@@ -101,7 +101,7 @@
             </div>
 
             <div style="padding: 10px 20px; display: flex; justify-content: space-around; border-bottom: 1px solid #222;">
-                <button id="cinemaLikeBtn" class="btn-post-action btn-like" data-id="" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;">
+                <button id="cinemaLikeBtn" class="btn-post-action btn-like" data-id="" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;" onclick="window.toggleCinemaLike()">
                     <i class="far fa-heart fa-lg"></i> <span id="cinemaLikeCount" style="margin-left: 5px;">0</span>
                 </button>
                 <button class="btn-post-action" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;">
@@ -244,7 +244,7 @@
         </div>
 
         <div class="inspector-footer">
-            <button class="btn-dock-save" onclick="window.saveVideoInspector()" style="width: 100%; background: linear-gradient(135deg, #00d2ff, #007bff); border: none; color: white; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Save Changes</button>
+            <button id ="vid-edit-save-btn" class="btn-dock-save" onclick="window.saveVideoInspector()" style="width: 100%; background: linear-gradient(135deg, #00d2ff, #007bff); border: none; color: white; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Save Changes</button>
         </div>
     </div>
 }

@@ -13,9 +13,7 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // ==========================================
                 // 1. CHECK OWNERSHIP & LOCK STATUS
-                // ==========================================
                 string checkSql = targetType == 2
                     ? "SELECT is_locked FROM posts WHERE post_id = @id AND author_id = @uid"
                     : "SELECT is_locked FROM collections WHERE collection_id = @id AND user_id = @uid";
@@ -30,14 +28,20 @@ namespace MoozicOrb.IO
                     isLocked = Convert.ToInt32(result);
                 }
 
-                // ==========================================
                 // 2. UPDATE BASE METADATA (IF UNLOCKED)
-                // ==========================================
                 if (isLocked == 0)
                 {
+                    // Catch new cover image ID if one was uploaded
+                    long? newCoverId = null;
+                    if (req.MediaAttachments != null && req.MediaAttachments.Any())
+                    {
+                        var newThumb = req.MediaAttachments.FirstOrDefault(m => m.MediaType == 3);
+                        if (newThumb != null) newCoverId = newThumb.MediaId;
+                    }
+
                     string updateSql = targetType == 2
                         ? "UPDATE posts SET title = @title, post_text = @text, visibility = @vis WHERE post_id = @id"
-                        : "UPDATE collections SET title = @title, visibility = @vis WHERE collection_id = @id";
+                        : "UPDATE collections SET title = @title, visibility = @vis" + (newCoverId.HasValue ? ", cover_image_id = @cover" : "") + " WHERE collection_id = @id";
 
                     using (var cmd = new MySqlCommand(updateSql, conn))
                     {
@@ -45,17 +49,21 @@ namespace MoozicOrb.IO
                         if (targetType == 2) cmd.Parameters.AddWithValue("@text", req.Text ?? "");
                         cmd.Parameters.AddWithValue("@vis", req.Visibility);
                         cmd.Parameters.AddWithValue("@id", targetId);
+
+                        if (targetType != 2 && newCoverId.HasValue)
+                        {
+                            cmd.Parameters.AddWithValue("@cover", newCoverId.Value);
+                        }
+
                         cmd.ExecuteNonQuery();
                     }
 
-                    // INTEGRATED THUMBNAIL UPDATE
-                    // If target is a Video (Type 2) and a new image was uploaded
+                    // INTEGRATED THUMBNAIL UPDATE (For Videos)
                     if (targetType == 2 && req.MediaAttachments != null && req.MediaAttachments.Any())
                     {
                         var newThumb = req.MediaAttachments.FirstOrDefault(m => m.MediaType == 3);
                         if (newThumb != null && !string.IsNullOrEmpty(newThumb.Url))
                         {
-                            // Update the physical media_video table via the post_media bridge
                             string thumbSql = @"
                                 UPDATE media_video v
                                 JOIN post_media pm ON v.video_id = pm.media_id AND pm.media_type = 2
@@ -70,36 +78,9 @@ namespace MoozicOrb.IO
                             }
                         }
                     }
-
-                    // IF IT IS A COLLECTION (Type 0) - SYNC ITEMS
-                    if (targetType == 0 && req.Items != null)
-                    {
-                        // Clear out the old items
-                        using (var cmdDel = new MySqlCommand("DELETE FROM collection_items WHERE collection_id = @cid", conn))
-                        {
-                            cmdDel.Parameters.AddWithValue("@cid", targetId);
-                            cmdDel.ExecuteNonQuery();
-                        }
-
-                        // Insert the newly ordered items
-                        string insItemSql = "INSERT INTO collection_items (collection_id, target_id, target_type, sort_order) VALUES (@cid, @tid, @ttype, @sort)";
-                        foreach (var item in req.Items)
-                        {
-                            using (var cmdIns = new MySqlCommand(insItemSql, conn))
-                            {
-                                cmdIns.Parameters.AddWithValue("@cid", targetId);
-                                cmdIns.Parameters.AddWithValue("@tid", item.TargetId);
-                                cmdIns.Parameters.AddWithValue("@ttype", item.TargetType);
-                                cmdIns.Parameters.AddWithValue("@sort", item.SortOrder);
-                                cmdIns.ExecuteNonQuery();
-                            }
-                        }
-                    }
                 }
 
-                // ==========================================
                 // 3. MARKETPLACE UPSERT (TargetType 2 = Video, 0 = Collection)
-                // ==========================================
                 bool isMonetized = (req.Price.HasValue && req.Price.Value > 0);
                 decimal safePrice = req.Price ?? 0m;
 

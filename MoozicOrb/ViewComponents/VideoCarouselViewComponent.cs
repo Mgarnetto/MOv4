@@ -35,18 +35,25 @@ namespace MoozicOrb.ViewComponents
                 }
             }
 
-            // 2. Load Custom Items
+            // 2. Load Custom Items (Mapped directly so it doesn't crash on Collections!)
             if (collectionId > 0)
             {
                 var details = new GetCollectionDetails().Execute(collectionId, _resolver);
                 if (details != null && details.Items != null && details.Items.Count > 0)
                 {
                     model.IsFallback = false;
-                    var postIo = new GetPost();
-                    foreach (var item in details.Items.Take(10)) // Cap at 10 items
+                    foreach (var item in details.Items.Take(10))
                     {
-                        var post = postIo.Execute(item.TargetId, userId, _resolver);
-                        if (post != null) model.Items.Add(post);
+                        model.Items.Add(new PostDto
+                        {
+                            Id = item.TargetId,
+                            Type = item.TargetType == 0 ? 8 : 6, // 8 = Collection, 6 = Video
+                            Title = item.Title ?? "Untitled",
+                            ImageUrl = item.ArtUrl ?? "/img/default_cover.jpg",
+                            VideoUrl = item.Url,
+                            AuthorName = item.ArtistName,
+                            Price = item.Price
+                        });
                     }
                 }
             }
@@ -55,7 +62,6 @@ namespace MoozicOrb.ViewComponents
             if (model.Items.Count == 0)
             {
                 model.IsFallback = true;
-                // Fetch recent videos: contextType 1, contextId userId, mediaType 2
                 var posts = new GetPost().Execute(1, userId, userId, 1, 5, null, 2, _resolver);
                 if (posts != null) model.Items.AddRange(posts);
             }

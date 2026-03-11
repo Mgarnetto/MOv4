@@ -15,7 +15,6 @@ window.loadVideoHub = async function (userId) {
     const isOwner = isOwnerInput ? (isOwnerInput.value.toLowerCase() === 'true') : false;
 
     try {
-        // 1. Fetch Vault Videos (Type 6 and Type 1)
         const vaultRes = await fetch(`/api/videohub/vault/${userId}`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
@@ -24,7 +23,6 @@ window.loadVideoHub = async function (userId) {
             renderVaultGrid(window.currentVaultVideos, isOwner);
         }
 
-        // 2. Fetch Video Collections (Type 8)
         const colRes = await fetch(`/api/videohub/collections/${userId}`, {
             headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
         });
@@ -39,7 +37,7 @@ window.loadVideoHub = async function (userId) {
 };
 
 // ============================================
-// 2. GRID RENDERERS
+// 2. GRID RENDERERS & COLLECTION VIEWER
 // ============================================
 function renderVaultGrid(posts, isOwner) {
     const container = document.getElementById('video-hub-container');
@@ -98,6 +96,10 @@ function renderVaultGrid(posts, isOwner) {
                     </div>
                     ` : ''}
 
+                    <div style="position: absolute; bottom: 35px; left: 10px; right: 10px; color: white; font-weight: bold; font-size: 0.95rem; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${title}
+                    </div>
+
                     <div class="vid-actions-overlay">
                         <button class="vid-btn-translucent" onclick="event.stopPropagation();"><i class="fas fa-heart ${post.isLiked ? 'text-danger' : ''}"></i> ${likes}</button>
                         <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, true)"><i class="fas fa-comment"></i> ${comments}</button>
@@ -113,7 +115,9 @@ function renderCollectionsGrid(collections, isOwner) {
     const container = document.getElementById('video-collections-container');
     if (!container) return;
 
-    if (collections.length === 0) {
+    const visibleCollections = collections.filter(c => c.displayContext !== 'video' && c.DisplayContext !== 'video');
+
+    if (visibleCollections.length === 0) {
         container.innerHTML = '';
         return;
     }
@@ -121,7 +125,7 @@ function renderCollectionsGrid(collections, isOwner) {
     let html = `<h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">Video Collections</h4>
                 <div class="video-hub-grid" style="margin-top: 15px;">`;
 
-    collections.forEach(col => {
+    visibleCollections.forEach(col => {
         const art = col.coverImageUrl || '/img/default_cover.jpg';
         const title = col.title || "Untitled Collection";
         const price = col.price || 0;
@@ -131,14 +135,20 @@ function renderCollectionsGrid(collections, isOwner) {
 
         html += `
             <div class="vid-card">
-                <div class="vid-thumb-wrapper" onclick="alert('View Collection: ${col.id} - Phase 3 Coming Soon!')">
+                <div class="vid-thumb-wrapper" onclick="window.viewVideoCollection('${col.id}', '${safeTitle}')">
                     <img src="${art}" class="vid-thumb-img" style="opacity: 0.5;">
                     <div class="vid-play-overlay"><i class="fas fa-layer-group" style="color: white; font-size: 3rem;"></i></div>
                     
                     ${isOwner ? `
-                    <div style="position: absolute; top: 10px; right: 10px; z-index: 20; display: flex; gap: 8px;">
-                        <button onclick="event.stopPropagation(); window.openVideoInspector('${col.id}', '${safeTitle}', '${safeDesc}', ${price}, ${vis}, '${art}', 0)" title="Edit Collection" style="background: rgba(0,0,0,0.7); border: 1px solid #444; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;"><i class="fas fa-edit text-info"></i></button>
-                        <button onclick="event.stopPropagation(); window.deleteVideoCollection(this, '${col.id}')" title="Delete Collection" style="background: rgba(0,0,0,0.7); border: 1px solid #444; color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;"><i class="fas fa-trash text-danger"></i></button>
+                    <div class="vid-top-right-actions">
+                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${col.id}', '${safeTitle}', '${art}')" title="Feature Collection"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                        <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </div>
+                        <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 170px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
+                            <button onclick="event.stopPropagation(); window.openVideoInspector('${col.id}', '${safeTitle}', '${safeDesc}', ${price}, ${vis}, '${art}', 0)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit"></i> Edit Collection</button>
+                            <button class="text-danger" onclick="event.stopPropagation(); window.twoStepDeleteCollection(this, '${col.id}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
                     </div>
                     ` : ''}
 
@@ -152,6 +162,57 @@ function renderCollectionsGrid(collections, isOwner) {
     html += `</div>`;
     container.innerHTML = html;
 }
+
+window.viewVideoCollection = async function (collectionId, title) {
+    const container = document.getElementById('video-hub-container');
+    if (!container) return;
+
+    container.innerHTML = '<div class="text-center p-4 text-muted" style="grid-column: 1 / -1;"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    try {
+        const res = await fetch(`/api/collections/${collectionId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+        if (res.ok) {
+            const data = await res.json();
+            const items = data.items || data.Items || [];
+
+            let html = `
+                <div style="grid-column: 1 / -1; display: flex; align-items: center; gap: 15px; margin-bottom: 20px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
+                    <button onclick="const uid = document.getElementById('video-user-id').value; window.loadVideoHub(uid);" style="background: #222; color: white; border: 1px solid #444; padding: 8px 15px; border-radius: 6px; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#333'" onmouseout="this.style.background='#222'">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Vault
+                    </button>
+                    <h3 style="margin: 0; color: #0dcaf0; font-weight: 800;">${decodeURIComponent(title)}</h3>
+                </div>`;
+
+            if (items.length === 0) {
+                html += `<div style="grid-column: 1 / -1; text-align: center; color: #888; padding: 2rem; background: #111; border-radius: 8px; border: 1px dashed #333;">No videos in this collection yet.</div>`;
+            } else {
+                items.forEach((item) => {
+                    const safeTitle = encodeURIComponent(item.title || item.Title);
+                    const safeUrl = encodeURIComponent(item.url || item.Url);
+                    let thumbSrc = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+                    thumbSrc = thumbSrc.replace(/\\/g, '/');
+
+                    html += `
+                        <div class="vid-card">
+                            <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${item.targetId}', '${safeUrl}', '${safeTitle}', '', 0, 0)">
+                                <img src="${thumbSrc}" class="vid-thumb-img">
+                                <div class="vid-play-overlay"><i class="fas fa-play-circle" style="color: white; font-size: 3rem;"></i></div>
+                                
+                                <div style="position: absolute; bottom: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5;">
+                                    ${item.title || item.Title}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            container.innerHTML = html;
+        }
+    } catch (e) {
+        container.innerHTML = '<div class="text-danger p-3" style="grid-column: 1 / -1;">Failed to load collection episodes.</div>';
+    }
+};
 
 // ============================================
 // 3. BATCH DRAG & DROP UPLOAD
@@ -246,7 +307,7 @@ window.handleBatchVideoUpload = async function (input) {
 };
 
 // ============================================
-// 4. VIDEO INSPECTOR (AudioHub Style)
+// 4. VIDEO INSPECTOR
 // ============================================
 window.switchVidInspectorTab = function (tabName) {
     document.querySelectorAll('#video-inspector-sidebar .tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -283,24 +344,10 @@ window.openVideoInspector = async function (id, titleEnc, descEnc, price, visibi
 
     const episodesTab = document.getElementById('tab-vid-episodes');
 
-    // Switch behavior based on TargetType (0 = Collection, 2 = Individual Video)
     if (targetType === 0 || targetType === '0') {
         document.getElementById('vid-inspector-header-title').innerText = "Edit Collection";
         if (episodesTab) episodesTab.classList.remove('d-none');
-
-        // Fetch items and store them locally
-        try {
-            const res = await fetch(`/api/collections/${id}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
-            if (res.ok) {
-                const data = await res.json();
-                window.inspectorCollectionItems = data.items || data.Items || [];
-            }
-        } catch (e) {
-            window.inspectorCollectionItems = [];
-        }
-
-        window.renderInspectorSeriesEpisodes();
-        window.renderInspectorVaultVideos();
+        window.loadInspectorEpisodeList(id);
     } else {
         document.getElementById('vid-inspector-header-title').innerText = "Edit Video";
         if (episodesTab) episodesTab.classList.add('d-none');
@@ -322,72 +369,113 @@ window.previewVideoInspectorCover = function (input) {
     }
 };
 
-// --- EPISODE LIST LOGIC (Local Array) ---
-window.inspectorCollectionItems = [];
+// --- EPISODE LIST LOGIC ---
+window.inspectorSeriesEpisodes = [];
+window.inspectorVaultVideos = [];
 
-window.renderInspectorSeriesEpisodes = function () {
-    const container = document.getElementById('inspector-series-episodes-container');
-    if (!container) return;
+window.loadInspectorEpisodeList = async function (collectionId) {
+    const episodeContainer = document.getElementById('inspector-series-episodes-container');
+    const vaultContainer = document.getElementById('inspector-vault-videos-container');
 
-    if (window.inspectorCollectionItems.length === 0) {
-        container.innerHTML = '<div class="text-center p-4 text-muted small">No episodes in this collection.</div>';
-        return;
-    }
+    if (episodeContainer) episodeContainer.innerHTML = '<div class="text-center text-muted" style="margin-top: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+    if (vaultContainer) vaultContainer.innerHTML = '';
 
-    // Notice the justify-content: space-between pushes the button to the far right!
-    container.innerHTML = window.inspectorCollectionItems.map((item, idx) => `
-        <div class="inspector-item-row">
-            <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; flex-grow: 1;">
-                <span style="color: #555; font-weight: 900; font-size: 0.75rem; width: 15px;">${idx + 1}</span>
-                <span style="color: #eee; font-size: 0.85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${item.title || item.Title || "Untitled"}</span>
-            </div>
-            <button onclick="window.removeItemFromInspectorCollection('${item.targetId || item.TargetId}')" style="background: transparent; border: none; color: #ff4d4d; cursor: pointer; padding: 5px; flex-shrink: 0;"><i class="fas fa-trash-alt"></i></button>
-        </div>
-    `).join('');
-};
+    try {
+        const colRes = await fetch(`/api/collections/${collectionId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+        let currentEpisodes = [];
+        if (colRes.ok) {
+            const data = await colRes.json();
+            currentEpisodes = data.items || data.Items || [];
+        }
+        window.inspectorSeriesEpisodes = currentEpisodes;
 
-window.renderInspectorVaultVideos = function () {
-    const container = document.getElementById('inspector-vault-videos-container');
-    if (!container) return;
+        const existingMediaIds = currentEpisodes.map(t => String(t.targetId || t.TargetId));
 
-    // Filter out videos that are already in the local inspectorCollectionItems array
-    const available = window.currentVaultVideos.filter(v => !window.inspectorCollectionItems.some(ci => String(ci.targetId || ci.TargetId) === String(v.id || v.Id)));
-
-    if (available.length === 0) {
-        container.innerHTML = '<div class="text-center p-4 text-muted small">No available videos in vault.</div>';
-        return;
-    }
-
-    container.innerHTML = available.map(v => {
-        const pId = v.id !== undefined ? v.id : v.Id;
-        const title = v.title || v.Title || 'Untitled';
-        return `
-            <div class="inspector-item-row" style="cursor: pointer;" onclick="window.addItemToInspectorCollection('${pId}')">
-                <span style="color: #eee; font-size: 0.85rem; font-weight: 700; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
-                <i class="fas fa-plus-circle text-success" style="font-size: 1.1rem; flex-shrink: 0; padding: 5px;"></i>
-            </div>
-        `;
-    }).join('');
-};
-
-window.addItemToInspectorCollection = function (postId) {
-    const video = window.currentVaultVideos.find(v => String(v.id || v.Id) === String(postId));
-    if (video) {
-        window.inspectorCollectionItems.push({
-            targetId: postId,
-            TargetId: postId,
-            title: video.title || video.Title,
-            TargetType: 2
+        window.inspectorVaultVideos = window.currentVaultVideos.filter(t => {
+            const att = t.attachments || t.Attachments || [];
+            const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
+            const mId = vid ? String(vid.mediaId || vid.MediaId) : "0";
+            return !existingMediaIds.includes(mId);
         });
-        window.renderInspectorSeriesEpisodes();
-        window.renderInspectorVaultVideos();
+
+        window.renderInspectorEpisodeList(collectionId);
+    } catch (e) { console.error("Error loading inspector episodes", e); }
+};
+
+window.renderInspectorEpisodeList = function (collectionId) {
+    const episodeContainer = document.getElementById('inspector-series-episodes-container');
+    const vaultContainer = document.getElementById('inspector-vault-videos-container');
+
+    if (episodeContainer) {
+        let eHtml = '';
+        if (window.inspectorSeriesEpisodes.length === 0) {
+            eHtml = '<div class="text-center p-4 text-muted small">No episodes in this collection.</div>';
+        } else {
+            window.inspectorSeriesEpisodes.forEach((track, i) => {
+                const title = track.title || track.Title || "Untitled";
+                const linkId = track.linkId || track.LinkId;
+                eHtml += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 8px;">
+                        <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; flex-grow: 1;">
+                            <span style="color: #555; font-weight: 900; font-size: 0.75rem; width: 15px; text-align: right;">${i + 1}.</span>
+                            <span style="color: #eee; font-size: 0.85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                        </div>
+                        <button onclick="window.inspectorRemoveEpisode(this, ${linkId}, ${collectionId})" style="background: transparent; border: 1px solid #ff4d4d; border-radius: 4px; color: #ff4d4d; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s;" onmouseover="this.style.background='rgba(255,77,77,0.1)'" onmouseout="this.style.background='transparent'"><i class="fas fa-minus" style="font-size: 10px;"></i></button>
+                    </div>
+                `;
+            });
+        }
+        episodeContainer.innerHTML = eHtml;
+    }
+
+    if (vaultContainer) {
+        let vHtml = '';
+        if (window.inspectorVaultVideos.length === 0) {
+            vHtml = '<div class="text-center p-4 text-muted small">No available videos in vault.</div>';
+        } else {
+            window.inspectorVaultVideos.forEach(track => {
+                const title = track.title || track.Title || "Untitled";
+
+                const att = track.attachments || track.Attachments || [];
+                const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
+                const mediaId = vid ? (vid.mediaId || vid.MediaId) : 0;
+
+                if (mediaId !== 0) {
+                    vHtml += `
+                        <div style="display: flex; align-items: center; justify-content: space-between; background: #121212; padding: 10px; border-radius: 6px; border: 1px solid #222; margin-bottom: 8px;">
+                            <span style="color: #aaa; font-size: 0.85rem; font-weight: 700; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                            <button onclick="window.inspectorAddEpisode(this, ${mediaId}, ${collectionId})" style="background: transparent; border: 1px solid #28a745; border-radius: 4px; color: #28a745; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: 0.2s;" onmouseover="this.style.background='rgba(40,167,69,0.1)'" onmouseout="this.style.background='transparent'"><i class="fas fa-plus" style="font-size: 10px;"></i></button>
+                        </div>
+                    `;
+                }
+            });
+        }
+        vaultContainer.innerHTML = vHtml;
     }
 };
 
-window.removeItemFromInspectorCollection = function (targetId) {
-    window.inspectorCollectionItems = window.inspectorCollectionItems.filter(ci => String(ci.targetId || ci.TargetId) !== String(targetId));
-    window.renderInspectorSeriesEpisodes();
-    window.renderInspectorVaultVideos();
+window.inspectorRemoveEpisode = async function (btn, linkId, collectionId) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 10px;"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`/api/collections/items/${linkId}?collectionId=${collectionId}`, {
+            method: 'DELETE', headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+        if (res.ok) { window.loadInspectorEpisodeList(collectionId); }
+        else { btn.innerHTML = '<i class="fas fa-minus" style="font-size: 10px;"></i>'; btn.disabled = false; }
+    } catch (e) { btn.disabled = false; }
+};
+
+window.inspectorAddEpisode = async function (btn, targetId, collectionId) {
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 10px;"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`/api/collections/${collectionId}/add-item`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
+            body: JSON.stringify({ TargetId: targetId, TargetType: 2 })
+        });
+        if (res.ok) { window.loadInspectorEpisodeList(collectionId); }
+        else { btn.innerHTML = '<i class="fas fa-plus" style="font-size: 10px;"></i>'; btn.disabled = false; }
+    } catch (e) { btn.disabled = false; }
 };
 
 window.saveVideoInspector = async function () {
@@ -418,20 +506,12 @@ window.saveVideoInspector = async function () {
 
         btn.innerText = "SAVING...";
 
-        // MAP THE LOCAL ITEMS TO BE SAVED
-        const itemsPayload = window.inspectorCollectionItems.map((v, index) => ({
-            TargetId: v.targetId || v.TargetId,
-            TargetType: 2,
-            SortOrder: index
-        }));
-
         const payload = {
             Title: document.getElementById('vid-edit-title').value,
             Text: document.getElementById('vid-edit-desc').value,
             Price: parseFloat(document.getElementById('vid-edit-price').value) || null,
             Visibility: parseInt(document.getElementById('vid-edit-visibility').value),
-            MediaAttachments: newMediaAttachments,
-            Items: itemsPayload // Include the ordered items for collection updates
+            MediaAttachments: newMediaAttachments
         };
 
         const endpoint = (type == 0 || type == '0') ? `/api/videohub/collection/${id}` : `/api/videohub/video/${id}`;
@@ -491,8 +571,38 @@ window.twoStepDeleteVideo = async function (btnElement, postId) {
     } catch (e) { console.error(e); }
 };
 
+window.twoStepDeleteCollection = async function (btnElement, collectionId) {
+    if (window.event) window.event.stopPropagation();
+
+    if (!btnElement.classList.contains('confirming')) {
+        btnElement.classList.add('confirming');
+        btnElement.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Confirm?`;
+        btnElement.style.color = '#ff4d4d';
+        setTimeout(() => {
+            if (btnElement) {
+                btnElement.classList.remove('confirming');
+                btnElement.innerHTML = `<i class="fas fa-trash"></i> Delete`;
+                btnElement.style.color = '#fff';
+            }
+        }, 4000);
+        return;
+    }
+
+    btnElement.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Deleting...`;
+    try {
+        const res = await fetch(`/api/collections/${collectionId}`, {
+            method: 'DELETE',
+            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
+        });
+        if (res.ok) {
+            const userId = document.getElementById("video-user-id")?.value;
+            if (userId) window.loadVideoHub(userId);
+        }
+    } catch (e) { console.error(e); }
+};
+
 // ============================================
-// 5. THE COLLECTION BUILDER (CREATE & EDIT)
+// 5. THE COLLECTION BUILDER (CREATE)
 // ============================================
 window.openVideoCollectionBuilder = function () {
     const modal = document.getElementById('videoCollectionBuilderModal');
@@ -509,36 +619,6 @@ window.openVideoCollectionBuilder = function () {
     modal.classList.remove('d-none');
 };
 
-window.editVideoCollection = async function (collectionId) {
-    const modal = document.getElementById('videoCollectionBuilderModal');
-    if (!modal) return;
-
-    document.getElementById('vcBuilderHeaderTitle').innerHTML = '<i class="fas fa-layer-group text-warning me-2"></i> Edit Video Collection';
-    document.getElementById('vcBuilderTargetId').value = collectionId;
-
-    try {
-        const res = await fetch(`/api/collections/${collectionId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
-        if (res.ok) {
-            const details = await res.json();
-            document.getElementById('vcBuilderTitle').value = details.title || details.Title;
-
-            const rawItems = details.items || details.Items || [];
-
-            window.collectionBuilderItems = rawItems.map(item => ({
-                id: item.targetId || item.TargetId,
-                title: item.title || item.Title,
-                attachments: [{ mediaType: 2, snippetPath: item.artUrl || item.ArtUrl }]
-            }));
-
-            renderBuilderVaultList();
-            renderBuilderSelectedList();
-            modal.classList.remove('d-none');
-        }
-    } catch (e) {
-        alert("Error loading collection for editing.");
-    }
-};
-
 window.closeVideoCollectionBuilder = function () {
     const modal = document.getElementById('videoCollectionBuilderModal');
     if (modal) modal.classList.add('d-none');
@@ -548,7 +628,12 @@ function renderBuilderVaultList() {
     const container = document.getElementById('vcBuilderVaultList');
     container.innerHTML = '';
 
-    const available = window.currentVaultVideos.filter(v => !window.collectionBuilderItems.some(ci => ci.id === v.id || ci.id === v.Id));
+    const available = window.currentVaultVideos.filter(v => {
+        const att = v.attachments || v.Attachments || [];
+        const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
+        const mId = vid ? (vid.mediaId || vid.MediaId) : 0;
+        return !window.collectionBuilderItems.some(ci => ci.id === mId);
+    });
 
     available.forEach(v => {
         const pId = v.id !== undefined ? v.id : v.Id;
@@ -573,11 +658,20 @@ function renderBuilderVaultList() {
 }
 
 window.addVideoToBuilder = function (postId) {
-    const video = window.currentVaultVideos.find(v => v.id === postId || v.Id === postId);
+    const video = window.currentVaultVideos.find(v => (v.id === postId || v.Id === postId));
     if (video) {
-        window.collectionBuilderItems.push(video);
-        renderBuilderVaultList();
-        renderBuilderSelectedList();
+        const att = video.attachments || video.Attachments || [];
+        const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
+        const mediaId = vid ? (vid.mediaId || vid.MediaId) : 0;
+
+        if (mediaId !== 0) {
+            window.collectionBuilderItems.push({
+                id: mediaId,
+                title: video.title || video.Title
+            });
+            renderBuilderVaultList();
+            renderBuilderSelectedList();
+        }
     }
 };
 
@@ -590,23 +684,23 @@ function renderBuilderSelectedList() {
 
     container.innerHTML = '';
     window.collectionBuilderItems.forEach((v, index) => {
-        const pId = v.id !== undefined ? v.id : v.Id;
-        const title = v.title || v.Title || 'Untitled';
+        const title = v.title || 'Untitled';
+        const mId = v.id;
 
         container.innerHTML += `
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; border: 1px solid #333; padding: 10px 15px; border-radius: 6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; border: 1px solid #333; padding: 10px 15px; border-radius: 6px; margin-bottom: 8px;">
                 <div style="display: flex; align-items: center; gap: 15px; overflow: hidden;">
                     <span style="color: #666; font-weight: bold; width: 20px;">${index + 1}.</span>
                     <span style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
                 </div>
-                <button onclick="window.removeVideoFromBuilder(${pId})" style="background: #ff4d4d; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; flex-shrink:0; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-minus"></i></button>
+                <button onclick="window.removeVideoFromBuilder(${mId})" style="background: #ff4d4d; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; flex-shrink:0; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-minus"></i></button>
             </div>
         `;
     });
 }
 
-window.removeVideoFromBuilder = function (postId) {
-    window.collectionBuilderItems = window.collectionBuilderItems.filter(v => v.id !== postId && v.Id !== postId);
+window.removeVideoFromBuilder = function (mediaId) {
+    window.collectionBuilderItems = window.collectionBuilderItems.filter(v => v.id !== mediaId);
     renderBuilderVaultList();
     renderBuilderSelectedList();
 };
@@ -625,7 +719,7 @@ window.saveVideoCollection = async function () {
         const isUpdate = targetId && targetId.length > 0;
 
         const itemsPayload = window.collectionBuilderItems.map((v, index) => ({
-            TargetId: v.id !== undefined ? v.id : v.Id,
+            TargetId: v.id,
             TargetType: 2,
             SortOrder: index
         }));
@@ -639,11 +733,8 @@ window.saveVideoCollection = async function () {
             Items: itemsPayload
         };
 
-        const url = isUpdate ? `/api/collections/${targetId}` : '/api/collections/create';
-        const method = isUpdate ? 'PUT' : 'POST';
-
-        const res = await fetch(url, {
-            method: method,
+        const res = await fetch('/api/collections/create', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
             body: JSON.stringify(payload)
         });
@@ -662,22 +753,6 @@ window.saveVideoCollection = async function () {
         btn.disabled = false;
     }
 };
-
-window.deleteVideoCollection = async function (btnElement, id) {
-    if (!confirm("Are you sure you want to delete this collection? The videos will remain in your vault.")) return;
-
-    try {
-        const res = await fetch(`/api/collections/${id}`, {
-            method: 'DELETE',
-            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
-        });
-
-        if (res.ok) {
-            const userId = document.getElementById('video-user-id')?.value;
-            if (userId) window.loadVideoHub(userId);
-        }
-    } catch (e) { console.error(e); }
-}
 
 // ============================================
 // 6. THE CAROUSEL DOCK MANAGER
@@ -814,7 +889,7 @@ window.saveVideoCarouselDock = async function () {
 };
 
 // ============================================
-// 7. THE CINEMA MODAL
+// 7. THE CINEMA MODAL (Comments & Likes Additions)
 // ============================================
 window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, comments, autoFocusComments = false) {
     const modal = document.getElementById('cinemaModal');
@@ -823,7 +898,6 @@ window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, 
     const descEl = document.getElementById('cinemaVideoDesc');
     const likeBtn = document.getElementById('cinemaLikeBtn');
     const likeCount = document.getElementById('cinemaLikeCount');
-    const commentsWrapper = document.getElementById('cinemaCommentsWrapper');
 
     if (!modal || !player) return;
 
@@ -834,10 +908,8 @@ window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, 
     likeBtn.dataset.id = postId;
     likeCount.innerText = likes;
 
-    commentsWrapper.innerHTML = `<div id="comments-list-${postId}" class="mb-3"></div>`;
-    if (window.loadComments) {
-        window.loadComments(postId, document.getElementById(`comments-list-${postId}`));
-    }
+    // Load Local Comments
+    window.loadCinemaComments(postId);
 
     modal.classList.remove('d-none');
     player.play().catch(e => console.log("Auto-play prevented", e));
@@ -853,7 +925,69 @@ window.closeCinemaModal = function () {
     }
 };
 
-window.submitCinemaComment = function () {
+window.toggleCinemaLike = async function () {
+    const btn = document.getElementById('cinemaLikeBtn');
+    const countSpan = document.getElementById('cinemaLikeCount');
+    if (!btn) return;
+
+    const postId = btn.dataset.id;
+    if (!postId) return;
+
+    try {
+        let currentCount = parseInt(countSpan.innerText) || 0;
+        const icon = btn.querySelector('i');
+        const isLiked = icon.classList.contains('fas');
+
+        if (isLiked) {
+            icon.classList.remove('fas', 'text-danger');
+            icon.classList.add('far');
+            countSpan.innerText = Math.max(0, currentCount - 1);
+        } else {
+            icon.classList.remove('far');
+            icon.classList.add('fas', 'text-danger');
+            countSpan.innerText = currentCount + 1;
+        }
+
+        await fetch(`/api/posts/${postId}/like`, {
+            method: 'POST',
+            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
+        });
+    } catch (e) { console.error(e); }
+};
+
+window.loadCinemaComments = async function (postId) {
+    const wrapper = document.getElementById('cinemaCommentsWrapper');
+    if (!wrapper) return;
+
+    wrapper.innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
+
+    try {
+        const res = await fetch(`/api/posts/${postId}/comments`, {
+            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
+        });
+        if (res.ok) {
+            const comments = await res.json();
+            if (comments.length === 0) {
+                wrapper.innerHTML = '<div class="text-center text-muted mt-4 small">No comments yet. Be the first!</div>';
+                return;
+            }
+
+            wrapper.innerHTML = comments.map(c => `
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 1px solid #222; padding-bottom: 10px;">
+                    <img src="${c.authorPic || '/img/profile_default.jpg'}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #333;">
+                    <div>
+                        <div style="font-weight: bold; font-size: 0.85rem; color: #fff;">${c.authorName} <span style="color: #666; font-size: 0.75rem; font-weight: normal; margin-left: 5px;">${c.createdAgo}</span></div>
+                        <div style="color: #ccc; font-size: 0.95rem; margin-top: 4px; line-height: 1.3;">${c.content}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        wrapper.innerHTML = '<div class="text-danger small mt-4 text-center">Failed to load comments.</div>';
+    }
+};
+
+window.submitCinemaComment = async function () {
     const btn = document.getElementById('cinemaLikeBtn');
     if (!btn) return;
     const postId = btn.dataset.id;
@@ -862,16 +996,18 @@ window.submitCinemaComment = function () {
     const content = input.value.trim();
     if (!content) return;
 
-    fetch('/api/posts/comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
-        body: JSON.stringify({ PostId: postId, Content: content })
-    }).then(res => {
+    try {
+        const res = await fetch('/api/posts/comment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
+            body: JSON.stringify({ PostId: postId, Content: content })
+        });
+
         if (res.ok) {
             input.value = '';
-            if (window.loadComments) window.loadComments(postId, document.getElementById(`comments-list-${postId}`));
+            window.loadCinemaComments(postId);
         }
-    }).catch(e => console.error(e));
+    } catch (e) { console.error(e); }
 };
 
 document.addEventListener('click', function (e) {

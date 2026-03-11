@@ -94,8 +94,9 @@ namespace MoozicOrb.IO
                         }
                         else if (item.TargetType == 2) // Video
                         {
-                            hydrateSql = @"SELECT mv.file_path, p.title AS media_title, mv.storage_provider, 
-                                           NULL AS custom_cover, 0 AS img_storage_provider, 
+                            // CORRECTED: Uses strictly 'mv.thumb_path', and correctly passes 'mv.storage_provider' to the Image Resolver!
+                            hydrateSql = @"SELECT mv.file_path, mv.title AS media_title, mv.storage_provider, 
+                                           mv.thumb_path AS custom_cover, mv.storage_provider AS img_storage_provider, 
                                            p.image_url AS post_image, 
                                            u.display_name, u.profile_pic, p.title AS post_title, mo.price 
                                            FROM media_video mv 

@@ -98,11 +98,12 @@ namespace MoozicOrb.API.Controllers
                 var postIo = new InsertPost();
                 long postId = postIo.Execute(userId, req);
 
-                // 3. Insert Attachments & Sync Audio Titles
+                // 3. Insert Attachments & Sync Audio/Video Titles
                 if (req.MediaAttachments != null && req.MediaAttachments.Count > 0)
                 {
                     var mediaIo = new InsertPostMedia();
                     var updateAudioTitleIo = new UpdateAudioTitle();
+                    var updateVideoTitleIo = new UpdateVideoTitle(); // Added
 
                     int sort = 0;
                     foreach (var item in req.MediaAttachments)
@@ -110,10 +111,14 @@ namespace MoozicOrb.API.Controllers
                         // Link media to post
                         mediaIo.Execute(postId, item.MediaId, item.MediaType, sort++);
 
-                        // SYNC FIX: If it's an Audio track (Type 1), force the vault to match the post title
+                        // SYNC FIX: Force the vault to match the post title
                         if (item.MediaType == 1 && !string.IsNullOrWhiteSpace(req.Title))
                         {
                             updateAudioTitleIo.Execute(item.MediaId, req.Title);
+                        }
+                        else if (item.MediaType == 2 && !string.IsNullOrWhiteSpace(req.Title))
+                        {
+                            updateVideoTitleIo.Execute(item.MediaId, req.Title); // Pushes clean title to media_video
                         }
                     }
                 }
