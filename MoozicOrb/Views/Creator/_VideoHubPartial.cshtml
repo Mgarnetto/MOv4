@@ -6,8 +6,8 @@
 
 <div class="video-container" style="padding: 20px 0; position: relative;">
 
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
+    <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
             <a href="/creator/@Model.UserId" class="spa-route" style="background: #1a1a1a; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #333;">
                 <i class="fas fa-arrow-left"></i>
             </a>
@@ -17,19 +17,21 @@
 
         @if (Model.IsCurrentUser)
         {
-            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                <button onclick="window.toggleVideoDropZone()" style="background-color: transparent; color: #20c997; border: 1px solid #20c997; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%;">
+
+                <button id="btnToggleVideoCarouselManager" onclick="window.toggleVideoCarouselManager()" style="flex: 1 1 25%; background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;">
+                    <i class="fas fa-star"></i> <span>Manage Carousel</span>
+                </button>
+
+                <button onclick="window.toggleVideoDropZone()" style="flex: 1 1 25%; background-color: transparent; color: #20c997; border: 1px solid #20c997; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;">
                     <i class="fas fa-cloud-upload-alt"></i> <span>Upload</span>
                 </button>
                 <input type="file" id="videoBatchUploadInput" accept="video/*" multiple class="d-none" onchange="window.handleBatchVideoUpload(this)">
 
-                <button onclick="window.openVideoCollectionBuilder()" style="background-color: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
+                <button onclick="window.openVideoCollectionBuilder()" style="flex: 1 1 25%; background-color: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;">
                     <i class="fas fa-folder-plus"></i> <span>New Collection</span>
                 </button>
 
-                <button id="btnToggleVideoCarouselManager" onclick="window.toggleVideoCarouselManager()" style="background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
-                    <i class="fas fa-star"></i> <span>Manage Carousel</span>
-                </button>
             </div>
         }
     </div>
@@ -58,7 +60,7 @@
 
     <div id="video-collections-container" style="margin-bottom: 30px;"></div>
 
-    <h4 style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">Vault Videos</h4>
+    <h4 id="video-grid-header" style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:30px;">Vault Videos</h4>
     <div class="video-hub-grid" id="video-hub-container">
         <div style="text-align: center; width: 100%; padding: 50px 0; color: #888; grid-column: 1 / -1;">
             <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 15px;"></i>
@@ -82,47 +84,46 @@
     </div>
 }
 
-<div id="cinemaModal" class="modal-overlay d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-    <button onclick="window.closeCinemaModal()" style="position: absolute; top: 20px; right: 30px; background: transparent; border: none; color: white; font-size: 2rem; cursor: pointer; z-index: 2005;">&times;</button>
+<div id="cinemaModal" class="modal-overlay d-none" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: flex; align-items: flex-start; justify-content: center; backdrop-filter: blur(10px); padding: 40px 0; overflow-y: auto;">
 
-    <div class="cinema-content-wrapper" style="display: flex; width: 90%; max-width: 1400px; height: 85vh; background: #0a0a0a; border-radius: 12px; overflow: hidden; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
-        <div class="cinema-player-col" style="flex: 7; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
-            <video id="cinemaVideoPlayer" controls style="width: 100%; height: 100%; object-fit: contain; outline: none; background: #000;"></video>
+    <button onclick="window.closeCinemaModal()" style="position: fixed; top: 20px; right: 30px; background: rgba(0,0,0,0.5); border: 1px solid #333; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; cursor: pointer; z-index: 2005; transition: 0.2s;"><i class="fas fa-times"></i></button>
+
+    <div class="cinema-content-wrapper" style="width: 95%; max-width: 1000px; background: #0a0a0a; border-radius: 12px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.8); display: flex; flex-direction: column; overflow: hidden; margin-bottom: 40px;">
+
+        <div style="width: 100%; background: #000; display: flex; align-items: center; justify-content: center;">
+            <video id="cinemaVideoPlayer" controls style="width: 100%; aspect-ratio: 16/9; max-height: 70vh; object-fit: contain; outline: none; display: block; background: #000;"></video>
         </div>
 
-        <div class="cinema-details-col" style="flex: 3; background: #111; border-left: 1px solid #333; display: flex; flex-direction: column;">
-            <div style="padding: 20px; border-bottom: 1px solid #222;">
-                <h4 id="cinemaVideoTitle" style="color: white; margin: 0 0 10px 0; font-weight: bold;">Loading...</h4>
-                <div style="display: flex; align-items: center; gap: 10px; color: #888; font-size: 0.9rem;">
-                    <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
-                    <span>@Model.DisplayName</span>
-                </div>
-                <div id="cinemaVideoDesc" style="color: #ccc; font-size: 0.9rem; margin-top: 15px; line-height: 1.4;"></div>
+        <div style="background: #111; padding: 20px 25px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; border-bottom: 1px solid #222;">
+            <div style="flex-grow: 1;">
+                <h3 id="cinemaVideoTitle" style="color: white; margin: 0 0 8px 0; font-weight: 800; font-size: 1.4rem;">Loading...</h3>
+                <div id="cinemaVideoDesc" style="color: #aaa; font-size: 0.95rem; line-height: 1.5;"></div>
             </div>
 
-            <div style="padding: 10px 20px; display: flex; justify-content: space-around; border-bottom: 1px solid #222;">
-                <button id="cinemaLikeBtn" class="btn-post-action btn-like" data-id="" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;" onclick="window.toggleCinemaLike()">
-                    <i class="far fa-heart fa-lg"></i> <span id="cinemaLikeCount" style="margin-left: 5px;">0</span>
+            <div style="display: flex; gap: 10px; flex-shrink: 0;">
+                <button id="cinemaLikeBtn" class="btn-like" data-id="" style="background: rgba(255, 77, 77, 0.1); border: 1px solid rgba(255, 77, 77, 0.2); color: #ff4d4d; border-radius: 20px; padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.2s;" onclick="window.toggleCinemaLike()">
+                    <i class="far fa-heart fa-lg"></i> <span id="cinemaLikeCount">0</span>
                 </button>
-                <button class="btn-post-action" style="color: white; flex: 1; background: transparent; border: none; cursor: pointer;">
-                    <i class="fas fa-share fa-lg"></i> <span style="margin-left: 5px;">Share</span>
+                <button style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: white; border-radius: 20px; padding: 8px 18px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.2s;">
+                    <i class="fas fa-share"></i> Share
                 </button>
-            </div>
-
-            <div id="cinemaCommentsWrapper" style="flex-grow: 1; overflow-y: auto; padding: 20px;"></div>
-
-            <div style="padding: 15px; background: #1a1a1a; border-top: 1px solid #333;">
-                <div id="cinemaReplyBadge" class="d-none mb-2" style="display: flex; justify-content: space-between; align-items: center; background: #222; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; color: #aaa; border: 1px solid #444;">
-                    <span>Replying to <b id="cinemaReplyName" style="color: #0dcaf0;"></b></span>
-                    <i class="fas fa-times" style="cursor: pointer; color: #ff4d4d; margin-top: 2px;" onclick="window.cancelCinemaReply()"></i>
-                </div>
-                <div style="display: flex; gap: 10px; align-items: stretch;">
-                    <input type="hidden" id="cinemaReplyParentId" value="">
-                    <input type="text" id="cinemaCommentInput" class="form-control" style="flex-grow: 1; background: #000; border: 1px solid #444; color: white; padding: 10px 15px; border-radius: 6px;" placeholder="Add a comment..." onkeydown="if(event.key === 'Enter') window.submitCinemaComment()">
-                    <button class="btn btn-primary" onclick="window.submitCinemaComment()" style="background: #0dcaf0; color: #000; font-weight: bold; border: none; padding: 0 25px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;"><i class="fas fa-paper-plane"></i></button>
-                </div>
             </div>
         </div>
+
+        <div id="cinemaCommentsWrapper" style="padding: 25px; background: #0a0a0a;"></div>
+
+        <div style="padding: 20px 25px; background: #111; border-top: 1px solid #222; position: sticky; bottom: 0; z-index: 10;">
+            <div id="cinemaReplyBadge" class="d-none mb-3" style="display: flex; justify-content: space-between; align-items: center; background: #222; padding: 8px 15px; border-radius: 6px; font-size: 0.85rem; color: #aaa; border: 1px solid #444;">
+                <span>Replying to <b id="cinemaReplyName" style="color: #0dcaf0;"></b></span>
+                <i class="fas fa-times" style="cursor: pointer; color: #ff4d4d; margin-top: 2px;" onclick="window.cancelCinemaReply()"></i>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: stretch;">
+                <input type="hidden" id="cinemaReplyParentId" value="">
+                <input type="text" id="cinemaCommentInput" class="form-control" style="flex-grow: 1; background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px 18px; border-radius: 8px; font-size: 0.95rem;" placeholder="Add a comment..." onkeydown="if(event.key === 'Enter') window.submitCinemaComment()">
+                <button onclick="window.submitCinemaComment()" style="background: #0dcaf0; color: #000; font-weight: bold; border: none; padding: 0 30px; border-radius: 8px; cursor: pointer; font-size: 1.1rem; transition: 0.2s;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -519,26 +520,8 @@
 
     /* --- RESPONSIVENESS --- */
     @@media (max-width: 768px) {
-        .cinema-content-wrapper
-
-    {
-        flex-direction: column;
-        height: 95vh;
-    }
-
-    .cinema-player-col {
-        flex: 4;
-    }
-
-    .cinema-details-col {
-        flex: 6;
-        border-left: none;
-        border-top: 1px solid #333;
-    }
-
-    .audio-inspector {
-        width: 100%;
-    }
-
+        .audio-inspector {
+            width: 100%;
+        }
     }
 </style>

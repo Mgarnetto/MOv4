@@ -40,6 +40,9 @@ window.loadVideoHub = async function (userId) {
 // 2. GRID RENDERERS & COLLECTION VIEWER
 // ============================================
 function renderVaultGrid(posts, isOwner) {
+    const header = document.getElementById('video-grid-header');
+    if (header) header.style.display = 'block';
+
     const container = document.getElementById('video-hub-container');
     if (!posts || posts.length === 0) {
         container.innerHTML = '<div style="text-align: center; color: #888; padding: 2rem; grid-column: 1 / -1;">No videos in vault.</div>';
@@ -80,7 +83,7 @@ function renderVaultGrid(posts, isOwner) {
                 ${visIcon}
                 ${priceBadge}
 
-                <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, ${isLiked})">
+                <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}')">
                     <img src="${thumbSrc}" class="vid-thumb-img">
                     <div class="vid-play-overlay"><i class="fas fa-play-circle" style="color: white; font-size: 3rem;"></i></div>
                     
@@ -105,7 +108,7 @@ function renderVaultGrid(posts, isOwner) {
                         <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.toggleGridLike(this, '${pId}')">
                             <i class="${isLiked ? 'fas text-danger' : 'far'} fa-heart"></i> <span>${likes}</span>
                         </button>
-                        <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}', ${likes}, ${comments}, ${isLiked}, true)">
+                        <button class="vid-btn-translucent" onclick="event.stopPropagation(); window.openCinemaModal('${pId}', '${safeVidUrl}', '${safeTitle}', '${safeDesc}')">
                             <i class="fas fa-comment"></i> ${comments}
                         </button>
                     </div>
@@ -169,6 +172,9 @@ function renderCollectionsGrid(collections, isOwner) {
 }
 
 window.viewVideoCollection = async function (collectionId, title) {
+    const header = document.getElementById('video-grid-header');
+    if (header) header.style.display = 'none';
+
     const container = document.getElementById('video-hub-container');
     if (!container) return;
 
@@ -197,12 +203,12 @@ window.viewVideoCollection = async function (collectionId, title) {
                     const safeUrl = encodeURIComponent(item.url || item.Url);
                     let thumbSrc = item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
                     thumbSrc = thumbSrc.replace(/\\/g, '/');
-                    
+
                     const activePostId = item.postId || item.PostId || item.targetId;
-                    
+
                     html += `
                         <div class="vid-card">
-                            <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${activePostId}', '${safeUrl}', '${safeTitle}', '', 0, 0, false)">
+                            <div class="vid-thumb-wrapper" onclick="window.openCinemaModal('${activePostId}', '${safeUrl}', '${safeTitle}', '')">
                                 <img src="${thumbSrc}" class="vid-thumb-img">
                                 <div class="vid-play-overlay"><i class="fas fa-play-circle" style="color: white; font-size: 3rem;"></i></div>
                                 
@@ -402,7 +408,7 @@ window.loadInspectorEpisodeList = async function (collectionId) {
             const att = t.attachments || t.Attachments || [];
             const vid = att.find(a => (a.mediaType || a.MediaType) === 2);
             const mId = vid ? String(vid.mediaId || vid.MediaId) : "0";
-            return !existingMediaIds.includes(mId); 
+            return !existingMediaIds.includes(mId);
         });
 
         window.renderInspectorEpisodeList(collectionId);
@@ -420,7 +426,7 @@ window.renderInspectorEpisodeList = function (collectionId) {
         } else {
             window.inspectorSeriesEpisodes.forEach((track, i) => {
                 const title = track.title || track.Title || "Untitled";
-                const linkId = track.linkId || track.LinkId; 
+                const linkId = track.linkId || track.LinkId;
                 eHtml += `
                     <div style="display: flex; align-items: center; justify-content: space-between; background: #1a1a1a; padding: 10px; border-radius: 6px; border: 1px solid #333; margin-bottom: 8px;">
                         <div style="display: flex; align-items: center; gap: 12px; overflow: hidden; flex-grow: 1;">
@@ -478,7 +484,7 @@ window.inspectorAddEpisode = async function (btn, targetId, collectionId) {
         const res = await fetch(`/api/collections/${collectionId}/add-item`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
-            body: JSON.stringify({ TargetId: targetId, TargetType: 2 }) 
+            body: JSON.stringify({ TargetId: targetId, TargetType: 2 })
         });
         if (res.ok) { window.loadInspectorEpisodeList(collectionId); }
         else { btn.innerHTML = '<i class="fas fa-plus" style="font-size: 10px;"></i>'; btn.disabled = false; }
@@ -898,7 +904,7 @@ window.saveVideoCarouselDock = async function () {
 // ============================================
 // 7. THE CINEMA MODAL (Comments & Likes Addition)
 // ============================================
-window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, comments, isLiked, autoFocusComments = false) {
+window.openCinemaModal = async function (postId, vidUrlEnc, titleEnc, descEnc) {
     const modal = document.getElementById('cinemaModal');
     const player = document.getElementById('cinemaVideoPlayer');
     const titleEl = document.getElementById('cinemaVideoTitle');
@@ -908,28 +914,41 @@ window.openCinemaModal = function (postId, vidUrlEnc, titleEnc, descEnc, likes, 
 
     if (!modal || !player) return;
 
-    // Reset Reply State explicitly
+    // Reset UI
     window.cancelCinemaReply();
-
     titleEl.innerText = decodeURIComponent(titleEnc);
     descEl.innerText = decodeURIComponent(descEnc);
     player.src = decodeURIComponent(vidUrlEnc);
 
+    // Set loading state for likes
     likeBtn.dataset.id = postId;
-    likeCount.innerText = likes;
-    
-    const icon = likeBtn.querySelector('i');
-    if (isLiked) {
-        icon.className = 'fas fa-heart fa-lg text-danger';
-    } else {
-        icon.className = 'far fa-heart fa-lg';
-    }
+    likeCount.innerText = "...";
+    likeBtn.querySelector('i').className = 'far fa-heart fa-lg';
 
     // Load Local Comments
     window.loadCinemaComments(postId);
 
     modal.classList.remove('d-none');
     player.play().catch(e => console.log("Auto-play prevented", e));
+
+    // FETCH LIVE STATS 
+    try {
+        const res = await fetch(`/api/posts/${postId}`, {
+            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
+        });
+        if (res.ok) {
+            const post = await res.json();
+            // Fallbacks handle C# PascalCase vs JS camelCase
+            const likes = post.likesCount !== undefined ? post.likesCount : (post.LikesCount || 0);
+            const isLiked = post.isLiked !== undefined ? post.isLiked : (post.IsLiked || false);
+
+            likeCount.innerText = likes;
+            likeBtn.querySelector('i').className = isLiked ? 'fas fa-heart fa-lg text-danger' : 'far fa-heart fa-lg';
+        }
+    } catch (e) {
+        console.error("Failed to fetch live stats", e);
+        likeCount.innerText = "0";
+    }
 };
 
 window.closeCinemaModal = function () {
@@ -942,14 +961,14 @@ window.closeCinemaModal = function () {
     }
 };
 
-window.toggleCinemaLike = async function() {
+window.toggleCinemaLike = async function () {
     const btn = document.getElementById('cinemaLikeBtn');
     const countSpan = document.getElementById('cinemaLikeCount');
     if (!btn) return;
-    
+
     const postId = btn.dataset.id;
-    if(!postId) return;
-    
+    if (!postId) return;
+
     btn.disabled = true;
 
     try {
@@ -957,12 +976,12 @@ window.toggleCinemaLike = async function() {
             method: 'POST',
             headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
         });
-        
+
         if (res.ok) {
             const data = await res.json();
             let currentCount = parseInt(countSpan.innerText) || 0;
             const icon = btn.querySelector('i');
-            const wasLiked = icon.classList.contains('fas'); 
+            const wasLiked = icon.classList.contains('fas');
 
             if (data.liked) {
                 icon.className = 'fas fa-heart fa-lg text-danger';
@@ -972,24 +991,24 @@ window.toggleCinemaLike = async function() {
                 if (wasLiked) countSpan.innerText = Math.max(0, currentCount - 1);
             }
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
     finally { btn.disabled = false; }
 };
 
-window.toggleGridLike = async function(btn, postId) {
+window.toggleGridLike = async function (btn, postId) {
     btn.disabled = true;
     try {
         const res = await fetch(`/api/posts/${postId}/like`, {
             method: 'POST',
             headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
         });
-        if(res.ok) {
+        if (res.ok) {
             const data = await res.json();
             const icon = btn.querySelector('i');
             const span = btn.querySelector('span');
             let count = parseInt(span.innerText) || 0;
 
-            if(data.liked) {
+            if (data.liked) {
                 icon.className = 'fas fa-heart text-danger';
                 span.innerText = count + 1;
             } else {
@@ -997,24 +1016,24 @@ window.toggleGridLike = async function(btn, postId) {
                 span.innerText = Math.max(0, count - 1);
             }
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
     finally { btn.disabled = false; }
 };
 
-window.loadCinemaComments = async function(postId) {
+window.loadCinemaComments = async function (postId) {
     const wrapper = document.getElementById('cinemaCommentsWrapper');
-    if(!wrapper) return;
-    
+    if (!wrapper) return;
+
     wrapper.innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i> Loading comments...</div>';
-    
+
     try {
         const res = await fetch(`/api/posts/${postId}/comments`, {
             headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
         });
-        if(res.ok) {
+        if (res.ok) {
             const comments = await res.json();
-            if(comments.length === 0) {
-                wrapper.innerHTML = '<div class="text-center text-muted mt-4 small">No comments yet. Be the first!</div>';
+            if (comments.length === 0) {
+                wrapper.innerHTML = '';
                 return;
             }
 
@@ -1045,7 +1064,7 @@ window.loadCinemaComments = async function(postId) {
                         </div>
                     </div>
                 `;
-                
+
                 // Recursively attach replies if they exist
                 if (c.replies && c.replies.length > 0) {
                     html += `
@@ -1056,15 +1075,15 @@ window.loadCinemaComments = async function(postId) {
                 }
                 return html;
             };
-            
+
             wrapper.innerHTML = comments.map(c => renderComment(c, false)).join('');
         }
-    } catch(e) {
+    } catch (e) {
         wrapper.innerHTML = '<div class="text-danger small mt-4 text-center">Failed to load comments.</div>';
     }
 };
 
-window.prepareCinemaReply = function(commentId, authorNameEnc) {
+window.prepareCinemaReply = function (commentId, authorNameEnc) {
     document.getElementById('cinemaReplyParentId').value = commentId;
     document.getElementById('cinemaReplyName').innerText = decodeURIComponent(authorNameEnc);
     const badge = document.getElementById('cinemaReplyBadge');
@@ -1072,7 +1091,7 @@ window.prepareCinemaReply = function(commentId, authorNameEnc) {
     document.getElementById('cinemaCommentInput').focus();
 };
 
-window.cancelCinemaReply = function() {
+window.cancelCinemaReply = function () {
     const parentInput = document.getElementById('cinemaReplyParentId');
     if (parentInput) parentInput.value = '';
     const badge = document.getElementById('cinemaReplyBadge');
@@ -1086,7 +1105,7 @@ window.submitCinemaComment = async function () {
 
     const input = document.getElementById('cinemaCommentInput');
     const parentInput = document.getElementById('cinemaReplyParentId');
-    
+
     const content = input.value.trim();
     if (!content) return;
 
@@ -1099,13 +1118,13 @@ window.submitCinemaComment = async function () {
             headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
             body: JSON.stringify({ PostId: parseInt(postId), Content: content, ParentId: parentId })
         });
-        
+
         if (res.ok) {
             input.value = '';
             window.cancelCinemaReply(); // Hide the badge
             window.loadCinemaComments(postId); // Refresh the feed
         }
-    } catch(e) { console.error(e); }
+    } catch (e) { console.error(e); }
 };
 
 document.addEventListener('click', function (e) {
