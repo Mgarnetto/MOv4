@@ -17,7 +17,7 @@
                 const data = await LoginService.loginAsync(username, password);
 
                 // 2. Update the App State (Show UI, Load Chats)
-                AuthState.setLoggedIn(data.userId, data.sessionId);
+                AuthState.setLoggedIn(data.userId, data.sessionId, data.profilePic);
 
                 // 3. Save Session so it survives a refresh
                 localStorage.setItem("moozic_session", JSON.stringify(data));
@@ -30,6 +30,9 @@
                 if (window.SidebarManager) {
                     await window.SidebarManager.updateProfile();
                 }
+
+                // 6. SYNC/UNLOCK COMMENTS ACROSS SITE
+                AuthState.updateCommentUI();
 
                 if (statusEl) {
                     statusEl.style.color = "green";
@@ -89,7 +92,7 @@
                     statusEl.innerText = "Logged out";
                 }
 
-                // Reload is required to fully clear memory/scripts
+                // Reload is required to fully clear memory/scripts, which will naturally lock comments down
                 location.reload();
 
             } catch (err) {

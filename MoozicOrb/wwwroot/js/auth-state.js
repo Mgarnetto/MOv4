@@ -18,14 +18,17 @@
         loggedIn: false,
         userId: null,
         sessionId: null,
+        profilePic: null, // Track profile picture natively
 
         // ============================================
         // 1. LOGIN STATE & UI TOGGLING
         // ============================================
-        setLoggedIn(userId, sessionId) {
+        setLoggedIn(userId, sessionId, profilePic = null) {
             this.loggedIn = true;
             this.userId = userId;
             this.sessionId = sessionId;
+            if (profilePic) this.profilePic = profilePic;
+
             document.body.classList.add("auth-on");
             document.body.classList.remove("auth-off");
 
@@ -46,6 +49,8 @@
             this.loggedIn = false;
             this.userId = null;
             this.sessionId = null;
+            this.profilePic = null;
+
             document.body.classList.add("auth-off");
             document.body.classList.remove("auth-on");
 
@@ -74,6 +79,59 @@
                 const res = await fetch("/api/login/bootstrap", { headers: { "X-Session-Id": sessionId } });
                 return res.ok;
             } catch { return false; }
+        },
+
+        // ============================================
+        // 2. COMMENT UI SECURITY & HYDRATION
+        // ============================================
+        getProfilePic() {
+            if (this.profilePic && this.profilePic !== 'null') return this.profilePic;
+            const domPic = document.querySelector('img.navbar-profile, .profile-pic, img[alt="Profile"]');
+            if (domPic && domPic.src && !domPic.src.includes('profile_default.jpg')) {
+                return domPic.src;
+            }
+            return '/img/profile_default.jpg';
+        },
+
+        updateCommentUI() {
+            const pic = this.loggedIn ? this.getProfilePic() : '/img/profile_default.jpg';
+
+            // 1. Sync the Avatar Images
+            document.querySelectorAll('.sync-my-avatar, .input-avatar').forEach(img => {
+                if (!img.closest('.comment-display-box')) {
+                    img.src = pic;
+                }
+            });
+
+            // 2. Gate the Inputs
+            document.querySelectorAll('.comment-input-area input').forEach(input => {
+                if (!this.loggedIn) {
+                    input.disabled = true;
+                    input.placeholder = "Log in to comment";
+                    input.style.cursor = "not-allowed";
+                } else {
+                    input.disabled = false;
+                    if (input.id && input.id.includes('reply')) {
+                        if (input.placeholder === "Log in to comment") input.placeholder = "Write a reply...";
+                    } else {
+                        input.placeholder = "Write a comment...";
+                    }
+                    input.style.cursor = "text";
+                }
+            });
+
+            // 3. Gate the Buttons
+            document.querySelectorAll('.comment-input-area button').forEach(btn => {
+                if (!this.loggedIn) {
+                    btn.disabled = true;
+                    btn.style.opacity = "0.5";
+                    btn.style.cursor = "not-allowed";
+                } else {
+                    btn.disabled = false;
+                    btn.style.opacity = "1";
+                    btn.style.cursor = "pointer";
+                }
+            });
         },
 
         // ============================================
@@ -237,11 +295,15 @@
             try {
                 const data = JSON.parse(savedSession);
                 if (await window.AuthState.checkSessionValid(data.sessionId)) {
-                    window.AuthState.setLoggedIn(data.userId, data.sessionId);
+                    // Load pic from cached session data if available
+                    window.AuthState.setLoggedIn(data.userId, data.sessionId, data.profilePic);
                     await window.AuthState.bootstrap();
                 } else { window.AuthState.setLoggedOut(); }
             } catch { window.AuthState.setLoggedOut(); }
         } else { window.AuthState.setLoggedOut(); }
+
+        // ALWAYS secure the comment UI on page load, logged in or out
+        window.AuthState.updateCommentUI();
 
         const toggleBtn = document.getElementById("loginToggleBtn");
         const dropdown = document.getElementById("loginDropdown");

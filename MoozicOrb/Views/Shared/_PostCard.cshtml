@@ -185,7 +185,6 @@ else
                             else if (media.MediaType == 1) // AUDIO (Track Card)
                             {
                                 var trackTitle = !string.IsNullOrEmpty(Model.Title) ? Model.Title : "Untitled Track";
-
                                 <div class="track-card">
                                     <button class="btn-track-play"
                                             onclick="window.AudioPlayer.playTrack('@media.Url', { title: '@trackTitle', artist: '@Model.AuthorName' })">
@@ -234,7 +233,7 @@ else
             <div id="comments-list-@Model.Id" class="mb-3"></div>
 
             <div class="d-flex align-items-center gap-2">
-                <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+                <img src="/img/profile_default.jpg" class="input-avatar sync-my-avatar" alt="Me">
 
                 <div class="comment-input-area">
                     <input type="text" id="comment-input-@Model.Id"

@@ -234,6 +234,11 @@ window.FeedService.openPostModal = async (postId, autoComment = false) => {
         const html = await res.text();
         container.innerHTML = html;
 
+        // Apply Auth security & avatars immediately to the newly rendered HTML
+        if (window.AuthState && window.AuthState.updateCommentUI) {
+            window.AuthState.updateCommentUI();
+        }
+
         if (autoComment) {
             setTimeout(() => {
                 const commentBtn = container.querySelector('.btn-comment-toggle');
@@ -789,7 +794,7 @@ function renderNewPost(post) {
             <div id="comments-${pId}" class="d-none border-top border-secondary p-3">
                 <div id="comments-list-${pId}" class="mb-3"></div>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+                    <img src="/img/profile_default.jpg" class="input-avatar sync-my-avatar" alt="Me">
                     <div class="comment-input-area">
                         <input type="text" id="comment-input-${pId}" placeholder="Write a comment..." autocomplete="off">
                         <button class="btn-comment-post" onclick="submitReply('${pId}', null)">Post</button>
@@ -815,6 +820,11 @@ function renderNewPost(post) {
     });
 
     container.insertBefore(postEl, container.firstChild);
+
+    // Apply Auth security & avatars immediately to the newly rendered HTML
+    if (window.AuthState && window.AuthState.updateCommentUI) {
+        window.AuthState.updateCommentUI();
+    }
 }
 
 function renderAttachments(attachments, postTitle, postAuthor) {
@@ -1173,6 +1183,11 @@ async function loadComments(postId, targetContainer = null) {
                 return;
             }
             comments.forEach(c => container.appendChild(createCommentElement(c)));
+
+            // Apply Auth security & avatars immediately to the newly rendered HTML
+            if (window.AuthState && window.AuthState.updateCommentUI) {
+                window.AuthState.updateCommentUI();
+            }
         }
     } catch (err) { container.innerHTML = '<div class="text-danger small">Error loading comments.</div>'; }
 }
@@ -1313,6 +1328,11 @@ window.loadFeedHistory = async function (contextType, contextId) {
             posts.forEach(post => {
                 appendHistoricalPost(post, container);
             });
+
+            // Apply Auth security & avatars immediately to the newly rendered HTML
+            if (window.AuthState && window.AuthState.updateCommentUI) {
+                window.AuthState.updateCommentUI();
+            }
         } else {
             container.innerHTML = '<div class="text-danger text-center p-3">Failed to load feed.</div>';
         }
@@ -1410,7 +1430,7 @@ function appendHistoricalPost(post, container) {
             <div id="comments-${pId}" class="d-none border-top border-secondary p-3">
                 <div id="comments-list-${pId}" class="mb-3"></div>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="/img/profile_default.jpg" class="input-avatar" alt="Me">
+                    <img src="/img/profile_default.jpg" class="input-avatar sync-my-avatar" alt="Me">
                     <div class="comment-input-area">
                         <input type="text" id="comment-input-${pId}" placeholder="Write a comment..." autocomplete="off">
                         <button class="btn-comment-post" onclick="submitReply('${pId}', null)">Post</button>
