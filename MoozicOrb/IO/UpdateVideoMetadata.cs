@@ -15,7 +15,8 @@ namespace MoozicOrb.IO
 
                 // 1. CHECK OWNERSHIP & LOCK STATUS
                 string checkSql = targetType == 2
-                    ? "SELECT is_locked FROM posts WHERE post_id = @id AND author_id = @uid"
+                    // FIX: Select a hardcoded 0 for lock status, and check user_id instead of author_id (Cheap fix!!!)
+                    ? "SELECT 0 AS is_locked FROM posts WHERE post_id = @id AND user_id = @uid"
                     : "SELECT is_locked FROM collections WHERE collection_id = @id AND user_id = @uid";
 
                 int isLocked = 0;
@@ -24,7 +25,9 @@ namespace MoozicOrb.IO
                     cmdCheck.Parameters.AddWithValue("@id", targetId);
                     cmdCheck.Parameters.AddWithValue("@uid", userId);
                     var result = cmdCheck.ExecuteScalar();
+
                     if (result == null) throw new Exception("Asset not found or permission denied.");
+
                     isLocked = Convert.ToInt32(result);
                 }
 
@@ -40,7 +43,7 @@ namespace MoozicOrb.IO
                     }
 
                     string updateSql = targetType == 2
-                        ? "UPDATE posts SET title = @title, post_text = @text, visibility = @vis WHERE post_id = @id"
+                        ? "UPDATE posts SET title = @title, content_text = @text, visibility = @vis WHERE post_id = @id"
                         : "UPDATE collections SET title = @title, visibility = @vis" + (newCoverId.HasValue ? ", cover_image_id = @cover" : "") + " WHERE collection_id = @id";
 
                     using (var cmd = new MySqlCommand(updateSql, conn))
@@ -62,19 +65,30 @@ namespace MoozicOrb.IO
                     if (targetType == 2 && req.MediaAttachments != null && req.MediaAttachments.Any())
                     {
                         var newThumb = req.MediaAttachments.FirstOrDefault(m => m.MediaType == 3);
-                        if (newThumb != null && !string.IsNullOrEmpty(newThumb.Url))
-                        {
-                            string thumbSql = @"
-                                UPDATE media_video v
-                                JOIN post_media pm ON v.video_id = pm.media_id AND pm.media_type = 2
-                                SET v.thumb_path = @thumb
-                                WHERE pm.post_id = @pid";
 
-                            using (var cmdThumb = new MySqlCommand(thumbSql, conn))
+                        // FIX: Only rely on the MediaId, completely ignore newThumb.Url
+                        if (newThumb != null && newThumb.MediaId > 0)
+                        {
+                            // 1. Fetch the clean, relative path directly from your database
+                            var imageRecord = new GetImage().Execute(newThumb.MediaId);
+
+                            if (imageRecord != null && !string.IsNullOrEmpty(imageRecord.RelativePath))
                             {
-                                cmdThumb.Parameters.AddWithValue("@thumb", newThumb.Url);
-                                cmdThumb.Parameters.AddWithValue("@pid", targetId);
-                                cmdThumb.ExecuteNonQuery();
+                                string cleanThumbPath = imageRecord.RelativePath; // This is purely "/media/Image/..."
+
+                                string thumbSql = @"
+                UPDATE media_video v
+                JOIN post_media pm ON v.video_id = pm.media_id AND pm.media_type = 2
+                SET v.thumb_path = @thumb
+                WHERE pm.post_id = @pid";
+
+                                using (var cmdThumb = new MySqlCommand(thumbSql, conn))
+                                {
+                                    // 2. Save the clean key, rejecting the Cloudflare Presigned URL
+                                    cmdThumb.Parameters.AddWithValue("@thumb", cleanThumbPath);
+                                    cmdThumb.Parameters.AddWithValue("@pid", targetId);
+                                    cmdThumb.ExecuteNonQuery();
+                                }
                             }
                         }
                     }
