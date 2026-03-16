@@ -4,6 +4,7 @@ using MoozicOrb.IO;
 using MoozicOrb.Models;
 using MoozicOrb.Services;
 using MoozicOrb.Services.Interfaces;
+using MoozicOrb.API.Services; // NEW: Added for IMediaResolverService
 using System;
 using System.Linq;
 
@@ -14,10 +15,21 @@ namespace MoozicOrb.Controllers
     public class LoginController : ControllerBase
     {
         private readonly ILoginService _loginService;
+        private readonly IMediaResolverService _resolver; // NEW: Injecting the resolver
 
-        public LoginController(ILoginService loginService)
+        // NEW: Updated constructor to accept the resolver
+        public LoginController(ILoginService loginService, IMediaResolverService resolver)
         {
             _loginService = loginService;
+            _resolver = resolver;
+        }
+
+        // NEW: Helper to safely resolve R2 keys into full URLs (Matches CreatorController)
+        private string SafeResolve(string urlOrKey)
+        {
+            if (string.IsNullOrEmpty(urlOrKey)) return urlOrKey;
+            if (urlOrKey.StartsWith("/") || urlOrKey.StartsWith("http")) return urlOrKey;
+            return _resolver.ResolveUrl(urlOrKey, 1);
         }
 
         // ==========================================
@@ -61,39 +73,40 @@ namespace MoozicOrb.Controllers
         {
             if (string.IsNullOrEmpty(sessionId)) return Unauthorized();
 
-            // 1. Check Session Cache
             var session = SessionStore.GetSession(sessionId);
             if (session == null) return Unauthorized();
 
-            // Refresh Activity
-            //session.LastActive = DateTime.UtcNow;
-
-            // 2. Get User Details
             var user = new UserQuery().GetUserById(session.UserId);
             if (user == null) return Unauthorized();
 
-            // 3. Parse Group IDs (from CSV)
-            // This allows the frontend to know which SignalR groups to join immediately
             var groupIds = (user.UserGroups ?? "")
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                .Select(g =>
-                {
-                    if (long.TryParse(g.Trim(), out long id)) return id;
-                    return 0L;
-                })
-                .Where(id => id > 0)
+                .Select(g => long.Parse(g.Trim()))
                 .ToList();
+
+            // 1. Grab the raw string
+            string finalAvatar = user.ProfilePic;
+
+            // 2. Validate for bad data
+            if (string.IsNullOrWhiteSpace(finalAvatar) || finalAvatar == "null" || finalAvatar == "undefined")
+            {
+                finalAvatar = "/img/profile_default.jpg";
+            }
+            // 3. Resolve the path properly using the injected resolver
+            else
+            {
+                finalAvatar = SafeResolve(finalAvatar);
+            }
 
             return Ok(new
             {
                 userId = user.UserId,
-                username = user.UserName,
-                groups = groupIds
+                groups = groupIds,
+                avatarUrl = finalAvatar
             });
         }
     }
 }
-
 
 
 

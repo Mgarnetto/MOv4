@@ -84,21 +84,15 @@
         // ============================================
         // 2. COMMENT UI SECURITY & HYDRATION
         // ============================================
-        getProfilePic() {
-            if (this.profilePic && this.profilePic !== 'null') return this.profilePic;
-            const domPic = document.querySelector('img.navbar-profile, .profile-pic, img[alt="Profile"]');
-            if (domPic && domPic.src && !domPic.src.includes('profile_default.jpg')) {
-                return domPic.src;
-            }
-            return '/img/profile_default.jpg';
-        },
-
         updateCommentUI() {
-            const pic = this.loggedIn ? this.getProfilePic() : '/img/profile_default.jpg';
+            // Read directly from the state that was populated by bootstrap()
+            const pic = (this.loggedIn && this.profilePic && this.profilePic !== 'null')
+                ? this.profilePic
+                : '/img/profile_default.jpg';
 
-            // 1. Sync the Avatar Images
+            // 1. Sync the Avatar Images (Excluding Cinema Modal)
             document.querySelectorAll('.sync-my-avatar, .input-avatar').forEach(img => {
-                if (!img.closest('.comment-display-box')) {
+                if (!img.closest('#singlePostModal')) {
                     img.src = pic;
                 }
             });
@@ -159,21 +153,44 @@
             if (window.renderCreateGroupButton) window.renderCreateGroupButton();
 
             try {
+                // --- STEP A: Fetch Core Data (Login Bootstrap) ---
+                const resBoot = await fetch("/api/login/bootstrap", {
+                    headers: { "X-Session-Id": this.sessionId }
+                });
+
+                let groupsToJoin = [];
+
+                if (resBoot.ok) {
+                    const dataBoot = await resBoot.json();
+
+                    // NEW: Capture the profile picture string directly from the controller
+                    this.profilePic = dataBoot.avatarUrl || "/img/profile_default.jpg";
+
+                    // Hydrate the static server-rendered cards instantly
+                    this.updateCommentUI();
+
+                    if (Array.isArray(dataBoot.groups)) {
+                        groupsToJoin = dataBoot.groups.map(g => parseInt(g)); // Keep for SignalR if needed
+                    }
+                }
+
+                // --- STEP B: Fetch Chat Threads ---
                 const [groupsRes, dmsRes] = await Promise.all([
                     fetch("/api/groups/mine", { headers: { "X-Session-Id": this.sessionId } }),
                     fetch("/api/direct/messages", { headers: { "X-Session-Id": this.sessionId } })
                 ]);
 
                 let allThreads = [];
-                const groupsToJoin = [];
 
                 if (groupsRes.ok) {
                     const groups = await groupsRes.json();
                     groups.forEach(g => {
-                        groupsToJoin.push(g.groupId || g.GroupId);
+                        const groupId = g.groupId || g.GroupId;
+                        if (!groupsToJoin.includes(groupId)) groupsToJoin.push(groupId);
+
                         const rawT = g.timestamp || g.Timestamp;
                         allThreads.push({
-                            id: g.groupId || g.GroupId,
+                            id: groupId,
                             name: g.groupName || g.GroupName,
                             type: 'group',
                             img: '/img/default_cover.jpg',

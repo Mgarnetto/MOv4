@@ -794,7 +794,10 @@ function renderNewPost(post) {
             <div id="comments-${pId}" class="d-none border-top border-secondary p-3">
                 <div id="comments-list-${pId}" class="mb-3"></div>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="/img/profile_default.jpg" class="input-avatar sync-my-avatar" alt="Me">
+                    <img src="${window.AuthState?.profilePic || '/img/profile_default.jpg'}" 
+                     class="input-avatar" 
+                     alt="Me" 
+                     onerror="this.onerror=null; this.src='/img/profile_default.jpg';">
                     <div class="comment-input-area">
                         <input type="text" id="comment-input-${pId}" placeholder="Write a comment..." autocomplete="off">
                         <button class="btn-comment-post" onclick="submitReply('${pId}', null)">Post</button>
@@ -1430,7 +1433,10 @@ function appendHistoricalPost(post, container) {
             <div id="comments-${pId}" class="d-none border-top border-secondary p-3">
                 <div id="comments-list-${pId}" class="mb-3"></div>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="/img/profile_default.jpg" class="input-avatar sync-my-avatar" alt="Me">
+                    <img src="${window.AuthState?.profilePic || '/img/profile_default.jpg'}" 
+     class="input-avatar" 
+     alt="Me" 
+     onerror="this.onerror=null; this.src='/img/profile_default.jpg';">
                     <div class="comment-input-area">
                         <input type="text" id="comment-input-${pId}" placeholder="Write a comment..." autocomplete="off">
                         <button class="btn-comment-post" onclick="submitReply('${pId}', null)">Post</button>
