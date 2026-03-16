@@ -92,7 +92,7 @@ function renderVaultGrid(posts, isOwner) {
                     
                     ${isOwner ? `
                     <div class="vid-top-right-actions">
-                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${mediaId}', '${safeTitle}', '${thumbSrc}')" title="Feature Video"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${mediaId}', '${safeTitle}', '${thumbSrc}', 2)" title="Feature Video"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
                         <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
@@ -152,7 +152,7 @@ function renderCollectionsGrid(collections, isOwner) {
                     
                     ${isOwner ? `
                     <div class="vid-top-right-actions">
-                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${col.id}', '${safeTitle}', '${art}')" title="Feature Collection"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${col.id}', '${safeTitle}', '${art}', 0)" title="Feature Collection"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
                         <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
@@ -803,7 +803,8 @@ window.toggleVideoCarouselManager = async function () {
                                 return {
                                     id: String(item.targetId || item.TargetId),
                                     title: item.title || item.Title,
-                                    imgUrl: item.artUrl || item.ArtUrl || '/img/default_cover.jpg'
+                                    imgUrl: item.artUrl || item.ArtUrl || '/img/default_cover.jpg',
+                                    targetType: item.targetType !== undefined ? item.targetType : (item.TargetType !== undefined ? item.TargetType : 2)
                                 };
                             });
                             window.renderVideoCarouselDockSlots();
@@ -844,12 +845,17 @@ window.renderVideoCarouselDockSlots = function () {
     }
 };
 
-window.addToVideoCarouselDock = function (postId, titleEnc, imgUrl) {
+window.addToVideoCarouselDock = function (postId, titleEnc, imgUrl, targetType = 2) {
     if (!window.isVideoCarouselManagerActive) window.toggleVideoCarouselManager();
     if (window.videoCarouselDockItems.find(x => x.id === String(postId))) return;
     if (window.videoCarouselDockItems.length >= 5) { alert("Carousel is full (max 5)"); return; }
 
-    window.videoCarouselDockItems.push({ id: String(postId), title: decodeURIComponent(titleEnc), imgUrl: imgUrl });
+    window.videoCarouselDockItems.push({
+        id: String(postId),
+        title: decodeURIComponent(titleEnc),
+        imgUrl: imgUrl,
+        targetType: targetType
+    });
     window.renderVideoCarouselDockSlots();
 };
 
@@ -865,7 +871,7 @@ window.saveVideoCarouselDock = async function () {
     try {
         const itemsToSave = window.videoCarouselDockItems.map((item, index) => ({
             TargetId: parseInt(item.id),
-            TargetType: 2,
+            TargetType: item.targetType !== undefined ? item.targetType : 2,
             SortOrder: index
         }));
 
