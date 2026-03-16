@@ -64,6 +64,9 @@ function renderVaultGrid(posts, isOwner) {
         const sPath = vidAttach ? (vidAttach.snippetPath || vidAttach.SnippetPath) : null;
         const thumbSrc = (sPath && sPath !== "null") ? sPath.replace(/\\/g, '/') : '/img/default_cover.jpg';
 
+        // --- ADDED EXTRACT MEDIA ID ---
+        const mediaId = vidAttach ? (vidAttach.mediaId || vidAttach.MediaId) : 0;
+
         const likes = post.likesCount || 0;
         const comments = post.commentsCount || 0;
         const isLiked = post.isLiked === true;
@@ -89,7 +92,7 @@ function renderVaultGrid(posts, isOwner) {
                     
                     ${isOwner ? `
                     <div class="vid-top-right-actions">
-                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${pId}', '${safeTitle}', '${thumbSrc}')" title="Feature Video"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToVideoCarouselDock('${mediaId}', '${safeTitle}', '${thumbSrc}')" title="Feature Video"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
                         <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
                             <i class="fas fa-ellipsis-v"></i>
                         </div>

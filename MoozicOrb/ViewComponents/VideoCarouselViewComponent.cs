@@ -46,8 +46,8 @@ namespace MoozicOrb.ViewComponents
                     {
                         model.Items.Add(new PostDto
                         {
-                            Id = item.TargetId,
-                            Type = item.TargetType == 0 ? 8 : 6, // 8 = Collection, 6 = Video
+                            Id = item.PostId ?? item.TargetId, // Provide the Post ID to the UI for comments/likes
+                            Type = item.TargetType == 0 ? 8 : 6,
                             Title = item.Title ?? "Untitled",
                             ImageUrl = item.ArtUrl ?? "/img/default_cover.jpg",
                             VideoUrl = item.Url,
