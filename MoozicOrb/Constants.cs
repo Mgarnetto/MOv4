@@ -12,6 +12,7 @@
         public const int Classified = 4;   // Was "classified"
         public const int Article = 5;      // Was "article"
         public const int Video = 6;        // Was "video"
+        public const int Image = 7;        // Was "image"
     }
 
     /// <summary>

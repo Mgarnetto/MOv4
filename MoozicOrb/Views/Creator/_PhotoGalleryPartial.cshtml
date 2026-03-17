@@ -10,34 +10,315 @@
                 <i class="fas fa-arrow-left"></i>
             </a>
             <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #333;">
-            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Images</h2>
+            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Vault</h2>
         </div>
 
         @if (Model.IsCurrentUser)
         {
             <div style="display: flex; gap: 10px;">
                 <button id="btnToggleGalleryInventory" onclick="window.toggleGalleryInventoryMode()" style="background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
-                    <i class="fas fa-tasks"></i> <span>Manage Images</span>
+                    <i class="fas fa-tasks"></i> <span>Manage Vault</span>
                 </button>
             </div>
         }
     </div>
 
-    <div class="photo-gallery-grid" id="photo-gallery-container">
+    @if (Model.IsCurrentUser)
+    {
+        <div id="imageDropZone" ondragover="event.preventDefault(); this.style.borderColor='#00d2ff'; this.style.background='#1a1a1a';"
+             ondragleave="this.style.borderColor='#00AEEF'; this.style.background='#111';"
+             ondrop="window.handleImageDrop(event)"
+             onclick="document.getElementById('imageBatchInput').click()"
+             class="mb-4" style="border: 2px dashed #00AEEF; border-radius: 12px; padding: 30px; text-align: center; background: #111; cursor: pointer; transition: 0.3s;">
+
+            <div id="imageDropZoneContent">
+                <i class="fas fa-cloud-upload-alt fa-3x text-info mb-2"></i>
+                <h4 class="text-white">Drop Photos Here</h4>
+                <p class="text-muted small mb-0">Or click to select files. They will be compressed automatically.</p>
+            </div>
+
+            <input type="file" id="imageBatchInput" multiple accept="image/*" style="display: none;" onchange="window.handleBatchImageUpload(this)">
+        </div>
+    }
+
+    <div id="photo-gallery-container" class="masonry-layout">
         <div style="text-align: center; width: 100%; padding: 50px 0; color: #888; grid-column: 1 / -1;">
             <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 15px;"></i>
-            <p>Loading gallery...</p>
+            <p>Loading vault...</p>
+        </div>
+    </div>
+</div>
+
+<div id="imageLightboxModal" class="lightbox-overlay d-none">
+
+    <button class="lightbox-btn close-btn" onclick="window.closeImageLightbox()"><i class="fas fa-times"></i></button>
+    <button class="lightbox-btn nav-btn left-nav" onclick="window.navigateLightbox(-1)"><i class="fas fa-chevron-left"></i></button>
+    <button class="lightbox-btn nav-btn right-nav" onclick="window.navigateLightbox(1)"><i class="fas fa-chevron-right"></i></button>
+
+    <button class="lightbox-btn toggle-panel-btn" onclick="document.getElementById('imageLightboxModal').classList.toggle('show-panel')">
+        <i class="fas fa-comment-alt"></i> <span id="lightboxCommentCount">0</span>
+    </button>
+
+    <div class="lightbox-image-container" onclick="document.getElementById('imageLightboxModal').classList.remove('show-panel')">
+        <img id="lightboxMainImage" src="" alt="Viewed Photo">
+    </div>
+
+    <div class="lightbox-side-panel">
+
+        <div class="panel-header d-flex align-items-center p-3 border-bottom border-secondary">
+            <img id="lightboxAuthorPic" src="/img/profile_default.jpg" class="rounded-circle me-2" style="width:40px; height:40px; border: 1px solid #444; object-fit: cover;">
+            <div class="flex-grow-1" style="overflow: hidden;">
+                <div id="lightboxAuthorName" class="fw-bold text-white text-truncate">User</div>
+                <div id="lightboxTimeAgo" class="small text-muted text-truncate">Just now</div>
+            </div>
+
+            <button id="lightboxLikeBtn" class="btn btn-link text-white p-0 fs-4 ms-2" onclick="window.toggleLightboxLike()">
+                <i class="far fa-heart"></i>
+            </button>
+            <span id="lightboxLikeCount" class="text-white ms-2 fw-bold">0</span>
+        </div>
+
+        <div id="lightboxCommentsFeed" class="panel-body p-3" style="overflow-y: auto; flex-grow: 1; scrollbar-width: none;">
+            <div class="text-center text-muted mt-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+
+        <div class="panel-footer p-3 border-top border-secondary bg-dark">
+            <input type="hidden" id="lightboxCurrentPostId" value="">
+            <input type="hidden" id="lightboxReplyParentId" value="">
+
+            <div id="lightboxReplyBadge" class="d-none badge bg-info text-dark mb-2 w-100 text-start" style="font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>Replying to <span id="lightboxReplyName">User</span>...</span>
+                <i class="fas fa-times" style="cursor: pointer;" onclick="window.cancelLightboxReply()"></i>
+            </div>
+
+            <div class="d-flex">
+                <input type="text" id="lightboxCommentInput" class="form-control bg-dark text-white border-secondary me-2" placeholder="Add a comment..." autocomplete="off" onkeypress="if(event.key === 'Enter') window.submitLightboxComment()">
+                <button class="btn btn-info text-dark fw-bold" onclick="window.submitLightboxComment()"><i class="fas fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    /* Clean Photo Grid */
-    .photo-gallery-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 15px;
+    /* ========================================== */
+    /* MASONRY GRID STYLING                       */
+    /* ========================================== */
+    .masonry-layout {
+        column-count: 1; /* Mobile default */
+        column-gap: 15px;
         width: 100%;
-        align-items: start;
+    }
+
+    @@media (min-width: 576px) {
+        .masonry-layout {
+            column-count: 2;
+        }
+    }
+
+    @@media (min-width: 768px) {
+        .masonry-layout {
+            column-count: 3;
+        }
+    }
+
+    @@media (min-width: 1200px) {
+        .masonry-layout {
+            column-count: 4;
+        }
+    }
+
+    .masonry-item {
+        break-inside: avoid;
+        margin-bottom: 15px;
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        cursor: pointer;
+        background: #111;
+        border: 1px solid #333;
+    }
+
+        .masonry-item img {
+            width: 100%;
+            display: block;
+            transition: transform 0.3s ease;
+        }
+
+        .masonry-item:hover img {
+            transform: scale(1.03);
+        }
+
+    /* ========================================== */
+    /* APP-NATIVE LIGHTBOX STYLING                */
+    /* ========================================== */
+
+    /* Base Immersive Layer */
+    .lightbox-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.95);
+        z-index: 9999;
+        display: flex;
+        overflow: hidden;
+        backdrop-filter: blur(5px);
+    }
+
+    .lightbox-image-container {
+        flex-grow: 1;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        cursor: pointer; /* Clicking background closes panel */
+    }
+
+        .lightbox-image-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+        }
+
+    /* Floating Navigation Controls */
+    .lightbox-btn {
+        position: absolute;
+        background: rgba(20,20,20,0.6);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 50%;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 10000;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s ease;
+    }
+
+        .lightbox-btn:hover {
+            background: rgba(20,20,20,0.9);
+            border-color: #0dcaf0;
+            color: #0dcaf0;
+        }
+
+    .close-btn {
+        top: 20px;
+        right: 20px;
+    }
+
+    .left-nav {
+        top: 50%;
+        left: 20px;
+        transform: translateY(-50%);
+    }
+
+    .right-nav {
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+    }
+
+    /* The FAB Comment Toggle */
+    .toggle-panel-btn {
+        bottom: 30px;
+        right: 30px;
+        border-radius: 25px;
+        width: auto;
+        padding: 0 20px;
+        gap: 8px;
+        background: rgba(13, 202, 240, 0.8);
+        color: #000;
+        border: none;
+        font-weight: bold;
+    }
+
+        .toggle-panel-btn:hover {
+            background: #0dcaf0;
+            color: #000;
+        }
+
+    /* The Sliding Social Panel */
+    .lightbox-side-panel {
+        background: #121212;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        position: absolute;
+        z-index: 10001; /* Must sit above everything else */
+        box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    }
+
+        /* Hide scrollbar for cleaner UI */
+        .lightbox-side-panel ::-webkit-scrollbar {
+            display: none;
+        }
+
+    /* --- RESPONSIVE APP ORIENTATION LOGIC --- */
+
+    /* LANDSCAPE (Sideways Phones, Tablets, Desktop) */
+    @@media (orientation: landscape) {
+        .lightbox-side-panel {
+            top: 0;
+            right: 0;
+            width: 350px;
+            height: 100vh;
+            transform: translateX(100%); /* Hidden off right edge */
+            border-left: 1px solid #333;
+        }
+
+        .show-panel .lightbox-side-panel {
+            transform: translateX(0);
+        }
+
+        .show-panel .right-nav {
+            right: 370px;
+        }
+        /* Bump arrow left so it doesn't overlap panel */
+        .show-panel .close-btn {
+            right: 370px;
+        }
+
+        .show-panel .toggle-panel-btn {
+            display: none;
+        }
+        /* Hide FAB when open */
+        .show-panel .lightbox-image-container {
+            width: calc(100vw - 350px);
+        }
+    }
+
+    /* PORTRAIT (Vertical Phones) */
+    @@media (orientation: portrait) {
+        .lightbox-side-panel {
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 65vh;
+            transform: translateY(100%); /* Hidden off bottom edge */
+            border-top: 1px solid #333;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .show-panel .lightbox-side-panel {
+            transform: translateY(0);
+        }
+
+        .show-panel .toggle-panel-btn {
+            display: none;
+        }
+
+        .show-panel .left-nav {
+            top: 35%;
+        }
+        /* Bump arrows up slightly so they center in remaining space */
+        .show-panel .right-nav {
+            top: 35%;
+        }
     }
 </style>
