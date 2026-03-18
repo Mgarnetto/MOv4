@@ -60,7 +60,7 @@ namespace MoozicOrb.API.Controllers
 
                 var io = new GetUserCollectionsByType();
                 // Type 8 = Collections. The front-end filters by DisplayContext 'gallery' or 'album'
-                var collections = io.Execute(targetUserId, 8, isOwner, _resolver);
+                var collections = io.Execute(targetUserId, 4, isOwner, _resolver);
 
                 return Ok(collections);
             }

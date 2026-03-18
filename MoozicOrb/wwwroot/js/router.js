@@ -153,9 +153,10 @@
             const photoContainer = document.getElementById("photo-gallery-container");
             const galleryUserIdEl = document.getElementById("gallery-user-id");
 
-            if (photoContainer && galleryUserIdEl && window.loadPhotoGallery) {
+            if (photoContainer && galleryUserIdEl && window.loadImageHub) {
                 const userId = galleryUserIdEl.value;
-                window.loadPhotoGallery(userId);
+                // Default to true (Unassigned Only) to match the toggle's default state
+                window.loadImageHub(userId, true);
             }
 
             // H. Video Hub Loader

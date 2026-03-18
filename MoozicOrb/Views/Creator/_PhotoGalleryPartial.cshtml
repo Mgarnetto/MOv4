@@ -4,7 +4,7 @@
 <input type="hidden" id="gallery-user-id" value="@Model.UserId" />
 
 <div class="gallery-container" style="padding: 20px 0;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
         <div style="display: flex; align-items: center; gap: 15px;">
             <a href="/creator/@Model.UserId" class="spa-route" style="background: #1a1a1a; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #333;">
                 <i class="fas fa-arrow-left"></i>
@@ -15,57 +15,62 @@
 
         @if (Model.IsCurrentUser)
         {
-            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
-                <div class="form-check form-switch" style="margin: 0; display: flex; align-items: center; gap: 8px;">
-                    <input class="form-check-input" type="checkbox" id="vaultUnassignedToggle" checked onchange="window.toggleVaultFilter()" style="cursor: pointer; margin-top: 0;">
+            <div class="d-flex align-items-center gap-3">
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="vaultUnassignedToggle" checked onchange="window.toggleVaultFilter()" style="cursor: pointer;">
                     <label class="form-check-label text-muted small" for="vaultUnassignedToggle" style="cursor: pointer;">Unassigned Only</label>
                 </div>
-
-                <button onclick="window.openImageCollectionBuilder()" class="btn btn-sm btn-outline-info fw-bold">
-                    <i class="fas fa-folder-plus"></i> New Gallery
-                </button>
-                <button onclick="window.toggleImageCarouselManager()" class="btn btn-sm btn-outline-light fw-bold">
-                    <i class="fas fa-star"></i> Top Dock
-                </button>
-
-                <button id="btnToggleGalleryInventory" onclick="window.toggleGalleryInventoryMode()" style="background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 8px; font-size: 14px; transition: all 0.2s;">
-                    <i class="fas fa-tasks"></i> <span>Manage</span>
-                </button>
             </div>
         }
     </div>
 
-    <div id="imageCarouselManagerDock" class="d-none bg-dark border-bottom border-secondary p-3 mb-4 rounded" style="border: 1px solid #0dcaf0;">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h5 class="text-white m-0"><i class="fas fa-star text-warning me-2"></i>Feature Images on Profile</h5>
-                <small class="text-muted">Click images in your vault below to add them to your featured carousel (Max 5).</small>
-            </div>
-            <button class="btn btn-success fw-bold" id="btnSaveCarouselDock" onclick="window.saveImageCarouselDock()">Save to Profile</button>
-        </div>
-        <div id="imageCarouselDockSlotsContainer" class="d-flex gap-3 overflow-auto pb-2" style="min-height: 120px; border: 1px dashed #444; padding: 10px; border-radius: 8px;">
-        </div>
-    </div>
-
     @if (Model.IsCurrentUser)
     {
-        <div id="imageDropZone" ondragover="event.preventDefault(); this.style.borderColor='#00d2ff'; this.style.background='#1a1a1a';"
-             ondragleave="this.style.borderColor='#00AEEF'; this.style.background='#111';"
-             ondrop="window.handleImageDrop(event)"
-             onclick="document.getElementById('imageBatchInput').click()"
-             class="mb-4" style="border: 2px dashed #00AEEF; border-radius: 12px; padding: 30px; text-align: center; background: #111; cursor: pointer; transition: 0.3s;">
+        <div class="d-flex gap-2 w-100 mb-4 flex-wrap">
+            <button onclick="window.toggleImageCarouselManager()" class="btn btn-outline-warning flex-fill fw-bold" id="btnToggleImageCarouselManager">
+                <i class="fas fa-star me-1"></i> Manage Carousel
+            </button>
+            <button onclick="window.openImageCollectionBuilder()" class="btn btn-outline-info flex-fill fw-bold">
+                <i class="fas fa-folder-plus me-1"></i> New Gallery
+            </button>
+            <button onclick="window.toggleImageDropZone()" class="btn btn-outline-success flex-fill fw-bold">
+                <i class="fas fa-cloud-upload-alt me-1"></i> Upload Photos
+            </button>
+        </div>
 
-            <div id="imageDropZoneContent">
-                <i class="fas fa-cloud-upload-alt fa-3x text-info mb-2"></i>
-                <h4 class="text-white">Drop Photos Here</h4>
-                <p class="text-muted small mb-0">Or click to select files. They will be compressed automatically.</p>
+        <div id="imageCarouselManagerDock" class="d-none bg-dark border-bottom border-secondary p-3 mb-4 rounded" style="border: 1px solid #ffc107;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <h5 class="text-white m-0"><i class="fas fa-star text-warning me-2"></i>Feature Images on Profile</h5>
+                    <small class="text-muted">Click images in your vault below to add them to your featured carousel (Max 5).</small>
+                </div>
+                <button class="btn btn-warning fw-bold text-dark" id="btnSaveCarouselDock" onclick="window.saveImageCarouselDock()">Save to Profile</button>
             </div>
+            <div id="imageCarouselDockSlotsContainer" class="d-flex gap-3 overflow-auto pb-2" style="min-height: 120px; border: 1px dashed #444; padding: 10px; border-radius: 8px;">
+            </div>
+        </div>
 
-            <input type="file" id="imageBatchInput" multiple accept="image/*" style="display: none;" onchange="window.handleBatchImageUpload(this)">
+        <div id="imageDropZoneWrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-bottom: 0;">
+            <div id="imageDropZone" ondragover="event.preventDefault(); this.style.borderColor='#00d2ff'; this.style.background='#1a1a1a';"
+                 ondragleave="this.style.borderColor='#00AEEF'; this.style.background='#111';"
+                 ondrop="window.handleImageDrop(event)"
+                 onclick="document.getElementById('imageBatchInput').click()"
+                 class="mb-4" style="border: 2px dashed #00AEEF; border-radius: 12px; padding: 30px; text-align: center; background: #111; cursor: pointer; transition: 0.3s;">
+
+                <div id="imageDropZoneContent">
+                    <i class="fas fa-images fa-3x text-info mb-2"></i>
+                    <h4 class="text-white">Drop Photos Here</h4>
+                    <p class="text-muted small mb-0">Or click to select files. They will be compressed automatically.</p>
+                </div>
+
+                <div id="imageBatchProgress" class="d-none mt-3"></div>
+
+                <input type="file" id="imageBatchInput" multiple accept="image/*" style="display: none;" onchange="window.handleBatchImageUpload(this)">
+            </div>
         </div>
     }
 
-    <div id="photo-gallery-container" class="masonry-layout">
+    <div id="photo-gallery-container" class="masonry-layout mt-2">
         <div style="text-align: center; width: 100%; padding: 50px 0; color: #888; grid-column: 1 / -1;">
             <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 15px;"></i>
             <p>Loading vault...</p>
@@ -74,7 +79,6 @@
 </div>
 
 <div id="imageLightboxModal" class="lightbox-overlay d-none">
-
     <button class="lightbox-btn close-btn" onclick="window.closeImageLightbox()"><i class="fas fa-times"></i></button>
     <button class="lightbox-btn nav-btn left-nav" onclick="window.navigateLightbox(-1)"><i class="fas fa-chevron-left"></i></button>
     <button class="lightbox-btn nav-btn right-nav" onclick="window.navigateLightbox(1)"><i class="fas fa-chevron-right"></i></button>
@@ -88,14 +92,12 @@
     </div>
 
     <div class="lightbox-side-panel">
-
         <div class="panel-header d-flex align-items-center p-3 border-bottom border-secondary">
             <img id="lightboxAuthorPic" src="/img/profile_default.jpg" class="rounded-circle me-2" style="width:40px; height:40px; border: 1px solid #444; object-fit: cover;">
             <div class="flex-grow-1" style="overflow: hidden;">
                 <div id="lightboxAuthorName" class="fw-bold text-white text-truncate">User</div>
                 <div id="lightboxTimeAgo" class="small text-muted text-truncate">Just now</div>
             </div>
-
             <button id="lightboxLikeBtn" class="btn btn-link text-white p-0 fs-4 ms-2" onclick="window.toggleLightboxLike()">
                 <i class="far fa-heart"></i>
             </button>
@@ -127,8 +129,8 @@
     <div class="modal-content bg-dark border-secondary p-4 rounded" style="width: 95%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
 
         <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-3">
-            <h3 class="text-white m-0">Create Photo Gallery</h3>
-            <button class="btn btn-close btn-close-white" onclick="document.getElementById('imageCollectionBuilderModal').classList.add('d-none')"></button>
+            <h3 class="text-white m-0"><i class="fas fa-folder-open text-info me-2"></i>Create Photo Gallery</h3>
+            <button class="btn btn-close btn-close-white" onclick="window.closeImageCollectionBuilder()"></button>
         </div>
 
         <input type="text" id="icBuilderTitle" class="form-control bg-dark text-white border-info mb-4 fs-5" placeholder="Name your Gallery (e.g., Summer Tour 2026)">
@@ -151,7 +153,7 @@
         </div>
 
         <div class="mt-4 pt-3 border-top border-secondary text-end">
-            <button class="btn btn-secondary me-2" onclick="document.getElementById('imageCollectionBuilderModal').classList.add('d-none')">Cancel</button>
+            <button class="btn btn-secondary me-2" onclick="window.closeImageCollectionBuilder()">Cancel</button>
             <button class="btn btn-info fw-bold text-dark" id="icBuilderSaveBtn" onclick="window.saveImageCollection()">Publish Gallery</button>
         </div>
     </div>
@@ -162,31 +164,52 @@
         <h4 id="img-inspector-title">Edit Image</h4>
         <button onclick="window.closeImageInspector()" class="btn-close-inspector"><i class="fas fa-times"></i></button>
     </div>
+
+    <div class="d-flex border-bottom border-secondary bg-dark">
+        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn active" style="color: #0dcaf0;" onclick="window.switchImgInspectorTab('details', this)">Details</button>
+        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn text-muted" onclick="window.switchImgInspectorTab('monetization', this)">Monetization</button>
+        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn text-muted d-none" id="img-tab-btn-gallery" onclick="window.switchImgInspectorTab('gallery', this)">Gallery</button>
+    </div>
+
     <div class="inspector-body p-3">
         <input type="hidden" id="img-edit-target-id">
         <input type="hidden" id="img-edit-target-type" value="3">
 
-        <label class="text-muted small mb-1">Title</label>
-        <input type="text" id="img-edit-title" class="form-control bg-dark text-white border-secondary mb-3" placeholder="Enter image title...">
+        <div id="img-tab-body-details" class="inspector-tab-body active">
+            <label class="text-muted small mb-1">Title</label>
+            <input type="text" id="img-edit-title" class="form-control bg-dark text-white border-secondary mb-4" placeholder="Enter image title...">
 
-        <label class="text-muted small mb-1">Visibility</label>
-        <select id="img-edit-visibility" class="form-control bg-dark text-white border-secondary mb-3">
-            <option value="0">Public (Visible to everyone)</option>
-            <option value="1">Link Only (Unlisted)</option>
-            <option value="2">Private (Vault Only)</option>
-        </select>
-
-        <label class="text-muted small mb-1">Marketplace Price (Optional)</label>
-        <div class="input-group mb-4">
-            <span class="input-group-text bg-dark text-white border-secondary">$</span>
-            <input type="number" id="img-edit-price" class="form-control bg-dark text-white border-secondary" placeholder="0.00" step="0.01">
+            <label class="text-muted small mb-1">Visibility</label>
+            <select id="img-edit-visibility" class="form-control bg-dark text-white border-secondary mb-4">
+                <option value="0">Public (Visible to everyone)</option>
+                <option value="1">Link Only (Unlisted)</option>
+                <option value="2">Private (Vault Only)</option>
+            </select>
         </div>
 
-        <button class="btn btn-info w-100 fw-bold text-dark mt-2" id="img-edit-save-btn" onclick="window.saveImageInspector()">Save Changes</button>
+        <div id="img-tab-body-monetization" class="inspector-tab-body d-none">
+            <div class="alert alert-dark border-info text-info small mb-3">
+                <i class="fas fa-info-circle"></i> Adding a price automatically creates a Marketplace Listing for this item.
+            </div>
+            <label class="text-muted small mb-1">Marketplace Price</label>
+            <div class="input-group mb-4">
+                <span class="input-group-text bg-dark text-white border-secondary">$</span>
+                <input type="number" id="img-edit-price" class="form-control bg-dark text-white border-secondary" placeholder="0.00" step="0.01">
+            </div>
+        </div>
+
+        <div id="img-tab-body-gallery" class="inspector-tab-body d-none">
+            <h6 class="text-info mb-3">Images in this Gallery</h6>
+            <div id="img-inspector-items-container" class="d-flex flex-wrap gap-2">
+            </div>
+        </div>
+
+        <button class="btn btn-info w-100 fw-bold text-dark mt-4" id="img-edit-save-btn" onclick="window.saveImageInspector()">Save Changes</button>
     </div>
 </div>
 
 <style>
+    /* MASONRY OVERRIDES & CARD FIXES */
     .masonry-layout {
         column-count: 1;
         column-gap: 15px;
@@ -215,23 +238,110 @@
         break-inside: avoid;
         margin-bottom: 15px;
         position: relative;
-        border-radius: 8px;
-        overflow: hidden;
         cursor: pointer;
-        background: #111;
-        border: 1px solid #333;
     }
 
-        .masonry-item img {
+    .masonry-img-wrapper {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #111;
+        border: 1px solid #333;
+        transition: transform 0.3s ease;
+    }
+
+    .masonry-item:hover .masonry-img-wrapper {
+        transform: scale(1.02);
+        border-color: #0dcaf0;
+    }
+
+    .masonry-img-wrapper img {
+        width: 100%;
+        display: block;
+    }
+
+    .img-badge-price {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        background: rgba(32, 201, 151, 0.9);
+        color: #000;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    .img-badge-lock {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: rgba(220, 53, 69, 0.9);
+        color: #fff;
+        padding: 4px 6px;
+        border-radius: 50%;
+        font-size: 12px;
+    }
+
+    /* The Context Menu Container and Button */
+    .vid-top-right-actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 10;
+    }
+
+    .msg-options-btn {
+        background: rgba(0,0,0,0.6);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+        .msg-options-btn:hover {
+            background: rgba(0,0,0,0.9);
+        }
+
+    .msg-context-menu {
+        display: none;
+        position: absolute;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        z-index: 100;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+        .msg-context-menu.active {
+            display: flex;
+        }
+
+        .msg-context-menu button {
+            background: none;
+            border: none;
+            padding: 10px 15px;
+            color: #fff;
+            text-align: left;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
             width: 100%;
-            display: block;
-            transition: transform 0.3s ease;
         }
 
-        .masonry-item:hover img {
-            transform: scale(1.03);
-        }
+            .msg-context-menu button:hover {
+                background: #333;
+            }
 
+
+    /* Lightbox & Inspector Styles */
     .lightbox-overlay {
         position: fixed;
         top: 0;
@@ -315,11 +425,6 @@
         font-weight: bold;
     }
 
-        .toggle-panel-btn:hover {
-            background: #0dcaf0;
-            color: #000;
-        }
-
     .lightbox-side-panel {
         background: #121212;
         display: flex;
@@ -393,6 +498,7 @@
         }
     }
 
+    /* Media Inspector Base */
     .media-inspector {
         position: fixed;
         top: 0;
@@ -415,7 +521,6 @@
         justify-content: space-between;
         align-items: center;
         padding: 15px 20px;
-        border-bottom: 1px solid #333;
         color: white;
     }
 

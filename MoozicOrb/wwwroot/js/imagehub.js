@@ -1,13 +1,20 @@
 ﻿/* ============================================
    IMAGE HUB: JAVASCRIPT ENGINE
-   Handles Masonry Grid, Uploads, Lightbox, Inspector, and CMS Organization
+   Phase 3 Parity Build: Masonry Cards, CMS Modals, Tabbed Inspector
    ============================================ */
 
 window.currentVaultImages = [];
 window.currentLightboxIndex = 0;
 
+// GLOBAL LISTENER: Close 3-dot context menus when clicking outside
+document.addEventListener('click', function (e) {
+    if (!e.target.closest('.vid-top-right-actions')) {
+        document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
+    }
+});
+
 // ============================================
-// 1. MASTER LOADER & FILTER (Smart Vault)
+// 1. MASTER LOADER & FILTER
 // ============================================
 window.loadImageHub = async function (userId, unassignedOnly = true) {
     const container = document.getElementById('photo-gallery-container');
@@ -38,7 +45,7 @@ window.toggleVaultFilter = function () {
 };
 
 // ============================================
-// 2. MASONRY GRID RENDERER
+// 2. MASONRY GRID RENDERER (Advanced Parity Cards)
 // ============================================
 function renderMasonryGrid(posts, profileUserId) {
     const container = document.getElementById('photo-gallery-container');
@@ -52,40 +59,76 @@ function renderMasonryGrid(posts, profileUserId) {
     container.innerHTML = '';
 
     posts.forEach((post, index) => {
-        const pId = post.id !== undefined ? post.id : post.Id;
-        const pVis = post.visibility !== undefined ? post.visibility : post.Visibility;
-        const attachments = post.attachments || post.Attachments || [];
-        const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
-        const imageUrl = imgAttach ? (imgAttach.url || imgAttach.Url) : '/img/default_cover.jpg';
-
-        const titleEnc = encodeURIComponent(post.title || post.Title || '');
-        const price = post.price !== undefined ? post.price : (post.Price || 0);
-        const isOwner = window.AuthState && String(window.AuthState.userId) === String(profileUserId);
-
-        const lockHtml = (isOwner && pVis === 2) ? `<div style="position:absolute; top:8px; right:8px; background:rgba(0,0,0,0.7); color:#ff4d4d; border-radius:50%; padding:5px 8px; font-size:12px;"><i class="fas fa-lock"></i></div>` : '';
-
-        const editOverlayHtml = (isOwner && window.isGalleryInventoryMode) ? `
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10; display: flex; justify-content: center; align-items: center; border: 2px solid #0dcaf0; border-radius: 8px;">
-                <button class="btn btn-info fw-bold" onclick="event.stopPropagation(); window.openImageInspector('${pId}', '${titleEnc}', ${price}, ${pVis}, 3)">
-                    <i class="fas fa-edit me-1"></i> Edit
-                </button>
-            </div>
-        ` : '';
-
-        let html = `
-            <div class="masonry-item" style="position:relative;" onclick="window.openImageLightbox(${index})">
-                <img src="${imageUrl}" loading="lazy" alt="Vault Image">
-                ${lockHtml}
-                ${editOverlayHtml}
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', html);
+        window.injectSingleMasonryItem(post, container, index, profileUserId);
     });
 }
 
+window.injectSingleMasonryItem = function (post, container, index = 0, profileUserId = null) {
+    if (!profileUserId && window.AuthState) profileUserId = window.AuthState.userId;
+
+    const pId = post.id !== undefined ? post.id : post.Id;
+    const pVis = post.visibility !== undefined ? post.visibility : post.Visibility;
+    const attachments = post.attachments || post.Attachments || [];
+    const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
+    const imageUrl = imgAttach ? (imgAttach.url || imgAttach.Url) : '/img/default_cover.jpg';
+
+    const titleEnc = encodeURIComponent(post.title || post.Title || '');
+    const price = post.price !== undefined ? post.price : (post.Price || null);
+    const isOwner = window.AuthState && String(window.AuthState.userId) === String(profileUserId);
+
+    let overlaysHtml = '';
+    if (price > 0) {
+        overlaysHtml += `<div class="img-badge-price">$${parseFloat(price).toFixed(2)}</div>`;
+    }
+    if (isOwner && pVis === 2) {
+        overlaysHtml += `<div class="img-badge-lock" title="Private"><i class="fas fa-lock"></i></div>`;
+    }
+
+    let actionsHtml = '';
+    if (isOwner) {
+        actionsHtml = `
+            <div class="vid-top-right-actions">
+                <button class="msg-options-btn" onclick="event.stopPropagation(); this.nextElementSibling.classList.toggle('active');"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="msg-context-menu" style="right:0; top:35px; width:150px;">
+                    <button onclick="event.stopPropagation(); window.openImageInspector('${pId}', '${titleEnc}', ${price}, ${pVis}, 3)"><i class="fas fa-edit text-info"></i> Edit Details</button>
+                    <button class="text-danger" onclick="event.stopPropagation(); window.FeedService.deletePost('${pId}')"><i class="fas fa-trash"></i> Delete Image</button>
+                </div>
+            </div>
+        `;
+    }
+
+    let html = `
+        <div class="masonry-item" style="animation: fadeIn 0.5s ease;">
+            <div class="masonry-img-wrapper" onclick="window.openImageLightbox(${index})">
+                <img src="${imageUrl}" loading="lazy" alt="Vault Image">
+                ${overlaysHtml}
+            </div>
+            ${actionsHtml}
+        </div>
+    `;
+
+    if (index === 0 && container.children.length > 0) {
+        container.insertAdjacentHTML('afterbegin', html);
+    } else {
+        container.insertAdjacentHTML('beforeend', html);
+    }
+};
+
 // ============================================
-// 3. BATCH DRAG & DROP UPLOAD
+// 3. UPLOAD ENGINE & ACCORDION DROPZONE
 // ============================================
+window.toggleImageDropZone = function () {
+    const wrapper = document.getElementById('imageDropZoneWrapper');
+    if (!wrapper) return;
+    if (wrapper.style.maxHeight === '0px' || wrapper.style.maxHeight === '') {
+        wrapper.style.maxHeight = '400px';
+        wrapper.style.marginBottom = '20px';
+    } else {
+        wrapper.style.maxHeight = '0px';
+        wrapper.style.marginBottom = '0px';
+    }
+};
+
 window.handleImageDrop = function (e) {
     e.preventDefault();
     e.currentTarget.style.borderColor = '#00AEEF';
@@ -142,7 +185,7 @@ window.handleBatchImageUpload = async function (input) {
                 ContextType: 1,
                 ContextId: parseInt(userId),
                 Type: 7,
-                Visibility: 2,
+                Visibility: 2, // Private default
                 Title: file.name.split('.')[0],
                 MediaAttachments: [{
                     MediaId: mediaResult.id,
@@ -171,7 +214,6 @@ window.handleBatchImageUpload = async function (input) {
 // ============================================
 // 4. APP-NATIVE LIGHTBOX ENGINE
 // ============================================
-// Original lightbox logic preserved here for the dock intercept
 const _internalOpenLightbox = function (index) {
     if (!window.currentVaultImages || window.currentVaultImages.length === 0) return;
 
@@ -222,12 +264,8 @@ window.openImageLightbox = function (index) {
         const post = window.currentVaultImages[index];
         const postId = post.id !== undefined ? post.id : post.Id;
 
-        if (window.dockSelectedImages.length >= 5) {
-            return alert("Maximum 5 images allowed in the featured carousel.");
-        }
-        if (window.dockSelectedImages.find(x => x.postId === postId)) {
-            return alert("Image already in dock.");
-        }
+        if (window.dockSelectedImages.length >= 5) return alert("Maximum 5 images allowed.");
+        if (window.dockSelectedImages.find(x => x.postId === postId)) return alert("Image already in dock.");
 
         const attachments = post.attachments || post.Attachments || [];
         const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
@@ -257,9 +295,7 @@ window.navigateLightbox = function (direction) {
 // ============================================
 window.loadLightboxLiveStats = async function (postId) {
     try {
-        const res = await fetch(`/api/posts/${postId}`, {
-            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
-        });
+        const res = await fetch(`/api/posts/${postId}`, { headers: { 'X-Session-Id': window.AuthState?.sessionId || '' } });
         if (res.ok) {
             const livePost = await res.json();
             const likes = livePost.likesCount !== undefined ? livePost.likesCount : (livePost.LikesCount || 0);
@@ -271,7 +307,7 @@ window.loadLightboxLiveStats = async function (postId) {
             window.currentVaultImages[window.currentLightboxIndex].likesCount = likes;
             window.currentVaultImages[window.currentLightboxIndex].isLiked = isLiked;
         }
-    } catch (e) { console.warn("Failed to fetch live stats", e); }
+    } catch (e) { }
 };
 
 window.toggleLightboxLike = async function () {
@@ -281,11 +317,7 @@ window.toggleLightboxLike = async function () {
 
     btn.disabled = true;
     try {
-        const res = await fetch(`/api/posts/${postId}/like`, {
-            method: 'POST',
-            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
-        });
-
+        const res = await fetch(`/api/posts/${postId}/like`, { method: 'POST', headers: { 'X-Session-Id': window.AuthState?.sessionId || '' } });
         if (res.ok) {
             const data = await res.json();
             const countSpan = document.getElementById('lightboxLikeCount');
@@ -301,21 +333,16 @@ window.toggleLightboxLike = async function () {
                 if (wasLiked) countSpan.innerText = Math.max(0, currentCount - 1);
             }
         }
-    } catch (e) { console.error(e); }
-    finally { btn.disabled = false; }
+    } catch (e) { } finally { btn.disabled = false; }
 };
 
 window.loadLightboxComments = async function (postId) {
     const wrapper = document.getElementById('lightboxCommentsFeed');
     if (!wrapper) return;
-
     wrapper.innerHTML = '<div class="text-center text-muted mt-4"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
 
     try {
-        const res = await fetch(`/api/posts/${postId}/comments`, {
-            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
-        });
-
+        const res = await fetch(`/api/posts/${postId}/comments`, { headers: { 'X-Session-Id': window.AuthState?.sessionId || '' } });
         if (res.ok) {
             const comments = await res.json();
             document.getElementById('lightboxCommentCount').innerText = comments.length;
@@ -325,43 +352,26 @@ window.loadLightboxComments = async function (postId) {
                 return;
             }
 
-            const resolvePic = (pic) => {
-                if (!pic || pic === 'null') return '/img/profile_default.jpg';
-                if (pic.startsWith('http') || pic.startsWith('/')) return pic;
-                return '/' + pic;
-            };
-
             const renderComment = (c, isReply = false) => {
-                const pic = resolvePic(c.authorPic);
+                const pic = (c.authorPic && c.authorPic !== 'null') ? c.authorPic.startsWith('/') ? c.authorPic : '/' + c.authorPic : '/img/profile_default.jpg';
                 let html = `
                     <div style="display: flex; gap: 12px; margin-bottom: ${isReply ? '12' : '20'}px;">
                         <img src="${pic}" style="width: ${isReply ? '28' : '35'}px; height: ${isReply ? '28' : '35'}px; border-radius: 50%; object-fit: cover; border: 1px solid #333; flex-shrink: 0;">
                         <div style="flex-grow: 1;">
-                            <div style="font-weight: bold; font-size: ${isReply ? '0.8' : '0.85'}rem; color: #fff;">
-                                ${c.authorName} 
-                                <span style="color: #666; font-size: 0.75rem; font-weight: normal; margin-left: 8px;">${c.createdAgo}</span>
-                            </div>
+                            <div style="font-weight: bold; font-size: ${isReply ? '0.8' : '0.85'}rem; color: #fff;">${c.authorName} <span style="color: #666; font-size: 0.75rem; font-weight: normal; margin-left: 8px;">${c.createdAgo}</span></div>
                             <div style="color: #ccc; font-size: ${isReply ? '0.85' : '0.95'}rem; margin-top: 4px; line-height: 1.4; word-break: break-word;">${c.content}</div>
-                            ${!isReply ? `
-                            <div style="margin-top: 6px;">
-                                <button onclick="window.prepareLightboxReply(${c.commentId}, '${encodeURIComponent(c.authorName)}')" style="background: transparent; border: none; color: #aaa; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 0;">Reply</button>
-                            </div>
-                            ` : ''}
+                            ${!isReply ? `<div style="margin-top: 6px;"><button onclick="window.prepareLightboxReply(${c.commentId}, '${encodeURIComponent(c.authorName)}')" style="background: transparent; border: none; color: #aaa; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 0;">Reply</button></div>` : ''}
                         </div>
                     </div>
                 `;
-
                 if (c.replies && c.replies.length > 0) {
                     html += `<div style="margin-left: 47px; margin-bottom: 15px;">${c.replies.map(r => renderComment(r, true)).join('')}</div>`;
                 }
                 return html;
             };
-
             wrapper.innerHTML = comments.map(c => renderComment(c, false)).join('');
         }
-    } catch (e) {
-        wrapper.innerHTML = '<div class="text-danger small mt-4 text-center">Failed to load comments.</div>';
-    }
+    } catch (e) { wrapper.innerHTML = '<div class="text-danger small mt-4 text-center">Failed to load comments.</div>'; }
 };
 
 window.prepareLightboxReply = function (commentId, authorNameEnc) {
@@ -380,11 +390,10 @@ window.submitLightboxComment = async function () {
     const postId = document.getElementById('lightboxCurrentPostId').value;
     const input = document.getElementById('lightboxCommentInput');
     const parentInput = document.getElementById('lightboxReplyParentId');
-
     const content = input.value.trim();
+
     if (!content || !postId) return;
 
-    const parentId = parentInput.value ? parseInt(parentInput.value) : null;
     const btn = input.nextElementSibling;
     const originalHtml = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin text-dark"></i>';
@@ -394,7 +403,7 @@ window.submitLightboxComment = async function () {
         const res = await fetch('/api/posts/comment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
-            body: JSON.stringify({ PostId: parseInt(postId), Content: content, ParentId: parentId })
+            body: JSON.stringify({ PostId: parseInt(postId), Content: content, ParentId: parentInput.value ? parseInt(parentInput.value) : null })
         });
 
         if (res.ok) {
@@ -402,8 +411,7 @@ window.submitLightboxComment = async function () {
             window.cancelLightboxReply();
             window.loadLightboxComments(postId);
         }
-    } catch (e) { console.error(e); }
-    finally {
+    } catch (e) { } finally {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
     }
@@ -420,32 +428,26 @@ document.addEventListener('keydown', function (e) {
 });
 
 // ============================================
-// 6. VAULT INVENTORY MODE
+// 6. TABBED IMAGE INSPECTOR SIDEBAR (Parity CMS)
 // ============================================
-window.isGalleryInventoryMode = false;
+window.switchImgInspectorTab = function (tabName, btnElement) {
+    document.querySelectorAll('#image-inspector-sidebar .tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.color = '#6c757d'; // Text muted
+    });
+    document.querySelectorAll('#image-inspector-sidebar .inspector-tab-body').forEach(body => {
+        body.classList.add('d-none');
+    });
 
-window.toggleGalleryInventoryMode = function () {
-    window.isGalleryInventoryMode = !window.isGalleryInventoryMode;
-    const btn = document.getElementById('btnToggleGalleryInventory');
-
-    if (window.isGalleryInventoryMode) {
-        btn.classList.add('btn-warning');
-        btn.classList.remove('text-warning');
-        btn.style.color = '#000';
-    } else {
-        btn.classList.remove('btn-warning');
-        btn.classList.add('text-warning');
-        btn.style.color = '#ffc107';
-    }
-
-    const userId = document.getElementById('gallery-user-id').value;
-    renderMasonryGrid(window.currentVaultImages, userId);
+    btnElement.classList.add('active');
+    btnElement.style.color = '#0dcaf0'; // Text info active
+    document.getElementById(`img-tab-body-${tabName}`).classList.remove('d-none');
 };
 
-// ============================================
-// 7. THE IMAGE INSPECTOR ENGINE
-// ============================================
 window.openImageInspector = function (id, title, price, visibility, targetType) {
+    // Hide context menus that triggered this
+    document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
+
     const sidebar = document.getElementById('image-inspector-sidebar');
     if (!sidebar) return;
 
@@ -455,6 +457,18 @@ window.openImageInspector = function (id, title, price, visibility, targetType) 
     document.getElementById('img-edit-price').value = price > 0 ? parseFloat(price).toFixed(2) : '';
     document.getElementById('img-edit-visibility').value = visibility !== undefined ? visibility : 0;
 
+    // Handle Gallery vs Image tabs
+    const galleryTabBtn = document.getElementById('img-tab-btn-gallery');
+    if (targetType === 4 || targetType === 0) {
+        document.getElementById('img-inspector-title').innerText = "Edit Gallery";
+        galleryTabBtn.classList.remove('d-none');
+    } else {
+        document.getElementById('img-inspector-title').innerText = "Edit Image Details";
+        galleryTabBtn.classList.add('d-none');
+    }
+
+    // Default to details tab
+    window.switchImgInspectorTab('details', document.querySelector('#image-inspector-sidebar .tab-btn'));
     sidebar.classList.remove('closed');
 };
 
@@ -477,7 +491,7 @@ window.saveImageInspector = async function () {
         Visibility: parseInt(document.getElementById('img-edit-visibility').value)
     };
 
-    const endpoint = (type == 0) ? `/api/imagehub/collection/${id}` : `/api/imagehub/image/${id}`;
+    const endpoint = (type == 4 || type == 0) ? `/api/imagehub/collection/${id}` : `/api/imagehub/image/${id}`;
 
     try {
         const res = await fetch(endpoint, {
@@ -503,7 +517,6 @@ window.saveImageInspector = async function () {
             throw new Error("Failed to save");
         }
     } catch (e) {
-        console.error(e);
         btn.innerText = "Error Saving";
         btn.classList.replace('btn-info', 'btn-danger');
         setTimeout(() => {
@@ -515,7 +528,7 @@ window.saveImageInspector = async function () {
 };
 
 // ============================================
-// 8. THE COLLECTION BUILDER (Galleries - Type 4)
+// 7. THE COLLECTION BUILDER (Galleries - Type 4)
 // ============================================
 window.builderSelectedImages = [];
 
@@ -525,6 +538,7 @@ window.openImageCollectionBuilder = async function () {
     document.getElementById('icBuilderTitle').value = '';
     document.getElementById('icBuilderSelectedList').innerHTML = '';
     document.getElementById('imageCollectionBuilderModal').classList.remove('d-none');
+    document.body.classList.add('no-scroll');
 
     const vaultList = document.getElementById('icBuilderVaultList');
     vaultList.innerHTML = '<div class="text-muted text-center w-100 mt-4"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
@@ -560,6 +574,12 @@ window.openImageCollectionBuilder = async function () {
     }
 };
 
+// Dedicated close function to ensure scroll is restored cleanly
+window.closeImageCollectionBuilder = function () {
+    document.getElementById('imageCollectionBuilderModal').classList.add('d-none');
+    document.body.classList.remove('no-scroll');
+};
+
 window.toggleBuilderSelection = function (postId, url, element) {
     const index = window.builderSelectedImages.findIndex(x => x.postId === postId);
 
@@ -572,7 +592,6 @@ window.toggleBuilderSelection = function (postId, url, element) {
         element.style.borderColor = 'transparent';
         element.style.opacity = '1';
     }
-
     window.renderBuilderSelectedList();
 };
 
@@ -629,7 +648,7 @@ window.saveImageCollection = async function () {
         });
 
         if (res.ok) {
-            document.getElementById('imageCollectionBuilderModal').classList.add('d-none');
+            window.closeImageCollectionBuilder();
             const userId = document.getElementById('gallery-user-id').value;
             window.loadImageHub(userId, true);
         } else {
@@ -644,7 +663,7 @@ window.saveImageCollection = async function () {
 };
 
 // ============================================
-// 9. THE CAROUSEL DOCK MANAGER (Type 10)
+// 8. THE CAROUSEL DOCK MANAGER (Type 10)
 // ============================================
 window.isDockManagerActive = false;
 window.dockSelectedImages = [];
@@ -653,13 +672,17 @@ window.toggleImageCarouselManager = function () {
     const dock = document.getElementById('imageCarouselManagerDock');
     window.isDockManagerActive = !window.isDockManagerActive;
 
+    const btn = document.getElementById('btnToggleImageCarouselManager');
+
     if (window.isDockManagerActive) {
         dock.classList.remove('d-none');
         window.dockSelectedImages = [];
         window.renderDockSlots();
+        if (btn) btn.classList.add('active', 'bg-warning', 'text-dark');
         alert("Dock Manager Active: Click images in your grid below to pin them to your profile carousel.");
     } else {
         dock.classList.add('d-none');
+        if (btn) btn.classList.remove('active', 'bg-warning', 'text-dark');
     }
 };
 

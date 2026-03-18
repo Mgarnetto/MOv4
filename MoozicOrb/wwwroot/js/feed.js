@@ -605,8 +605,9 @@ window.FeedService.submitEdit = async () => {
 
             if (storefrontContainer && window.loadStorefront) {
                 window.loadStorefront(currentId);
-            } else if (photoContainer && window.loadPhotoGallery) {
-                window.loadPhotoGallery(currentId);
+            } else if (photoContainer && window.loadImageHub) {
+                const toggle = document.getElementById('vaultUnassignedToggle');
+                window.loadImageHub(currentId, toggle ? toggle.checked : true);
             } else if (videoContainer && window.loadVideoHub) {
                 window.loadVideoHub(currentId);
             } else if (window.loadFeedHistory) {
@@ -695,10 +696,11 @@ function renderNewPost(post) {
 
     const photoGrid = document.getElementById('photo-gallery-container');
     if (photoGrid && attachments.some(a => (a.mediaType || a.MediaType) === 3)) {
-        if (photoGrid.innerHTML.includes("No images found")) photoGrid.innerHTML = '';
-        const dummyContainer = document.createElement('div');
-        renderPhotoCard(post, dummyContainer);
-        photoGrid.insertBefore(dummyContainer.firstElementChild, photoGrid.firstChild);
+        if (photoGrid.innerHTML.includes("Your vault is empty")) photoGrid.innerHTML = '';
+        // Only inject if the new engine is loaded
+        if (window.injectSingleMasonryItem) {
+            window.injectSingleMasonryItem(post, photoGrid);
+        }
     }
 
     const videoGrid = document.getElementById('video-hub-container');
@@ -2028,98 +2030,6 @@ function renderStorefrontCard(post, container) {
 // ============================================
 // 16. DEDICATED PHOTO GALLERY
 // ============================================
-
-window.isGalleryInventoryMode = false;
-
-window.toggleGalleryInventoryMode = function () {
-    window.isGalleryInventoryMode = !window.isGalleryInventoryMode;
-    const btn = document.getElementById('btnToggleGalleryInventory');
-
-    if (btn) {
-        if (window.isGalleryInventoryMode) {
-            btn.style.backgroundColor = '#ffc107';
-            btn.style.color = '#000';
-            btn.innerHTML = '<i class="fas fa-check"></i> <span>Done Managing</span>';
-        } else {
-            btn.style.backgroundColor = 'transparent';
-            btn.style.color = '#ffc107';
-            btn.innerHTML = '<i class="fas fa-tasks"></i> <span>Manage Images</span>';
-        }
-    }
-
-    document.querySelectorAll('.gallery-edit-overlay').forEach(el => {
-        if (window.isGalleryInventoryMode) el.classList.remove('d-none');
-        else el.classList.add('d-none');
-    });
-};
-
-window.loadPhotoGallery = async function (userId) {
-    const container = document.getElementById('photo-gallery-container');
-    if (!container) return;
-
-    window.isGalleryInventoryMode = false;
-
-    try {
-        const res = await fetch(`/api/posts?contextType=1&contextId=${userId}&page=1&mediaType=3`, {
-            headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
-        });
-
-        if (res.ok) {
-            const posts = await res.json();
-            container.innerHTML = '';
-
-            if (posts.length === 0) {
-                container.innerHTML = '<div class="text-center w-100 text-muted p-5" style="grid-column: 1 / -1;"><h3>No images found.</h3><p>Upload some standard posts with images!</p></div>';
-                return;
-            }
-
-            posts.forEach(post => {
-                renderPhotoCard(post, container);
-            });
-        } else {
-            container.innerHTML = '<div class="text-danger text-center w-100 p-3">Failed to load gallery.</div>';
-        }
-    } catch (err) {
-        console.error(err);
-        container.innerHTML = '<div class="text-danger text-center w-100 p-3">Connection error.</div>';
-    }
-};
-
-function renderPhotoCard(post, container) {
-    const attachments = post.attachments || post.Attachments || [];
-    const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
-    if (!imgAttach) return;
-
-    const imageUrl = imgAttach.url || imgAttach.Url;
-    const pId = post.id !== undefined ? post.id : post.Id;
-
-    const div = document.createElement('div');
-    div.style.position = "relative";
-    div.style.display = "block";
-    div.style.width = "100%";
-    div.style.aspectRatio = "1 / 1";
-    div.style.borderRadius = "8px";
-    div.style.overflow = "hidden";
-    div.style.backgroundColor = "#111";
-
-    div.innerHTML = `
-      <img src="${imageUrl}" style="width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.3s;" 
-           onmouseover="this.style.transform='scale(1.05)';" 
-           onmouseout="this.style.transform='scale(1)';"
-           onclick="window.FeedService.openPostModal('${pId}')" alt="Photo">
-      
-      <div class="gallery-edit-overlay ${window.isGalleryInventoryMode ? '' : 'd-none'}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; border: 1px solid #ffc107;">
-         <button class="btn btn-sm btn-warning fw-bold" style="width: 80%;" onclick="window.FeedService.openEditModal('${pId}')">
-            <i class="fas fa-edit me-1"></i> Edit
-         </button>
-         <button class="btn btn-sm btn-danger fw-bold" style="width: 80%;" onclick="window.FeedService.deletePost('${pId}')">
-            <i class="fas fa-trash me-1"></i> Delete
-         </button>
-      </div>
-    `;
-
-    container.appendChild(div);
-}
 
 // ============================================
 // 17. DEDICATED VIDEO HUB
