@@ -1,0 +1,39 @@
+﻿@model MoozicOrb.API.Models.VideoCarouselViewModel
+
+@if (Model.Items == null || !Model.Items.Any())
+{
+    <div class="text-muted text-center p-4">No featured images yet.</div>
+}
+else
+{
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px;">
+        <h4 style="color:white; margin: 0; font-weight: 700;">@(Model.IsFallback ? "Recent Photos" : "Featured Gallery")</h4>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="document.getElementById('image-carousel-track').scrollBy({left: -320, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-left"></i></button>
+            <button onclick="document.getElementById('image-carousel-track').scrollBy({left: 320, behavior: 'smooth'})" style="background: #1a1a1a; border: 1px solid #333; color: white; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; display: flex; align-items: center; justify-content: center;"><i class="fas fa-chevron-right"></i></button>
+        </div>
+    </div>
+    <div id="image-carousel-track" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: none; scroll-behavior: smooth;">
+        @foreach (var item in Model.Items)
+        {
+            var attachments = item.Attachments ?? new List<MoozicOrb.API.Models.MediaAttachmentDto>();
+            var imgAttach = attachments.FirstOrDefault(a => a.MediaType == 3);
+
+            string imgSrc = !string.IsNullOrEmpty(item.ImageUrl) ? item.ImageUrl : "/img/default_cover.jpg";
+            if (imgAttach != null && !string.IsNullOrEmpty(imgAttach.Url)) imgSrc = imgAttach.Url;
+
+            string safeTitle = string.IsNullOrEmpty(item.Title) ? "Untitled Image" : item.Title;
+
+            <div style="flex: 0 0 250px; aspect-ratio: 1/1; background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; transition: transform 0.2s;"
+                 onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
+                 onclick="if(window.openImageLightbox) { window.openImageLightboxByPostId('@item.Id'); }">
+
+                <img src="@imgSrc" style="width: 100%; height: 100%; object-fit: cover;">
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent); padding: 20px 10px 10px 10px;">
+                    <div style="color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="@safeTitle">@safeTitle</div>
+                </div>
+            </div>
+        }
+    </div>
+    <style> #image-carousel-track::-webkit-scrollbar { display: none; } </style>
+}
