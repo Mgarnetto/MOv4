@@ -74,6 +74,8 @@
         // --- PROFILE UI CAROUSELS (Docks) ---
         public const int MerchCarousel = 5;  // Featured Merch Storefront Carousel
         public const int AudioCarousel = 6;  // Featured Audio Profile Carousel
+        public const int VideoCarousel = 9;  // (NOT USED YET, Relies on featured display context) Featured Video Profile Carousel
+        public const int ImageCarousel = 10; // Featured Image Profile Carousel
 
         // --- COMMERCE / OFFICIAL RELEASES (Monetized) ---
         public const int AudioAlbum = 7;     // Official Monetized Audio Album/EP

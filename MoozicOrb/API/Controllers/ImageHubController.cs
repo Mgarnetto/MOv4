@@ -31,15 +31,15 @@ namespace MoozicOrb.API.Controllers
 
         // GET: api/imagehub/vault/{targetUserId}
         [HttpGet("vault/{targetUserId}")]
-        public IActionResult GetVaultImages(int targetUserId)
+        public IActionResult GetVaultImages(int targetUserId, [FromQuery] bool unassigned = true)
         {
             try
             {
                 int viewerId = GetUserId();
-                var getPostIo = new GetPost();
 
-                // Param 7 is PostType (7 = Image)
-                var allImages = getPostIo.Execute(1, targetUserId, viewerId, 1, 100, null, 7, _resolver);
+                // Use our new Micro-Query engine
+                var io = new GetVaultImagesLight();
+                var allImages = io.Execute(targetUserId, viewerId, unassigned, _resolver);
 
                 return Ok(allImages);
             }
