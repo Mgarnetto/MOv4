@@ -507,8 +507,17 @@ window.saveVideoInspector = async function () {
         let newMediaAttachments = [];
         if (window.inspectorVideoCoverFile) {
             btn.innerText = "UPLOADING ART...";
+
+            // --- ADDED IMAGE COMPRESSION ---
+            let fileToUpload = window.inspectorVideoCoverFile;
+            if (window.processImageUpload) {
+                try { fileToUpload = await window.processImageUpload(fileToUpload, 1200); }
+                catch (e) { console.warn("Compression failed, using original.", e); }
+            }
+
             const uploadData = new FormData();
-            uploadData.append("file", window.inspectorVideoCoverFile);
+            uploadData.append("file", fileToUpload);
+
             const uploadRes = await fetch("/api/upload/image", {
                 method: 'POST',
                 headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },

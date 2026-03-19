@@ -15,24 +15,35 @@ namespace MoozicOrb.IO
 
     public class DeleteMedia
     {
+        // HELPER: Dynamically checks if a column exists in the current table schema
+        private bool HasColumn(MySqlDataReader reader, string columnName)
+        {
+            for (int i = 0; i < reader.FieldCount; i++)
+            {
+                if (reader.GetName(i).Equals(columnName, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         public MediaDeletionResult Execute(int userId, long mediaId, int mediaType)
         {
             var result = new MediaDeletionResult();
             string tableName = "";
             string idColumn = "";
 
-            // Route to correct table based on Constants
+            // Route to correct table (1=Audio, 2=Video, 3=Image)
             switch (mediaType)
             {
-                case MarketplaceTargetTypes.AudioTrack:
+                case 1:
                     tableName = "media_audio";
                     idColumn = "audio_id";
                     break;
-                case MarketplaceTargetTypes.Video:
-                    tableName = "media_videos";
+                case 2:
+                    tableName = "media_video"; // FIXED: Changed from media_videos to match DB schema
                     idColumn = "video_id";
                     break;
-                case MarketplaceTargetTypes.Image:
+                case 3:
                     tableName = "media_images";
                     idColumn = "image_id";
                     break;
@@ -47,14 +58,9 @@ namespace MoozicOrb.IO
                 long? coverImageId = null;
 
                 // ========================================================
-                // STEP 1: Verify Ownership, Lock Status, and Extract Keys
+                // STEP 1: SELECT * to bypass "Unknown Column" SQL errors
                 // ========================================================
-                // Notice we ask for cover_image_id ONLY if it's an audio track
-                string selectSql = mediaType == MarketplaceTargetTypes.AudioTrack
-                    ? $@"SELECT is_locked, file_path, snippet_path, storage_provider, cover_image_id 
-                         FROM {tableName} WHERE {idColumn} = @id AND user_id = @uid"
-                    : $@"SELECT is_locked, file_path, snippet_path, storage_provider 
-                         FROM {tableName} WHERE {idColumn} = @id AND user_id = @uid";
+                string selectSql = $"SELECT * FROM {tableName} WHERE {idColumn} = @id AND user_id = @uid";
 
                 using (var cmd = new MySqlCommand(selectSql, conn))
                 {
@@ -69,23 +75,40 @@ namespace MoozicOrb.IO
                             return result;
                         }
 
-                        if (reader.GetBoolean("is_locked"))
+                        // Safely check for monetization lock (Only runs if the column actually exists)
+                        if (HasColumn(reader, "is_locked") && !reader.IsDBNull(reader.GetOrdinal("is_locked")))
                         {
-                            result.ErrorMessage = "Cannot delete a monetized item that has been sold or locked.";
-                            return result;
+                            if (reader.GetBoolean("is_locked"))
+                            {
+                                result.ErrorMessage = "Cannot delete a monetized item that has been sold or locked.";
+                                return result;
+                            }
                         }
 
-                        // Collect paths for cloud deletion
-                        if (!reader.IsDBNull(reader.GetOrdinal("file_path")))
+                        // Collect physical paths dynamically (Images use file_path, Audio uses snippet, Video uses thumb)
+                        if (HasColumn(reader, "file_path") && !reader.IsDBNull(reader.GetOrdinal("file_path")))
+                        {
                             result.PathsToDelete.Add(reader.GetString("file_path"));
+                        }
 
-                        if (!reader.IsDBNull(reader.GetOrdinal("snippet_path")))
+                        if (HasColumn(reader, "snippet_path") && !reader.IsDBNull(reader.GetOrdinal("snippet_path")))
+                        {
                             result.PathsToDelete.Add(reader.GetString("snippet_path"));
+                        }
 
-                        result.StorageProvider = reader.GetInt32("storage_provider");
+                        if (HasColumn(reader, "thumb_path") && !reader.IsDBNull(reader.GetOrdinal("thumb_path")))
+                        {
+                            result.PathsToDelete.Add(reader.GetString("thumb_path"));
+                        }
 
-                        // Extract the Cover Image ID if it has one
-                        if (mediaType == MarketplaceTargetTypes.AudioTrack && !reader.IsDBNull(reader.GetOrdinal("cover_image_id")))
+                        // Get Storage Provider (Local vs Cloudflare R2)
+                        if (HasColumn(reader, "storage_provider") && !reader.IsDBNull(reader.GetOrdinal("storage_provider")))
+                        {
+                            result.StorageProvider = reader.GetInt32("storage_provider");
+                        }
+
+                        // Extract the Cover Image ID safely (Only exists on Audio)
+                        if (HasColumn(reader, "cover_image_id") && !reader.IsDBNull(reader.GetOrdinal("cover_image_id")))
                         {
                             coverImageId = reader.GetInt64("cover_image_id");
                         }
@@ -93,7 +116,7 @@ namespace MoozicOrb.IO
                 }
 
                 // ========================================================
-                // STEP 2: The "Check Before You Wreck" Image Protocol
+                // STEP 2: The "Check Before You Wreck" Image Protocol (Audio Covers)
                 // ========================================================
                 if (coverImageId.HasValue && coverImageId.Value > 0)
                 {
@@ -107,7 +130,6 @@ namespace MoozicOrb.IO
                         checkCmd.Parameters.AddWithValue("@cid", coverImageId.Value);
                         long totalUsage = Convert.ToInt64(checkCmd.ExecuteScalar());
 
-                        // If this track is the ONLY thing using this image, mark it for Cloudflare deletion
                         if (totalUsage <= 1)
                         {
                             using (var imgCmd = new MySqlCommand("SELECT file_path FROM media_images WHERE image_id = @cid", conn))
@@ -120,7 +142,6 @@ namespace MoozicOrb.IO
                                 }
                             }
 
-                            // Delete the orphan image row
                             using (var delImgCmd = new MySqlCommand("DELETE FROM media_images WHERE image_id = @cid", conn))
                             {
                                 delImgCmd.Parameters.AddWithValue("@cid", coverImageId.Value);

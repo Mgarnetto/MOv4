@@ -110,8 +110,9 @@ namespace MoozicOrb.IO
                         }
                         else if (item.TargetType == 3) // Image
                         {
+                            // FIX: Map mi.file_path to custom_cover so the thumbnail resolves correctly!
                             hydrateSql = @"SELECT mi.file_path, p.title AS media_title, mi.storage_provider, 
-                                           NULL AS custom_cover, 0 AS img_storage_provider, 
+                                           mi.file_path AS custom_cover, mi.storage_provider AS img_storage_provider, 
                                            p.image_url AS post_image, 
                                            u.display_name, u.profile_pic, p.title AS post_title, mo.price,
                                            p.post_id
@@ -132,7 +133,6 @@ namespace MoozicOrb.IO
                                 {
                                     if (rdr.Read())
                                     {
-                                        // MAP THE POST ID
                                         item.PostId = rdr["post_id"] != DBNull.Value ? Convert.ToInt64(rdr["post_id"]) : (long?)null;
 
                                         string titleFromMedia = rdr["media_title"] == DBNull.Value ? null : rdr["media_title"].ToString();
@@ -141,7 +141,7 @@ namespace MoozicOrb.IO
                                         if (!string.IsNullOrEmpty(titleFromMedia))
                                         {
                                             item.Title = titleFromMedia;
-                                            if (item.Title.EndsWith(".mp3") || item.Title.EndsWith(".wav"))
+                                            if (item.Title.EndsWith(".mp3") || item.Title.EndsWith(".wav") || item.Title.EndsWith(".jpg") || item.Title.EndsWith(".png"))
                                                 item.Title = System.IO.Path.GetFileNameWithoutExtension(item.Title);
                                         }
                                         else if (!string.IsNullOrEmpty(titleFromPost))
@@ -150,7 +150,11 @@ namespace MoozicOrb.IO
                                         }
                                         else
                                         {
-                                            item.Title = "Untitled Track";
+                                            // FIX: Smart Contextual Fallback Titles instead of hardcoding "Track"
+                                            if (item.TargetType == 1) item.Title = "Untitled Audio";
+                                            else if (item.TargetType == 2) item.Title = "Untitled Video";
+                                            else if (item.TargetType == 3) item.Title = "Untitled Image";
+                                            else item.Title = "Untitled";
                                         }
 
                                         item.ArtistName = rdr["display_name"] == DBNull.Value ? "Unknown Artist" : rdr["display_name"].ToString();

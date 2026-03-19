@@ -3,51 +3,47 @@
 <input type="hidden" id="page-signalr-context" value="@Model.SignalRGroup" />
 <input type="hidden" id="gallery-user-id" value="@Model.UserId" />
 
-<div class="gallery-container" style="padding: 20px 0;">
+<div class="gallery-container" style="padding: 20px 0; position: relative;">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #333; flex-wrap: wrap; gap: 15px;">
         <div style="display: flex; align-items: center; gap: 15px;">
             <a href="/creator/@Model.UserId" class="spa-route" style="background: #1a1a1a; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; text-decoration: none; border: 1px solid #333;">
                 <i class="fas fa-arrow-left"></i>
             </a>
             <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #333;">
-            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Vault</h2>
+            <h2 style="margin: 0; color: white; font-family: 'Outfit', sans-serif; font-weight: 700; font-size: 1.5rem;">@Model.DisplayName's Photos</h2>
         </div>
 
         @if (Model.IsCurrentUser)
         {
             <div class="d-flex align-items-center gap-3">
-                <div class="form-check form-switch m-0">
-                    <input class="form-check-input" type="checkbox" id="vaultUnassignedToggle" checked onchange="window.toggleVaultFilter()" style="cursor: pointer;">
-                    <label class="form-check-label text-muted small" for="vaultUnassignedToggle" style="cursor: pointer;">Unassigned Only</label>
-                </div>
+                <button id="vaultFilterBtn" class="active" onclick="window.toggleVaultFilter()"
+                        style="background: #111; border: 1px solid #333; color: #aaa; padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-clone"></i> <span id="vaultFilterText">Standalone Photos</span>
+                </button>
             </div>
         }
     </div>
 
     @if (Model.IsCurrentUser)
     {
-        <div class="d-flex gap-2 w-100 mb-4 flex-wrap">
-            <button onclick="window.toggleImageCarouselManager()" class="btn btn-outline-warning flex-fill fw-bold" id="btnToggleImageCarouselManager">
-                <i class="fas fa-star me-1"></i> Manage Carousel
+        <div class="hub-action-bar" style="display: flex; gap: 10px; flex-wrap: wrap; width: 100%; margin-bottom: 40px;">
+            <button id="btnToggleImageCarouselManager" onclick="window.toggleImageCarouselManager()"
+                    style="flex: 1 1 25%; background-color: transparent; color: #ffc107; border: 1px solid #ffc107; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;"
+                    onmouseover="this.style.backgroundColor='rgba(255, 193, 7, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
+                <i class="fas fa-star"></i> <span>Manage Carousel</span>
             </button>
-            <button onclick="window.openImageCollectionBuilder()" class="btn btn-outline-info flex-fill fw-bold">
-                <i class="fas fa-folder-plus me-1"></i> New Gallery
-            </button>
-            <button onclick="window.toggleImageDropZone()" class="btn btn-outline-success flex-fill fw-bold">
-                <i class="fas fa-cloud-upload-alt me-1"></i> Upload Photos
-            </button>
-        </div>
 
-        <div id="imageCarouselManagerDock" class="d-none bg-dark border-bottom border-secondary p-3 mb-4 rounded" style="border: 1px solid #ffc107;">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <h5 class="text-white m-0"><i class="fas fa-star text-warning me-2"></i>Feature Images on Profile</h5>
-                    <small class="text-muted">Click images in your vault below to add them to your featured carousel (Max 5).</small>
-                </div>
-                <button class="btn btn-warning fw-bold text-dark" id="btnSaveCarouselDock" onclick="window.saveImageCarouselDock()">Save to Profile</button>
-            </div>
-            <div id="imageCarouselDockSlotsContainer" class="d-flex gap-3 overflow-auto pb-2" style="min-height: 120px; border: 1px dashed #444; padding: 10px; border-radius: 8px;">
-            </div>
+            <button onclick="window.toggleImageDropZone()"
+                    style="flex: 1 1 25%; background-color: transparent; color: #20c997; border: 1px solid #20c997; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;"
+                    onmouseover="this.style.backgroundColor='rgba(32, 201, 151, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
+                <i class="fas fa-cloud-upload-alt"></i> <span>Upload</span>
+            </button>
+
+            <button onclick="window.openImageCollectionBuilder()"
+                    style="flex: 1 1 25%; background-color: transparent; color: #0dcaf0; border: 1px solid #0dcaf0; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; text-align: center; white-space: normal; word-wrap: break-word; min-width: 90px; gap: 6px; font-size: 14px; transition: all 0.2s;"
+                    onmouseover="this.style.backgroundColor='rgba(13, 202, 240, 0.1)'" onmouseout="this.style.backgroundColor='transparent'">
+                <i class="fas fa-folder-plus"></i> <span>New Gallery</span>
+            </button>
         </div>
 
         <div id="imageDropZoneWrapper" style="max-height: 0; overflow: hidden; transition: max-height 0.4s ease; margin-bottom: 0;">
@@ -55,7 +51,7 @@
                  ondragleave="this.style.borderColor='#00AEEF'; this.style.background='#111';"
                  ondrop="window.handleImageDrop(event)"
                  onclick="document.getElementById('imageBatchInput').click()"
-                 class="mb-4" style="border: 2px dashed #00AEEF; border-radius: 12px; padding: 30px; text-align: center; background: #111; cursor: pointer; transition: 0.3s;">
+                 class="mb-5" style="border: 2px dashed #00AEEF; border-radius: 12px; padding: 30px; text-align: center; background: #111; cursor: pointer; transition: 0.3s;">
 
                 <div id="imageDropZoneContent">
                     <i class="fas fa-images fa-3x text-info mb-2"></i>
@@ -70,7 +66,12 @@
         </div>
     }
 
-    <div id="photo-gallery-container" class="masonry-layout mt-2">
+    <div id="image-carousel-container" class="mb-5"></div>
+
+    <div id="image-collections-container" class="mb-5"></div>
+
+    <h4 id="vault-grid-header" style="color:white; border-bottom:1px solid #333; padding-bottom:10px; margin-top:20px;">Image Vault</h4>
+    <div id="photo-gallery-container" class="masonry-layout mt-3 mb-5 pb-5">
         <div style="text-align: center; width: 100%; padding: 50px 0; color: #888; grid-column: 1 / -1;">
             <i class="fas fa-spinner fa-spin fa-2x" style="margin-bottom: 15px;"></i>
             <p>Loading vault...</p>
@@ -78,133 +79,185 @@
     </div>
 </div>
 
+@if (Model.IsCurrentUser)
+{
+    <div id="imageCarouselManagerDock" class="d-none" style="position: fixed; bottom: 0; left: 0; right: 0; height: 260px; background: #111; border-top: 2px solid #ffc107; z-index: 1040; box-shadow: 0 -10px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column;">
+        <div class="dock-header" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #1a1a1a; border-bottom: 1px solid #333;">
+            <div style="color: #fff; font-weight: bold; font-size: 1rem;"><i class="fas fa-images text-warning me-2"></i> Featured Image Manager</div>
+            <button onclick="window.saveImageCarouselDock()" class="btn-dock-save" style="background: linear-gradient(135deg, #ffc107, #ff9800); color: black; border: none; padding: 6px 16px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+                Save to Profile
+            </button>
+        </div>
+        <div class="dock-slots-wrapper" style="flex-grow: 1; padding: 15px 20px; overflow-x: auto; display: flex; align-items: center;">
+            <div id="imageCarouselDockSlotsContainer" style="display: flex; gap: 15px;"></div>
+        </div>
+    </div>
+}
+
 <div id="imageLightboxModal" class="lightbox-overlay d-none">
     <button class="lightbox-btn close-btn" onclick="window.closeImageLightbox()"><i class="fas fa-times"></i></button>
     <button class="lightbox-btn nav-btn left-nav" onclick="window.navigateLightbox(-1)"><i class="fas fa-chevron-left"></i></button>
     <button class="lightbox-btn nav-btn right-nav" onclick="window.navigateLightbox(1)"><i class="fas fa-chevron-right"></i></button>
 
-    <button class="lightbox-btn toggle-panel-btn" onclick="document.getElementById('imageLightboxModal').classList.toggle('show-panel')">
-        <i class="fas fa-comment-alt"></i> <span id="lightboxCommentCount">0</span>
-    </button>
-
     <div class="lightbox-image-container" onclick="document.getElementById('imageLightboxModal').classList.remove('show-panel')">
         <img id="lightboxMainImage" src="" alt="Viewed Photo">
+
+        <div class="lightbox-overlay-actions" onclick="event.stopPropagation();">
+            <button class="lightbox-action-btn" id="lightboxMainLikeBtn" onclick="window.toggleLightboxLike()">
+                <i class="far fa-heart"></i> <span id="lightboxMainLikeCount">0</span>
+            </button>
+            <button class="lightbox-action-btn" onclick="document.getElementById('imageLightboxModal').classList.toggle('show-panel')">
+                <i class="fas fa-comment-alt"></i> <span id="lightboxMainCommentCount">0</span>
+            </button>
+        </div>
     </div>
 
     <div class="lightbox-side-panel">
-        <div class="panel-header d-flex align-items-center p-3 border-bottom border-secondary">
-            <img id="lightboxAuthorPic" src="/img/profile_default.jpg" class="rounded-circle me-2" style="width:40px; height:40px; border: 1px solid #444; object-fit: cover;">
-            <div class="flex-grow-1" style="overflow: hidden;">
-                <div id="lightboxAuthorName" class="fw-bold text-white text-truncate">User</div>
-                <div id="lightboxTimeAgo" class="small text-muted text-truncate">Just now</div>
-            </div>
-            <button id="lightboxLikeBtn" class="btn btn-link text-white p-0 fs-4 ms-2" onclick="window.toggleLightboxLike()">
-                <i class="far fa-heart"></i>
+        <div class="panel-header d-flex justify-content-between align-items-center p-3 border-bottom border-secondary">
+            <h5 class="m-0 text-white fw-bold">Comments</h5>
+            <button class="btn-close-comments" onclick="document.getElementById('imageLightboxModal').classList.remove('show-panel')">
+                <i class="fas fa-times"></i>
             </button>
-            <span id="lightboxLikeCount" class="text-white ms-2 fw-bold">0</span>
         </div>
 
         <div id="lightboxCommentsFeed" class="panel-body p-3" style="overflow-y: auto; flex-grow: 1; scrollbar-width: none;">
             <div class="text-center text-muted mt-3"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
         </div>
 
-        <div class="panel-footer p-3 border-top border-secondary bg-dark">
+        <div class="panel-footer p-3 border-top border-secondary" style="background: #0a0a0a;">
             <input type="hidden" id="lightboxCurrentPostId" value="">
             <input type="hidden" id="lightboxReplyParentId" value="">
 
-            <div id="lightboxReplyBadge" class="d-none badge bg-info text-dark mb-2 w-100 text-start" style="font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
-                <span>Replying to <span id="lightboxReplyName">User</span>...</span>
-                <i class="fas fa-times" style="cursor: pointer;" onclick="window.cancelLightboxReply()"></i>
+            <div id="lightboxReplyBadge" class="d-none mb-3" style="display: flex; justify-content: space-between; align-items: center; background: #222; padding: 8px 15px; border-radius: 6px; font-size: 0.85rem; color: #aaa; border: 1px solid #444;">
+                <span>Replying to <b id="lightboxReplyName" style="color: #0dcaf0;">User</b></span>
+                <i class="fas fa-times" style="cursor: pointer; color: #ff4d4d; margin-top: 2px;" onclick="window.cancelLightboxReply()"></i>
             </div>
 
-            <div class="d-flex">
-                <input type="text" id="lightboxCommentInput" class="form-control bg-dark text-white border-secondary me-2" placeholder="Add a comment..." autocomplete="off" onkeypress="if(event.key === 'Enter') window.submitLightboxComment()">
-                <button class="btn btn-info text-dark fw-bold" onclick="window.submitLightboxComment()"><i class="fas fa-paper-plane"></i></button>
+            <div class="comment-input-area">
+                <img src="@(string.IsNullOrEmpty(Model.ProfilePic) ? "/img/profile_default.jpg" : Model.ProfilePic)" class="comment-avatar">
+                <div class="comment-input-pill">
+                    <input type="text" id="lightboxCommentInput" class="comment-input-field" placeholder="Add a comment..." autocomplete="off" onkeydown="if(event.key === 'Enter') window.submitLightboxComment()">
+                    <button class="comment-send-btn" onclick="window.submitLightboxComment()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div id="imageCollectionBuilderModal" class="modal d-none" style="background: rgba(0,0,0,0.85); position: fixed; top:0; left:0; width:100%; height:100%; z-index: 1050; display:flex; align-items:center; justify-content:center; backdrop-filter: blur(5px);">
-    <div class="modal-content bg-dark border-secondary p-4 rounded" style="width: 95%; max-width: 900px; max-height: 90vh; display: flex; flex-direction: column;">
+<div id="imageCollectionBuilderModal" class="modal-overlay d-none" style="position: fixed; top:0; left:0; width:100%; height:100%; z-index: 1050; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.9); backdrop-filter: blur(5px);">
+    <div style="background: #111; border: 1px solid #333; border-radius: 12px; width: 95%; max-width: 900px; height: 85vh; display: flex; flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
 
-        <div class="d-flex justify-content-between align-items-center border-bottom border-secondary pb-3 mb-3">
-            <h3 class="text-white m-0"><i class="fas fa-folder-open text-info me-2"></i>Create Photo Gallery</h3>
-            <button class="btn btn-close btn-close-white" onclick="window.closeImageCollectionBuilder()"></button>
+        <div style="padding: 15px 20px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; border-radius: 12px 12px 0 0;">
+            <h4 style="margin: 0; color: #fff; font-weight: bold;"><i class="fas fa-images text-info me-2"></i> Create Photo Gallery</h4>
+            <button onclick="window.closeImageCollectionBuilder()" style="background: transparent; border: none; color: #888; font-size: 1.5rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#888'"><i class="fas fa-times"></i></button>
         </div>
 
-        <input type="text" id="icBuilderTitle" class="form-control bg-dark text-white border-info mb-4 fs-5" placeholder="Name your Gallery (e.g., Summer Tour 2026)">
+        <div style="padding: 20px; border-bottom: 1px solid #222;">
+            <label class="text-muted small fw-bold text-uppercase mb-1">Gallery Title</label>
+            <input type="text" id="icBuilderTitle" class="form-control" style="background: #000; border: 1px solid #333; color: white; padding: 12px; font-size: 1.1rem; border-radius: 6px;" placeholder="Name your Gallery (e.g., Summer Tour 2026)">
+        </div>
 
-        <div class="row flex-grow-1" style="overflow: hidden;">
-            <div class="col-md-7 d-flex flex-column" style="height: 100%;">
-                <h5 class="text-info">Unassigned Vault Images</h5>
-                <small class="text-muted mb-2">Click an image to add it to the gallery.</small>
-                <div id="icBuilderVaultList" class="d-flex flex-wrap gap-2 pe-2" style="overflow-y: auto; flex-grow: 1; align-content: flex-start;">
+        <div style="display: flex; flex-grow: 1; overflow: hidden;">
+            <div style="flex: 1; border-right: 1px solid #333; display: flex; flex-direction: column; background: #0a0a0a;">
+                <div style="padding: 10px 15px; background: #1a1a1a; font-weight: bold; color: #aaa; font-size: 0.9rem; border-bottom: 1px solid #222; display: flex; justify-content: space-between;">
+                    <span>Your Vault</span>
+                    <small class="text-info fw-normal">Click to Add</small>
+                </div>
+                <div id="icBuilderVaultList" style="flex-grow: 1; overflow-y: auto; padding: 15px; display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 10px; align-content: start;">
                     <div class="text-muted text-center w-100 mt-4"><i class="fas fa-spinner fa-spin"></i> Loading vault...</div>
                 </div>
             </div>
 
-            <div class="col-md-5 d-flex flex-column border-left border-secondary ps-3" style="height: 100%;">
-                <h5 class="text-success">Selected for Gallery</h5>
-                <small class="text-muted mb-2">Click an image to remove it.</small>
-                <div id="icBuilderSelectedList" class="d-flex flex-wrap gap-2" style="overflow-y: auto; flex-grow: 1; align-content: flex-start; background: #1a1a1a; border-radius: 8px; padding: 10px; border: 1px dashed #333;">
+            <div style="flex: 1; display: flex; flex-direction: column; background: #111;">
+                <div style="padding: 10px 15px; background: #1a1a1a; font-weight: bold; color: #0dcaf0; font-size: 0.9rem; border-bottom: 1px solid #222; display: flex; justify-content: space-between;">
+                    <span>Selected for Gallery</span>
+                    <small class="text-danger fw-normal">Click to Remove</small>
+                </div>
+                <div id="icBuilderSelectedList" style="flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px;">
+                    <div class="text-center text-muted mt-4 small">Click an image from your vault to add it here.</div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-4 pt-3 border-top border-secondary text-end">
-            <button class="btn btn-secondary me-2" onclick="window.closeImageCollectionBuilder()">Cancel</button>
-            <button class="btn btn-info fw-bold text-dark" id="icBuilderSaveBtn" onclick="window.saveImageCollection()">Publish Gallery</button>
+        <div style="padding: 15px 20px; border-top: 1px solid #222; text-align: right; background: #1a1a1a; border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button onclick="window.closeImageCollectionBuilder()" style="background: #333; color: white; border: 1px solid #444; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#444'" onmouseout="this.style.background='#333'">Cancel</button>
+            <button id="icBuilderSaveBtn" onclick="window.saveImageCollection()" style="background: linear-gradient(135deg, #00d2ff, #007bff); color: white; border: none; padding: 8px 25px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Publish Gallery</button>
         </div>
     </div>
 </div>
 
 <div id="image-inspector-sidebar" class="media-inspector closed">
     <div class="inspector-header">
-        <h4 id="img-inspector-title">Edit Image</h4>
-        <button onclick="window.closeImageInspector()" class="btn-close-inspector"><i class="fas fa-times"></i></button>
+        <h5 id="img-inspector-title" style="margin: 0; font-weight: 700;">Edit Image</h5>
+        <button onclick="window.closeImageInspector()" style="background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor: pointer;"><i class="fas fa-times"></i></button>
     </div>
 
-    <div class="d-flex border-bottom border-secondary bg-dark">
-        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn active" style="color: #0dcaf0;" onclick="window.switchImgInspectorTab('details', this)">Details</button>
-        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn text-muted" onclick="window.switchImgInspectorTab('monetization', this)">Monetization</button>
-        <button class="flex-fill btn btn-link text-decoration-none rounded-0 tab-btn text-muted d-none" id="img-tab-btn-gallery" onclick="window.switchImgInspectorTab('gallery', this)">Gallery</button>
+    <div class="inspector-tabs">
+        <button id="img-tab-btn-details" class="tab-btn active" onclick="window.switchImgInspectorTab('details')">Details</button>
+        <button id="img-tab-btn-monetization" class="tab-btn" onclick="window.switchImgInspectorTab('monetization')">Monetization</button>
+        <button id="img-tab-btn-gallery" class="tab-btn d-none" onclick="window.switchImgInspectorTab('gallery')">Gallery</button>
     </div>
 
-    <div class="inspector-body p-3">
-        <input type="hidden" id="img-edit-target-id">
-        <input type="hidden" id="img-edit-target-type" value="3">
+    <div class="inspector-body" style="position: relative; flex-grow: 1; overflow: hidden;">
+        <div id="img-tab-content-details" class="tab-content active" style="position: absolute; inset: 0; padding: 20px; overflow-y: auto;">
+            <input type="hidden" id="img-edit-target-id">
+            <input type="hidden" id="img-edit-target-type" value="3">
 
-        <div id="img-tab-body-details" class="inspector-tab-body active">
-            <label class="text-muted small mb-1">Title</label>
-            <input type="text" id="img-edit-title" class="form-control bg-dark text-white border-secondary mb-4" placeholder="Enter image title...">
+            <label class="inspector-label">Title</label>
+            <input type="text" id="img-edit-title" class="inspector-input" placeholder="Enter image title...">
 
-            <label class="text-muted small mb-1">Visibility</label>
-            <select id="img-edit-visibility" class="form-control bg-dark text-white border-secondary mb-4">
+            <label class="inspector-label">Description</label>
+            <textarea id="img-edit-desc" class="inspector-input" rows="3" style="resize: none;" placeholder="Optional description..."></textarea>
+
+            <label class="inspector-label">Visibility</label>
+            <select id="img-edit-visibility" class="inspector-input">
                 <option value="0">Public (Visible to everyone)</option>
                 <option value="1">Link Only (Unlisted)</option>
                 <option value="2">Private (Vault Only)</option>
             </select>
         </div>
 
-        <div id="img-tab-body-monetization" class="inspector-tab-body d-none">
+        <div id="img-tab-content-monetization" class="tab-content d-none" style="position: absolute; inset: 0; padding: 20px; overflow-y: auto;">
             <div class="alert alert-dark border-info text-info small mb-3">
                 <i class="fas fa-info-circle"></i> Adding a price automatically creates a Marketplace Listing for this item.
             </div>
-            <label class="text-muted small mb-1">Marketplace Price</label>
-            <div class="input-group mb-4">
-                <span class="input-group-text bg-dark text-white border-secondary">$</span>
-                <input type="number" id="img-edit-price" class="form-control bg-dark text-white border-secondary" placeholder="0.00" step="0.01">
+            <label class="inspector-label">Marketplace Price (USD)</label>
+            <div style="position: relative;">
+                <span style="position: absolute; left: 10px; top: 10px; color: #aaa;">$</span>
+                <input type="number" id="img-edit-price" class="inspector-input" style="padding-left: 25px;" placeholder="0.00" step="0.01" min="0">
             </div>
+            <p style="font-size: 0.75rem; color: #888; margin-top: 5px;">Set a price to lock content behind a paywall.</p>
         </div>
 
-        <div id="img-tab-body-gallery" class="inspector-tab-body d-none">
-            <h6 class="text-info mb-3">Images in this Gallery</h6>
-            <div id="img-inspector-items-container" class="d-flex flex-wrap gap-2">
+        <div id="img-tab-content-gallery" class="tab-content d-none" style="position: absolute; inset: 0; overflow: hidden; background: #121212;">
+            <div style="position: absolute; inset: 0; display: flex; flex-direction: column;">
+                <div style="flex-grow: 1; overflow-y: auto; padding: 20px;">
+                    <div id="inspector-gallery-images-container"></div>
+                </div>
+                <div style="padding: 15px 20px; border-top: 1px solid #222; background: #121212; text-align: center; flex-shrink: 0;">
+                    <button onclick="document.getElementById('img-inspector-vault-panel').style.transform = 'translateY(0)'" style="background: #28a745; color: white; border: none; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; box-shadow: 0 -2px 10px rgba(0,0,0,0.2);">
+                        <i class="fas fa-arrow-up"></i> Add Images from Vault
+                    </button>
+                </div>
+            </div>
+
+            <div id="img-inspector-vault-panel" style="position: absolute; inset: 0; background: #0a0a0a; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; z-index: 10;">
+                <div style="padding: 15px 20px; border-bottom: 1px solid #333; background: #0a0a0a; text-align: center; flex-shrink: 0;">
+                    <button onclick="document.getElementById('img-inspector-vault-panel').style.transform = 'translateY(100%)'" style="background: #333; color: white; border: 1px solid #444; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold; width: 100%; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+                        <i class="fas fa-arrow-down"></i> Back to Gallery Images
+                    </button>
+                </div>
+                <div style="flex-grow: 1; overflow-y: auto; padding: 20px;">
+                    <div id="inspector-vault-images-container"></div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <button class="btn btn-info w-100 fw-bold text-dark mt-4" id="img-edit-save-btn" onclick="window.saveImageInspector()">Save Changes</button>
+    <div class="inspector-footer">
+        <button id="img-edit-save-btn" class="btn-dock-save" onclick="window.saveImageInspector()" style="width: 100%; background: linear-gradient(135deg, #00d2ff, #007bff); border: none; color: white; padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer;">Save Changes</button>
     </div>
 </div>
 
@@ -260,6 +313,51 @@
         display: block;
     }
 
+    .vid-play-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(to bottom, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%);
+        pointer-events: none;
+    }
+
+    /* Translucent overlays for Masonry & Gallery items */
+    .vid-actions-overlay {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 5;
+    }
+
+    .vid-btn-translucent {
+        background: rgba(0,0,0,0.6);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 20px;
+        padding: 4px 12px;
+        font-size: 0.8rem;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .vid-btn-translucent:hover {
+            background: rgba(0,0,0,0.9);
+            border-color: #fff;
+        }
+
+
     .img-badge-price {
         position: absolute;
         bottom: 8px;
@@ -283,17 +381,63 @@
         font-size: 12px;
     }
 
+    /* Toggle Button Active State CSS */
+    #vaultFilterBtn.active {
+        background: rgba(13, 202, 240, 0.1) !important;
+        border-color: #0dcaf0 !important;
+        color: #0dcaf0 !important;
+    }
+
+    /* --- GALLERY CARDS (Inherited from Video Hub) --- */
+    .vid-card {
+        background: #111;
+        border: 1px solid #333;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+        .vid-card:hover {
+            transform: translateY(-4px);
+            border-color: #555;
+        }
+
+    .vid-thumb-wrapper {
+        width: 100%;
+        aspect-ratio: 16/9;
+        position: relative;
+        background: #000;
+        cursor: pointer;
+        overflow: hidden;
+    }
+
+    .vid-thumb-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.8;
+        transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .vid-card:hover .vid-thumb-img {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+
     /* The Context Menu Container and Button */
     .vid-top-right-actions {
         position: absolute;
         top: 8px;
         right: 8px;
         z-index: 10;
+        display: flex;
+        gap: 8px;
     }
 
-    .msg-options-btn {
+    .vid-action-circle, .msg-options-btn {
         background: rgba(0,0,0,0.6);
-        border: none;
+        border: 1px solid rgba(255,255,255,0.2);
         color: white;
         width: 30px;
         height: 30px;
@@ -302,9 +446,11 @@
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: background 0.2s;
     }
 
-        .msg-options-btn:hover {
+        .vid-action-circle:hover, .msg-options-btn:hover {
             background: rgba(0,0,0,0.9);
         }
 
@@ -363,6 +509,7 @@
         justify-content: center;
         transition: width 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
         cursor: pointer;
+        position: relative;
     }
 
         .lightbox-image-container img {
@@ -370,6 +517,122 @@
             max-height: 100%;
             object-fit: contain;
             user-select: none;
+        }
+
+    /* NEW LIGHTBOX OVERLAY PILL */
+    .lightbox-overlay-actions {
+        position: absolute;
+        bottom: 30px;
+        display: flex;
+        gap: 15px;
+        background: rgba(0,0,0,0.6);
+        padding: 8px 20px;
+        border-radius: 30px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
+        z-index: 10000;
+    }
+
+    .lightbox-action-btn {
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        transition: color 0.2s;
+        font-weight: bold;
+    }
+
+        .lightbox-action-btn:hover {
+            color: #0dcaf0;
+        }
+
+    /* CUSTOM COMMENT INPUT AREA */
+    .comment-input-area {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .comment-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 1px solid #444;
+        flex-shrink: 0;
+    }
+
+    .comment-input-pill {
+        display: flex;
+        flex-grow: 1;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 20px;
+        padding: 4px 6px 4px 15px;
+        align-items: center;
+        transition: border-color 0.2s;
+    }
+
+        .comment-input-pill:focus-within {
+            border-color: #0dcaf0;
+        }
+
+    .comment-input-field {
+        flex-grow: 1;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 0.95rem;
+        outline: none;
+        box-shadow: none;
+        padding: 0;
+        margin-right: 10px;
+        min-width: 0;
+    }
+
+    .comment-send-btn {
+        background: #0dcaf0;
+        color: #000;
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: transform 0.2s;
+    }
+
+        .comment-send-btn:hover {
+            transform: scale(1.1);
+        }
+
+    .btn-close-comments {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: #aaa;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+        .btn-close-comments:hover {
+            background: rgba(255,77,77,0.15);
+            border-color: rgba(255,77,77,0.3);
+            color: #ff4d4d;
+            transform: scale(1.05);
         }
 
     .lightbox-btn {
@@ -412,19 +675,6 @@
         transform: translateY(-50%);
     }
 
-    .toggle-panel-btn {
-        bottom: 30px;
-        right: 30px;
-        border-radius: 25px;
-        width: auto;
-        padding: 0 20px;
-        gap: 8px;
-        background: rgba(13, 202, 240, 0.8);
-        color: #000;
-        border: none;
-        font-weight: bold;
-    }
-
     .lightbox-side-panel {
         background: #121212;
         display: flex;
@@ -461,10 +711,6 @@
             right: 370px;
         }
 
-        .show-panel .toggle-panel-btn {
-            display: none;
-        }
-
         .show-panel .lightbox-image-container {
             width: calc(100vw - 350px);
         }
@@ -485,10 +731,6 @@
             transform: translateY(0);
         }
 
-        .show-panel .toggle-panel-btn {
-            display: none;
-        }
-
         .show-panel .left-nav {
             top: 35%;
         }
@@ -498,18 +740,22 @@
         }
     }
 
-    /* Media Inspector Base */
+    /* --- MEDIA INSPECTOR (Audio/Video Hub Style Ported) --- */
     .media-inspector {
         position: fixed;
-        top: 0;
+        top: 70px;
+        bottom: 0;
         right: 0;
-        width: 350px;
-        height: 100vh;
+        width: 380px;
+        max-width: 100vw;
         background: #121212;
         border-left: 1px solid #333;
-        z-index: 10005;
-        transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-        box-shadow: -5px 0 25px rgba(0,0,0,0.8);
+        z-index: 1060;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.9);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
     }
 
         .media-inspector.closed {
@@ -517,23 +763,94 @@
         }
 
     .inspector-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #333;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 15px 20px;
-        color: white;
+        background: #1a1a1a;
+        flex-shrink: 0;
     }
 
-    .btn-close-inspector {
-        background: none;
+    .inspector-tabs {
+        display: flex;
+        border-bottom: 1px solid #333;
+        background: #111;
+        flex-shrink: 0;
+    }
+
+    .tab-btn {
+        flex: 1;
+        background: transparent;
         border: none;
-        color: #aaa;
-        font-size: 1.5rem;
+        color: #888;
+        padding: 12px 0;
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
         cursor: pointer;
         transition: color 0.2s;
     }
 
-        .btn-close-inspector:hover {
-            color: #fff;
+        .tab-btn.active {
+            color: #0dcaf0 !important;
+            border-bottom: 2px solid #0dcaf0 !important;
         }
+
+    .inspector-body {
+        flex-grow: 1;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .tab-content {
+        display: none;
+        height: 100%;
+        overflow-y: auto;
+    }
+
+        .tab-content.active {
+            display: block;
+        }
+
+    .inspector-label {
+        display: block;
+        color: #aaa;
+        font-size: 0.8rem;
+        margin-bottom: 5px;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .inspector-input {
+        width: 100%;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        color: #fff;
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-size: 0.9rem;
+    }
+
+        .inspector-input:focus {
+            outline: none;
+            border-color: #0dcaf0;
+        }
+
+    .inspector-footer {
+        padding: 15px 20px;
+        border-top: 1px solid #333;
+        background: #1a1a1a;
+        flex-shrink: 0;
+    }
+
+    /* --- RESPONSIVENESS --- */
+    @@media (max-width: 768px) {
+        .media-inspector {
+            width: 100%;
+        }
+    }
 </style>

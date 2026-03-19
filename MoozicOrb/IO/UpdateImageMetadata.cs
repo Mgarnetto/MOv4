@@ -18,13 +18,15 @@ namespace MoozicOrb.IO
                     try
                     {
                         // 1. Update Post / Collection metadata
+                        // Dynamically map table and column names to prevent SQL crashes
                         string table = targetType == 0 ? "collections" : "posts";
-                        string idCol = targetType == 0 ? "collection_id" : "id";
-                        string userCol = targetType == 0 ? "user_id" : "author_id";
+                        string idCol = targetType == 0 ? "collection_id" : "post_id";
+                        string userCol = "user_id"; // Both tables use user_id
+                        string textCol = targetType == 0 ? "description" : "text"; // Collections use description, Posts use text
 
                         string baseSql = $@"
                             UPDATE {table} 
-                            SET title = @Title, text = @Text, visibility = @Visibility 
+                            SET title = @Title, {textCol} = @Text, visibility = @Visibility 
                             WHERE {idCol} = @TargetId AND {userCol} = @UserId;";
 
                         using (MySqlCommand cmd = new MySqlCommand(baseSql, conn, transaction))
@@ -62,7 +64,6 @@ namespace MoozicOrb.IO
                                 offerCmd.Parameters.AddWithValue("@TargetId", targetId);
                                 offerCmd.Parameters.AddWithValue("@Price", req.Price.Value);
 
-                                // Assuming UpdatePostDto has these, otherwise default them
                                 offerCmd.Parameters.AddWithValue("@LicenseType", 1);
                                 offerCmd.Parameters.AddWithValue("@IsActive", 1);
                                 offerCmd.Parameters.AddWithValue("@IsLocked", 0);

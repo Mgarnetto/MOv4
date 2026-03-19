@@ -5,6 +5,7 @@ using MoozicOrb.API.Services;
 using MoozicOrb.IO;
 using MoozicOrb.Services;
 using System;
+using System.Threading.Tasks;
 
 namespace MoozicOrb.API.Controllers
 {
@@ -14,11 +15,13 @@ namespace MoozicOrb.API.Controllers
     {
         private readonly IHttpContextAccessor _http;
         private readonly IMediaResolverService _resolver;
+        private readonly IMediaFileService _mediaFileService;
 
-        public ImageHubController(IHttpContextAccessor http, IMediaResolverService resolver)
+        public ImageHubController(IHttpContextAccessor http, IMediaResolverService resolver, IMediaFileService mediaFileService)
         {
             _http = http;
             _resolver = resolver;
+            _mediaFileService = mediaFileService;
         }
 
         private int GetUserId()
@@ -103,6 +106,42 @@ namespace MoozicOrb.API.Controllers
                 var io = new UpdateImageMetadata();
                 // TargetType 0 = Collection
                 io.Execute(userId, req, id, 0);
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("vault/{postId}/media/{mediaId}")]
+        public async Task<IActionResult> DeleteVaultImage(long postId, long mediaId)
+        {
+            try
+            {
+                // 1. Get the User ID securely using your helper method
+                int userId = GetUserId();
+                if (userId == 0) return Unauthorized();
+
+                // 2. Unlink Post and Media (Prevents SQL FK constraint crash)
+                var unlinkIo = new IO.DeletePostMedia();
+                unlinkIo.Execute(userId, postId, mediaId);
+
+                // 3. Delete the Post wrapper (This wipes out Likes, Comments, and Social Feed presence)
+                var delPostIo = new IO.DeletePost();
+                delPostIo.Execute(userId, postId);
+
+                // 4. Delete the Media row and extract the raw file paths (3 = Image type)
+                var delMediaIo = new IO.DeleteMedia();
+                var deletionResult = delMediaIo.Execute(userId, mediaId, 3);
+
+                // 5. Safely nuke the physical files (Local or Cloud)
+                if (deletionResult.Success && deletionResult.PathsToDelete.Count > 0)
+                {
+                    // Your MediaFileService safely ignores missing local files and handles Cloudflare R2!
+                    await _mediaFileService.DeleteMediaFilesAsync(deletionResult.PathsToDelete, deletionResult.StorageProvider);
+                }
 
                 return Ok(new { success = true });
             }

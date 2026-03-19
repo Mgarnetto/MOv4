@@ -17,30 +17,34 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // Base Query: Join Posts to PostMedia
+                // 1. Join to media_images (img) using image_id and file_path
+                // 2. Use post_id and user_id to match the posts table
+                // 3. Use subqueries for likes and comments exactly like GetPost.cs
                 string sql = @"
                     SELECT 
-                        p.id, 
+                        p.post_id, 
                         p.visibility, 
-                        p.likes_count, 
-                        p.comments_count, 
+                        (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.post_id) AS likes_count, 
+                        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count, 
+                        (SELECT COUNT(*) FROM post_likes pl2 WHERE pl2.post_id = p.post_id AND pl2.user_id = @ViewerId) AS is_liked,
                         p.created_at,
-                        pm.url,
+                        img.file_path AS url,
                         pm.media_id,
                         p.title,
                         mo.price
                     FROM posts p
-                    INNER JOIN post_media pm ON p.id = pm.post_id
-                    LEFT JOIN marketplace_offers mo ON p.id = mo.target_id AND mo.target_type = 3";
+                    INNER JOIN post_media pm ON p.post_id = pm.post_id
+                    INNER JOIN media_images img ON pm.media_id = img.image_id AND pm.media_type = 3
+                    LEFT JOIN marketplace_offers mo ON p.post_id = mo.target_id AND mo.target_type = 3";
 
-                // If we only want loose images, ensure the post ID is NOT in collection_items
+                // Filter for unassigned images (not in a gallery)
                 if (onlyUnassigned)
                 {
-                    sql += " LEFT JOIN collection_items ci ON p.id = ci.target_id AND ci.target_type = 3 WHERE ci.id IS NULL AND p.author_id = @TargetId AND p.type = 7";
+                    sql += " LEFT JOIN collection_items ci ON p.post_id = ci.target_id AND ci.target_type = 3 WHERE ci.target_id IS NULL AND p.user_id = @TargetId";
                 }
                 else
                 {
-                    sql += " WHERE p.author_id = @TargetId AND p.type = 7";
+                    sql += " WHERE p.user_id = @TargetId";
                 }
 
                 // Security: If not owner, ONLY show public (0)
@@ -54,6 +58,7 @@ namespace MoozicOrb.IO
                 using (MySqlCommand cmd = new MySqlCommand(sql, conn))
                 {
                     cmd.Parameters.AddWithValue("@TargetId", targetUserId);
+                    cmd.Parameters.AddWithValue("@ViewerId", viewerId);
 
                     using (MySqlDataReader rdr = cmd.ExecuteReader())
                     {
@@ -61,11 +66,12 @@ namespace MoozicOrb.IO
                         {
                             var dto = new PostDto
                             {
-                                Id = Convert.ToInt64(rdr["id"]),
+                                Id = Convert.ToInt64(rdr["post_id"]),
                                 Visibility = Convert.ToInt32(rdr["visibility"]),
                                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
-                                CreatedAt = Convert.ToDateTime(rdr["created_at"]),
+                                IsLiked = Convert.ToInt32(rdr["is_liked"]) > 0,
+                                CreatedAt = DateTime.SpecifyKind(rdr.GetDateTime("created_at"), DateTimeKind.Utc),
                                 Title = rdr["title"] != DBNull.Value ? rdr["title"].ToString() : "",
                                 Price = rdr["price"] != DBNull.Value ? Convert.ToDecimal(rdr["price"]) : (decimal?)null,
                                 Attachments = new List<MediaAttachmentDto>
@@ -74,7 +80,8 @@ namespace MoozicOrb.IO
                                     {
                                         MediaId = Convert.ToInt64(rdr["media_id"]),
                                         MediaType = 3,
-                                        Url = resolver.ResolveUrl(rdr["url"].ToString(), 3)
+                                        // Resolve the file_path into a full URL using your resolver service
+                                        Url = resolver != null ? resolver.ResolveUrl(rdr["url"].ToString(), 3) : rdr["url"].ToString()
                                     }
                                 }
                             };

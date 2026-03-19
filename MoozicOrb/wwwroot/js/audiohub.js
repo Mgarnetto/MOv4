@@ -786,8 +786,16 @@ window.saveAudioInspector = async function () {
         // Step 1: Upload the image if they selected a new one
         if (window.inspectorCoverFile) {
             btn.innerText = "Uploading Art...";
+
+            // --- ADDED IMAGE COMPRESSION ---
+            let fileToUpload = window.inspectorCoverFile;
+            if (window.processImageUpload) {
+                try { fileToUpload = await window.processImageUpload(fileToUpload, 1200); }
+                catch (e) { console.warn("Compression failed, using original.", e); }
+            }
+
             const imgData = new FormData();
-            imgData.append("file", window.inspectorCoverFile);
+            imgData.append("file", fileToUpload);
 
             const imgRes = await fetch("/api/upload/image", {
                 method: 'POST',
@@ -1218,8 +1226,16 @@ window.saveNewAlbum = async function () {
 
         if (window.albumCoverFile) {
             btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i> Uploading Art...';
+
+            // --- ADDED IMAGE COMPRESSION ---
+            let fileToUpload = window.albumCoverFile;
+            if (window.processImageUpload) {
+                try { fileToUpload = await window.processImageUpload(fileToUpload, 1200); }
+                catch (e) { console.warn("Compression failed, using original.", e); }
+            }
+
             const imgData = new FormData();
-            imgData.append("file", window.albumCoverFile);
+            imgData.append("file", fileToUpload);
 
             const imgRes = await fetch("/api/upload/image", {
                 method: 'POST',
