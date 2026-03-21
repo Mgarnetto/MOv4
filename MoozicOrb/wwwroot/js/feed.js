@@ -474,30 +474,48 @@ window.removeEditImage = function (index) {
 
 window.FeedService.submitEdit = async () => {
     const btn = document.getElementById('btnSubmitEdit');
-    const originalText = btn.innerText;
-    btn.disabled = true;
+    const originalText = btn ? btn.innerText : 'Save';
+    if (btn) btn.disabled = true;
 
     try {
-        const id = document.getElementById('editPostId').value;
-        const type = document.getElementById('editPostType').value;
+        // 1. SAFELY GRAB ID & TYPE
+        const elId = document.getElementById('editPostId');
+        const elType = document.getElementById('editPostType');
+        const id = elId ? elId.value : null;
+        const type = elType ? elType.value : "1";
 
-        // GRAB NEW VISIBILITY VALUE
+        if (!id) {
+            alert("Error: Post ID not found.");
+            if (btn) btn.disabled = false;
+            return;
+        }
+
+        // 2. SAFELY GRAB NEW VISIBILITY VALUE (Prevents NaN binding errors)
         const visInput = document.getElementById('editPostVisibility');
-        const visValue = visInput ? parseInt(visInput.value) : 0;
+        const parsedVis = visInput ? parseInt(visInput.value) : 0;
+        const visValue = isNaN(parsedVis) ? 0 : parsedVis;
 
         let parsedPrice = null;
         let parsedQty = null;
 
-        if (parseInt(type) === 3) {
-            const rawPrice = document.getElementById('editPostPrice').value;
-            const rawQty = document.getElementById('editPostQuantity').value;
-            parsedPrice = rawPrice ? parseFloat(rawPrice) : null;
-            parsedQty = rawQty ? parseInt(rawQty) : null;
+        // 3. SAFELY GRAB MERCH FIELDS
+        if (parseInt(type) === 3 || type === 'merch') {
+            const elPrice = document.getElementById('editPostPrice');
+            const elQty = document.getElementById('editPostQuantity');
+
+            const rawPrice = elPrice ? elPrice.value : null;
+            const rawQty = elQty ? elQty.value : null;
+
+            const tempPrice = rawPrice ? parseFloat(rawPrice) : null;
+            const tempQty = rawQty ? parseInt(rawQty) : null;
+
+            parsedPrice = isNaN(tempPrice) ? null : tempPrice;
+            parsedQty = isNaN(tempQty) ? null : tempQty;
         }
 
         if (window.pendingMediaDeletions && window.pendingMediaDeletions.length > 0) {
             for (let i = 0; i < window.pendingMediaDeletions.length; i++) {
-                btn.innerText = `Removing old media...`;
+                if (btn) btn.innerText = `Removing old media...`;
                 await fetch(`/api/posts/${id}/media/${window.pendingMediaDeletions[i]}`, {
                     method: 'DELETE',
                     headers: { "X-Session-Id": window.AuthState?.sessionId || "" }
@@ -512,7 +530,7 @@ window.FeedService.submitEdit = async () => {
                 let file = window.editSelectedFiles[i];
 
                 if (file.type.startsWith('image/') && window.processImageUpload) {
-                    btn.innerText = `Compressing Image ${i + 1}...`;
+                    if (btn) btn.innerText = `Compressing Image ${i + 1}...`;
                     try { file = await window.processImageUpload(file, 1200); }
                     catch (e) { console.warn("Compression failed", e); }
                 }
@@ -523,7 +541,7 @@ window.FeedService.submitEdit = async () => {
                 let uploadEndpoint = "/api/upload/image";
 
                 if (file.type.startsWith('video/')) {
-                    btn.innerText = `Processing Video ${i + 1}...`;
+                    if (btn) btn.innerText = `Processing Video ${i + 1}...`;
                     uploadEndpoint = "/api/upload/video";
                     try {
                         const meta = await window.processVideoUpload(file);
@@ -536,14 +554,14 @@ window.FeedService.submitEdit = async () => {
                     } catch (videoErr) {
                         console.warn("Video Client Processing Failed", videoErr);
                     }
-                    btn.innerText = `Uploading Video ${i + 1}...`;
+                    if (btn) btn.innerText = `Uploading Video ${i + 1}...`;
                 }
                 else if (file.type.startsWith('audio/')) {
-                    btn.innerText = `Uploading Audio ${i + 1}...`;
+                    if (btn) btn.innerText = `Uploading Audio ${i + 1}...`;
                     uploadEndpoint = "/api/upload/audio";
                 }
                 else {
-                    btn.innerText = `Uploading Image ${i + 1}...`;
+                    if (btn) btn.innerText = `Uploading Image ${i + 1}...`;
                     uploadEndpoint = "/api/upload/image";
                 }
 
@@ -565,14 +583,18 @@ window.FeedService.submitEdit = async () => {
             }
         }
 
-        btn.innerText = "Saving Changes...";
+        if (btn) btn.innerText = "Saving Changes...";
+
+        // 4. SAFELY GRAB TEXT & TITLE
+        const elTitle = document.getElementById('editPostTitle');
+        const elText = document.getElementById('editPostText');
 
         const body = {
-            Title: document.getElementById('editPostTitle').value,
-            Text: document.getElementById('editPostText').value,
+            Title: elTitle ? elTitle.value : null,
+            Text: elText ? elText.value : null,
             Price: parsedPrice,
-            Quantity: isNaN(parsedQty) ? null : parsedQty,
-            Visibility: visValue, // INJECT VISIBILITY INTO PAYLOAD
+            Quantity: parsedQty,
+            Visibility: visValue,
             MediaAttachments: newAttachments
         };
 
