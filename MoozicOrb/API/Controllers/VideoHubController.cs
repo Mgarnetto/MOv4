@@ -99,12 +99,20 @@ namespace MoozicOrb.API.Controllers
         }
 
         [HttpPut("video/{id}")]
-        public IActionResult UpdateVideoInspector(long id, [FromBody] UpdatePostDto req)
+        public IActionResult UpdateVideoInspector(long id, [FromBody] UpdateHubMediaDto req)
         {
             try
             {
                 int userId = GetUserId();
                 if (userId == 0) return Unauthorized();
+
+                // GATEKEEPER: Ensure they are not trying to edit a Storefront post via the Hub
+                var getPostIo = new GetPost();
+                var post = getPostIo.Execute(req.PostId, userId, _resolver);
+                if (post != null && (post.Type == 3 || post.Type == 4))
+                {
+                    return BadRequest("Storefront and Classified posts must be edited via the standard post editor.");
+                }
 
                 var io = new UpdateVideoMetadata();
                 // TargetType 2 = Video
@@ -120,7 +128,7 @@ namespace MoozicOrb.API.Controllers
 
         // PUT: api/videohub/collection/{id}
         [HttpPut("collection/{id}")]
-        public IActionResult UpdateCollectionInspector(long id, [FromBody] UpdatePostDto req)
+        public IActionResult UpdateCollectionInspector(long id, [FromBody] UpdateHubMediaDto req)
         {
             try
             {

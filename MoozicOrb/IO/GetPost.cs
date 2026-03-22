@@ -58,7 +58,16 @@ namespace MoozicOrb.IO
 
                 if (!postType.HasValue)
                 {
-                    mediaFilter += " AND p.post_type != 3"; // Hide merch from standard streams
+                    // FIX: Isolate the Hubs from the Storefront
+                    if (mediaType.Value == 2)
+                    {
+                        // Video Vault: Only allow Standard Posts (1) and Native Video Posts (6)
+                        mediaFilter += " AND p.post_type IN (1, 6)";
+                    }
+                    else
+                    {
+                        mediaFilter += " AND p.post_type != 3"; // Hide merch from standard streams
+                    }
                 }
             }
 
@@ -206,7 +215,9 @@ namespace MoozicOrb.IO
                 SELECT 
                     p.post_id, p.user_id, p.context_type, p.context_id,
                     p.post_type, p.title, p.content_text, p.image_url, p.created_at,
-                    p.price, p.quantity, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
+                    /* FIX: Check the marketplace ledger for active media prices first (both Video and Image targets), fallback to the wrapper price */
+                    COALESCE((SELECT price FROM marketplace_offers WHERE target_id = p.media_id AND target_type IN (2, 3) AND is_active = 1 LIMIT 1), p.price) AS price,
+                    p.quantity, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
                     p.visibility,
                     u.display_name, u.profile_pic,
                     (SELECT COUNT(*) FROM post_likes WHERE post_id = p.post_id) AS likes_count,

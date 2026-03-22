@@ -296,12 +296,14 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
     const pId = post.id !== undefined ? post.id : post.Id;
     const pVis = post.visibility !== undefined ? post.visibility : post.Visibility;
 
+    // FIX: Bulletproof check for post type (PascalCase vs camelCase)
+    const postType = post.type !== undefined ? post.type : (post.Type || 0);
+
     const attachments = post.attachments || post.Attachments || [];
     const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
     const imageUrl = resolveMediaUrl(imgAttach ? (imgAttach.url || imgAttach.Url) : null);
     const mId = imgAttach ? (imgAttach.mediaId || imgAttach.MediaId) : 0;
 
-    // Safe detection for Orphan images vs Published Posts
     const isOrphan = !pId || pId === 0 || pId === '0';
 
     const titleEnc = encodeURIComponent(post.title || post.Title || '');
@@ -330,7 +332,7 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
                 </div>
                 <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 160px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
                     ${!isOrphan ? (
-                post.type === 1
+                postType === 1 /* FIX: Uses safe variable */
                     ? `<button onclick="event.stopPropagation(); window.openStandardEditorFromHub('${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-warning"></i> Edit Post</button>`
                     : `<button onclick="event.stopPropagation(); window.openImageInspector('${mId}', '${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>`
             ) : ''}

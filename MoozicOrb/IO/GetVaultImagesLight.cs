@@ -17,12 +17,10 @@ namespace MoozicOrb.IO
             {
                 conn.Open();
 
-                // 1. Join to media_images (img) using image_id and file_path
-                // 2. Use post_id and user_id to match the posts table
-                // 3. Use subqueries for likes and comments exactly like GetPost.cs
                 string sql = @"
                     SELECT 
                         p.post_id, 
+                        p.post_type, /* FIX: Added post_type so JS can route the edit button */
                         p.visibility, 
                         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.post_id) AS likes_count, 
                         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count, 
@@ -35,17 +33,17 @@ namespace MoozicOrb.IO
                    FROM posts p
                     INNER JOIN post_media pm ON p.post_id = pm.post_id
                     INNER JOIN media_images img ON pm.media_id = img.image_id AND pm.media_type = 3
-                    /* FIX: Must specify is_active = 1, otherwise price history causes duplicate grid items */
-                    LEFT JOIN marketplace_offers mo ON pm.media_id = mo.target_id AND mo.target_type = 3 AND mo.is_active = 1";
+                    LEFT JOIN marketplace_offers mo ON pm.media_id = mo.target_id AND mo.target_type = 3 AND mo.is_active = 1
+                   WHERE p.post_type IN (1, 7)"; /* FIX: Walls off Storefront/Classifieds */
 
                 // Filter for unassigned images (not in a gallery)
                 if (onlyUnassigned)
                 {
-                    sql += " LEFT JOIN collection_items ci ON p.post_id = ci.target_id AND ci.target_type = 3 WHERE ci.target_id IS NULL AND p.user_id = @TargetId";
+                    sql += " AND p.post_id NOT IN (SELECT target_id FROM collection_items ci WHERE ci.target_type = 3) AND p.user_id = @TargetId";
                 }
                 else
                 {
-                    sql += " WHERE p.user_id = @TargetId";
+                    sql += " AND p.user_id = @TargetId";
                 }
 
                 // Security: If not owner, ONLY show public (0)
@@ -68,6 +66,7 @@ namespace MoozicOrb.IO
                             var dto = new PostDto
                             {
                                 Id = Convert.ToInt64(rdr["post_id"]),
+                                Type = rdr["post_type"] != DBNull.Value ? Convert.ToInt32(rdr["post_type"]) : 0, /* FIX: Mapped to DTO */
                                 Visibility = Convert.ToInt32(rdr["visibility"]),
                                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
@@ -81,7 +80,6 @@ namespace MoozicOrb.IO
                                     {
                                         MediaId = Convert.ToInt64(rdr["media_id"]),
                                         MediaType = 3,
-                                        // Resolve the file_path into a full URL using your resolver service
                                         Url = resolver != null ? resolver.ResolveUrl(rdr["url"].ToString(), 3) : rdr["url"].ToString()
                                     }
                                 }
