@@ -6,10 +6,9 @@ namespace MoozicOrb.IO
 {
     public class UpdateImageMetadata
     {
-        public bool Execute(int userId, UpdatePostDto req, long targetId, int targetType)
+        public bool Execute(int userId, UpdateHubMediaDto req)
         {
             bool success = false;
-
             using (MySqlConnection conn = new MySqlConnection(DBConn1.ConnectionString))
             {
                 conn.Open();
@@ -17,69 +16,67 @@ namespace MoozicOrb.IO
                 {
                     try
                     {
-                        // 1. Update Post / Collection metadata
-                        // Dynamically map table and column names to prevent SQL crashes
-                        string table = targetType == 0 ? "collections" : "posts";
-                        string idCol = targetType == 0 ? "collection_id" : "post_id";
-                        string userCol = "user_id"; // Both tables use user_id
-                        string textCol = targetType == 0 ? "description" : "text"; // Collections use description, Posts use text
-
-                        string baseSql = $@"
-                            UPDATE {table} 
-                            SET title = @Title, {textCol} = @Text, visibility = @Visibility 
-                            WHERE {idCol} = @TargetId AND {userCol} = @UserId;";
-
-                        using (MySqlCommand cmd = new MySqlCommand(baseSql, conn, transaction))
+                        // 1. UPDATE POST WRAPPER (Description & Feed Visibility)
+                        if (req.PostId > 0)
                         {
-                            cmd.Parameters.AddWithValue("@Title", req.Title ?? (object)DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Text", req.Text ?? (object)DBNull.Value);
-                            cmd.Parameters.AddWithValue("@Visibility", req.Visibility);
-                            cmd.Parameters.AddWithValue("@TargetId", targetId);
-                            cmd.Parameters.AddWithValue("@UserId", userId);
-
-                            if (cmd.ExecuteNonQuery() == 0)
+                            string postSql = "UPDATE posts SET content_text = @Text, visibility = @Visibility WHERE post_id = @PostId AND user_id = @UserId";
+                            using (MySqlCommand pCmd = new MySqlCommand(postSql, conn, transaction))
                             {
-                                transaction.Rollback();
-                                return false; // Not found or unauthorized
+                                pCmd.Parameters.AddWithValue("@Text", req.Text ?? (object)DBNull.Value);
+                                pCmd.Parameters.AddWithValue("@Visibility", req.Visibility);
+                                pCmd.Parameters.AddWithValue("@PostId", req.PostId);
+                                pCmd.Parameters.AddWithValue("@UserId", userId);
+                                pCmd.ExecuteNonQuery();
                             }
                         }
 
-                        // 2. Upsert Marketplace Offer (if a price exists)
-                        if (req.Price.HasValue && req.Price.Value >= 0)
+                        // 2. UPDATE RAW ASSET (Title, Visibility, and Native Price)
+                        if (req.MediaId > 0)
                         {
-                            string offerSql = @"
-                                INSERT INTO marketplace_offers 
-                                    (target_type, target_id, price, license_type, is_active, is_locked, created_at) 
-                                VALUES 
-                                    (@TargetType, @TargetId, @Price, @LicenseType, @IsActive, @IsLocked, UTC_TIMESTAMP())
-                                ON DUPLICATE KEY UPDATE 
-                                    price = @Price, 
-                                    license_type = @LicenseType, 
-                                    is_active = @IsActive,
-                                    is_locked = @IsLocked;";
-
-                            using (MySqlCommand offerCmd = new MySqlCommand(offerSql, conn, transaction))
+                            string mediaSql = "UPDATE media_images SET title = @Title, visibility = @Visibility, price = @Price WHERE image_id = @MediaId AND user_id = @UserId";
+                            using (MySqlCommand mCmd = new MySqlCommand(mediaSql, conn, transaction))
                             {
-                                offerCmd.Parameters.AddWithValue("@TargetType", targetType);
-                                offerCmd.Parameters.AddWithValue("@TargetId", targetId);
-                                offerCmd.Parameters.AddWithValue("@Price", req.Price.Value);
-
-                                offerCmd.Parameters.AddWithValue("@LicenseType", 1);
-                                offerCmd.Parameters.AddWithValue("@IsActive", 1);
-                                offerCmd.Parameters.AddWithValue("@IsLocked", 0);
-
-                                offerCmd.ExecuteNonQuery();
+                                mCmd.Parameters.AddWithValue("@Title", req.Title ?? (object)DBNull.Value);
+                                mCmd.Parameters.AddWithValue("@Visibility", req.Visibility);
+                                mCmd.Parameters.AddWithValue("@Price", req.Price ?? (object)DBNull.Value);
+                                mCmd.Parameters.AddWithValue("@MediaId", req.MediaId);
+                                mCmd.Parameters.AddWithValue("@UserId", userId);
+                                mCmd.ExecuteNonQuery();
                             }
-                        }
-                        else
-                        {
-                            // Pull off market if Price is null
-                            string remSql = "UPDATE marketplace_offers SET is_active = 0 WHERE target_type = @TargetType AND target_id = @TargetId;";
-                            using (MySqlCommand remCmd = new MySqlCommand(remSql, conn, transaction))
+
+                            // 3. MARKETPLACE PRICE HISTORY (TargetType 3 = Image)
+                            decimal? currentActivePrice = null;
+                            string checkSql = "SELECT price FROM marketplace_offers WHERE target_id = @MediaId AND target_type = 3 AND is_active = 1 LIMIT 1";
+                            using (MySqlCommand cCmd = new MySqlCommand(checkSql, conn, transaction))
                             {
-                                remCmd.Parameters.AddWithValue("@TargetType", targetType);
-                                remCmd.Parameters.AddWithValue("@TargetId", targetId);
-                                remCmd.ExecuteNonQuery();
+                                cCmd.Parameters.AddWithValue("@MediaId", req.MediaId);
+                                object res = cCmd.ExecuteScalar();
+                                if (res != null && res != DBNull.Value)
+                                {
+                                    currentActivePrice = Convert.ToDecimal(res);
+                                }
+                            }
+
+                            // Only touch the ledger if the price actually changed
+                            if (req.Price != currentActivePrice)
+                            {
+                                string deactSql = "UPDATE marketplace_offers SET is_active = 0 WHERE target_id = @MediaId AND target_type = 3";
+                                using (MySqlCommand dCmd = new MySqlCommand(deactSql, conn, transaction))
+                                {
+                                    dCmd.Parameters.AddWithValue("@MediaId", req.MediaId);
+                                    dCmd.ExecuteNonQuery();
+                                }
+
+                                if (req.Price.HasValue && req.Price.Value >= 0)
+                                {
+                                    string insSql = "INSERT INTO marketplace_offers (target_type, target_id, price, license_type, is_active, is_locked, created_at) VALUES (3, @MediaId, @Price, 1, 1, 0, UTC_TIMESTAMP())";
+                                    using (MySqlCommand iCmd = new MySqlCommand(insSql, conn, transaction))
+                                    {
+                                        iCmd.Parameters.AddWithValue("@MediaId", req.MediaId);
+                                        iCmd.Parameters.AddWithValue("@Price", req.Price.Value);
+                                        iCmd.ExecuteNonQuery();
+                                    }
+                                }
                             }
                         }
 

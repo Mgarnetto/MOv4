@@ -183,4 +183,14 @@ namespace MoozicOrb.API.Models
 
         public long? CoverImageId { get; set; }
     }
+    public class UpdateHubMediaDto
+    {
+        public long MediaId { get; set; }
+        public long PostId { get; set; }
+        public string Title { get; set; }
+        public string Text { get; set; }
+        public decimal? Price { get; set; }
+        public int Visibility { get; set; } = 0;
+        public List<MediaAttachmentDto> MediaAttachments { get; set; } = new List<MediaAttachmentDto>();
+    }
 }

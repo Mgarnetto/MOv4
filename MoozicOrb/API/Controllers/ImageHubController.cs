@@ -75,16 +75,23 @@ namespace MoozicOrb.API.Controllers
 
         // PUT: api/imagehub/image/{id}
         [HttpPut("image/{id}")]
-        public IActionResult UpdateImageInspector(long id, [FromBody] UpdatePostDto req)
+        public IActionResult UpdateImageInspector(long id, [FromBody] UpdateHubMediaDto req)
         {
             try
             {
                 int userId = GetUserId();
                 if (userId == 0) return Unauthorized();
 
+                // GATEKEEPER: Ensure they are not trying to edit a Merch/Classified post via the Hub
+                var getPostIo = new GetPost();
+                var post = getPostIo.Execute(req.PostId, userId, _resolver);
+                if (post != null && (post.Type == 3 || post.Type == 4))
+                {
+                    return BadRequest("Storefront and Classified posts must be edited via the standard post editor.");
+                }
+
                 var io = new UpdateImageMetadata();
-                // TargetType 3 = Image Media (Audio=1, Video=2, Image=3)
-                io.Execute(userId, req, id, 3);
+                io.Execute(userId, req);
 
                 return Ok(new { success = true });
             }
@@ -96,7 +103,7 @@ namespace MoozicOrb.API.Controllers
 
         // PUT: api/imagehub/collection/{id}
         [HttpPut("collection/{id}")]
-        public IActionResult UpdateCollectionInspector(long id, [FromBody] UpdatePostDto req)
+        public IActionResult UpdateCollectionInspector(long id, [FromBody] UpdateHubMediaDto req)
         {
             try
             {
@@ -104,8 +111,7 @@ namespace MoozicOrb.API.Controllers
                 if (userId == 0) return Unauthorized();
 
                 var io = new UpdateImageMetadata();
-                // TargetType 0 = Collection
-                io.Execute(userId, req, id, 0);
+                io.Execute(userId, req); // Handled by the same I/O class for collections
 
                 return Ok(new { success = true });
             }

@@ -272,7 +272,7 @@ function renderImageCollections(collections, profileUserId) {
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
                         <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 170px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
-                            <button onclick="event.stopPropagation(); window.openImageInspector('${colId}', '${safeTitle}', '${safeDesc}', ${price}, ${vis}, 4)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit"></i> Edit Gallery</button>
+                            <button onclick="event.stopPropagation(); window.openImageInspector('${colId}', 0, '${safeTitle}', '${safeDesc}', ${price}, ${vis}, 4)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit"></i> Edit Gallery</button>
                             <button class="text-danger" onclick="event.stopPropagation(); window.twoStepDeleteCollection(this, '${colId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete</button>
                         </div>
                     </div>
@@ -329,7 +329,11 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
                     <i class="fas fa-ellipsis-v"></i>
                 </div>
                 <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 160px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
-                    ${!isOrphan ? `<button onclick="event.stopPropagation(); window.openImageInspector('${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>` : ''}
+                    ${!isOrphan ? (
+                post.type === 1
+                    ? `<button onclick="event.stopPropagation(); window.openStandardEditorFromHub('${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-warning"></i> Edit Post</button>`
+                    : `<button onclick="event.stopPropagation(); window.openImageInspector('${mId}', '${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>`
+            ) : ''}
                     <button class="text-danger track-delete-btn" onclick="event.stopPropagation(); window.deleteVaultImage(${pId}, ${mId})" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #ff0055; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete Image</button>
                 </div>
             </div>
@@ -861,14 +865,26 @@ window.switchImgInspectorTab = function (tabName) {
     }
 };
 
-window.openImageInspector = function (id, title, desc, price, visibility, targetType) {
+window.openImageInspector = function (mediaId, postId, title, desc, price, visibility, targetType) {
     document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
 
     const sidebar = document.getElementById('image-inspector-sidebar');
     if (!sidebar) return;
 
-    document.getElementById('img-edit-target-id').value = id;
+    // Store MediaId in the existing input
+    document.getElementById('img-edit-target-id').value = mediaId;
     document.getElementById('img-edit-target-type').value = targetType;
+
+    // Inject and store PostId in a new hidden input
+    let postInput = document.getElementById('img-edit-post-id');
+    if (!postInput) {
+        postInput = document.createElement('input');
+        postInput.type = 'hidden';
+        postInput.id = 'img-edit-post-id';
+        sidebar.appendChild(postInput);
+    }
+    postInput.value = postId;
+
     document.getElementById('img-edit-title').value = decodeURIComponent(title === 'null' ? '' : title);
     document.getElementById('img-edit-desc').value = decodeURIComponent(desc === 'null' ? '' : desc);
     document.getElementById('img-edit-price').value = price > 0 ? parseFloat(price).toFixed(2) : '';
@@ -879,7 +895,7 @@ window.openImageInspector = function (id, title, desc, price, visibility, target
     if (targetType === 4 || targetType === 0 || targetType === '4' || targetType === '0') {
         document.getElementById('img-inspector-title').innerText = "Edit Gallery";
         if (galleryTabBtn) galleryTabBtn.classList.remove('d-none');
-        window.loadInspectorGalleryList(id);
+        window.loadInspectorGalleryList(mediaId); // mediaId acts as collectionId here
     } else {
         document.getElementById('img-inspector-title').innerText = "Edit Image Details";
         if (galleryTabBtn) galleryTabBtn.classList.add('d-none');
@@ -899,30 +915,29 @@ window.saveImageInspector = async function () {
     const originalText = btn.innerText;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
-    const id = document.getElementById('img-edit-target-id').value;
+    const mediaId = document.getElementById('img-edit-target-id').value;
+    const postId = document.getElementById('img-edit-post-id')?.value || 0;
     const type = document.getElementById('img-edit-target-type').value;
 
     const priceInput = document.getElementById('img-edit-price').value;
     const isCollection = (type == 4 || type == 0 || type == '4' || type == '0');
 
-    // FIX: Fully formatted payload to bypass ASP.NET Core Validation Checks
     const payload = {
-        Id: parseInt(id) || 0,
+        MediaId: parseInt(mediaId) || 0,
+        PostId: parseInt(postId) || 0,
         Title: document.getElementById('img-edit-title').value.trim() || "Untitled",
         Visibility: parseInt(document.getElementById('img-edit-visibility').value) || 0,
-        Price: priceInput === "" ? null : parseFloat(priceInput)
+        Price: priceInput === "" ? null : parseFloat(priceInput),
+        MediaAttachments: []
     };
 
     if (isCollection) {
-        payload.Description = document.getElementById('img-edit-desc').value.trim() || " ";
-        payload.Type = 4;
-        payload.DisplayContext = "gallery";
+        payload.Text = document.getElementById('img-edit-desc').value.trim() || " ";
     } else {
         payload.Text = document.getElementById('img-edit-desc').value.trim() || " ";
-        payload.MediaAttachments = [];
     }
 
-    const endpoint = isCollection ? `/api/collections/${id}` : `/api/posts/${id}`;
+    const endpoint = isCollection ? `/api/imagehub/collection/${mediaId}` : `/api/imagehub/image/${mediaId}`;
 
     try {
         const res = await fetch(endpoint, {
@@ -1409,5 +1424,27 @@ window.deleteVaultImage = async function (postId, mediaId) {
     } catch (err) {
         console.error("Error deleting image:", err);
         alert("A network error occurred while deleting.");
+    }
+};
+
+// NEW: Bridge to the global feed.js editor
+window.openStandardEditorFromHub = async function (postId) {
+    if (!postId || postId === '0') return;
+    document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
+
+    try {
+        const res = await fetch(`/api/posts/${postId}`, {
+            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
+        });
+        if (res.ok) {
+            const post = await res.json();
+            if (typeof window.openEditPostModal === 'function') {
+                window.openEditPostModal(post.id);
+            } else {
+                console.warn("Global post editor not found.");
+            }
+        }
+    } catch (e) {
+        console.error("Failed to hydrate standard post.", e);
     }
 };

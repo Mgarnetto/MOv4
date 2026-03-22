@@ -32,10 +32,11 @@ namespace MoozicOrb.IO
                         pm.media_id,
                         p.title,
                         mo.price
-                    FROM posts p
+                   FROM posts p
                     INNER JOIN post_media pm ON p.post_id = pm.post_id
                     INNER JOIN media_images img ON pm.media_id = img.image_id AND pm.media_type = 3
-                    LEFT JOIN marketplace_offers mo ON p.post_id = mo.target_id AND mo.target_type = 3";
+                    /* FIX: Must specify is_active = 1, otherwise price history causes duplicate grid items */
+                    LEFT JOIN marketplace_offers mo ON pm.media_id = mo.target_id AND mo.target_type = 3 AND mo.is_active = 1";
 
                 // Filter for unassigned images (not in a gallery)
                 if (onlyUnassigned)
