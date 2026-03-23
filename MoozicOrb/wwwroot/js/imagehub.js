@@ -315,6 +315,9 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
     const comments = post.commentsCount !== undefined ? post.commentsCount : (post.CommentsCount || 0);
     const isLiked = post.isLiked !== undefined ? post.isLiked : (post.IsLiked || false);
 
+    // Extract the title for display
+    const displayTitle = post.title || post.Title || '';
+
     let overlaysHtml = '';
     if (price > 0) {
         overlaysHtml += `<div class="img-badge-price">$${parseFloat(price).toFixed(2)}</div>`;
@@ -363,6 +366,11 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
                 <div class="vid-play-overlay"></div>
                 ${overlaysHtml}
                 ${gridInteractionsHtml}
+
+                ${displayTitle ? `
+                <div style="position: absolute; bottom: 45px; left: 10px; right: 10px; color: white; font-weight: bold; font-size: 0.95rem; text-shadow: 0 2px 4px rgba(0,0,0,0.9); z-index: 5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none;">
+                    ${displayTitle}
+                </div>` : ''}
             </div>
             ${actionsHtml}
         </div>
@@ -617,6 +625,21 @@ const _internalOpenLightbox = function (index) {
 
     document.getElementById('lightboxMainImage').src = imageUrl;
     document.getElementById('lightboxCurrentPostId').value = postId;
+
+    // NEW: Inject Title and Description into the Lightbox UI
+    const displayTitle = post.title || post.Title || '';
+    const displayDesc = post.text || post.Text || '';
+    const titleEl = document.getElementById('lightboxMainTitle');
+    const descEl = document.getElementById('lightboxMainDesc');
+
+    if (titleEl) {
+        titleEl.innerText = displayTitle;
+        titleEl.style.display = displayTitle ? 'block' : 'none';
+    }
+    if (descEl) {
+        descEl.innerText = displayDesc;
+        descEl.style.display = displayDesc ? 'block' : 'none';
+    }
 
     const likes = post.likesCount !== undefined ? post.likesCount : (post.LikesCount || 0);
     const comments = post.commentsCount !== undefined ? post.commentsCount : (post.CommentsCount || 0);
