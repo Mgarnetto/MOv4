@@ -214,8 +214,17 @@ namespace MoozicOrb.IO
             return $@"
                 SELECT 
                     p.post_id, p.user_id, p.context_type, p.context_id,
-                    p.post_type, p.title, p.content_text, p.image_url, p.created_at,
-                    /* FIX: Check the marketplace ledger for active media prices first (both Video and Image targets), fallback to the wrapper price */
+                    p.post_type, 
+                    
+                    /* FIX: Native Title Fallback. Checks native media tables first, falls back to wrapper */
+                    COALESCE(
+                        NULLIF((SELECT title FROM media_video WHERE video_id = p.media_id LIMIT 1), ''),
+                        NULLIF((SELECT title FROM media_images WHERE image_id = p.media_id LIMIT 1), ''),
+                        NULLIF(p.title, '')
+                    ) AS title,
+
+                    p.content_text, p.image_url, p.created_at,
+                    /* Check the marketplace ledger for active media prices first, fallback to the wrapper price */
                     COALESCE((SELECT price FROM marketplace_offers WHERE target_id = p.media_id AND target_type IN (2, 3) AND is_active = 1 LIMIT 1), p.price) AS price,
                     p.quantity, p.location_label, p.difficulty_level, p.video_url, p.media_id, p.category,
                     p.visibility,

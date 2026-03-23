@@ -28,7 +28,7 @@ namespace MoozicOrb.IO
                         p.created_at,
                         img.file_path AS url,
                         pm.media_id,
-                        p.title,
+                        COALESCE(NULLIF(img.title, ''), NULLIF(p.title, '')) AS title,
                         mo.price
                    FROM posts p
                     INNER JOIN post_media pm ON p.post_id = pm.post_id
