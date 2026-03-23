@@ -9,6 +9,10 @@ window.currentLightboxIndex = 0;
 // HELPER: Safely resolves relative image paths to the root domain to prevent 404s
 const resolveMediaUrl = (url) => {
     if (!url || url === 'null') return '/img/default_cover.jpg';
+
+    // FIX: Normalize Windows-style backslashes from local DB paths to web forward slashes
+    url = url.replace(/\\/g, '/');
+
     if (url.startsWith('http') || url.startsWith('/')) return url;
     return '/' + url;
 };

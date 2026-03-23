@@ -20,21 +20,28 @@ namespace MoozicOrb.IO
                 string sql = @"
                     SELECT 
                         p.post_id, 
-                        p.post_type, /* FIX: Added post_type so JS can route the edit button */
+                        p.post_type, 
                         p.visibility, 
                         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.post_id) AS likes_count, 
                         (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count, 
                         (SELECT COUNT(*) FROM post_likes pl2 WHERE pl2.post_id = p.post_id AND pl2.user_id = @ViewerId) AS is_liked,
                         p.created_at,
                         img.file_path AS url,
+                        img.storage_provider, 
                         pm.media_id,
-                        COALESCE(NULLIF(img.title, ''), NULLIF(p.title, '')) AS title,
+                        
+                        /* FIX: Smart Title Routing based on Post Type */
+                        CASE 
+                            WHEN p.post_type = 1 THEN COALESCE(NULLIF(p.title, ''), NULLIF(img.title, ''))
+                            ELSE COALESCE(NULLIF(img.title, ''), NULLIF(p.title, ''))
+                        END AS title,
+                        
                         mo.price
                    FROM posts p
                     INNER JOIN post_media pm ON p.post_id = pm.post_id
                     INNER JOIN media_images img ON pm.media_id = img.image_id AND pm.media_type = 3
                     LEFT JOIN marketplace_offers mo ON pm.media_id = mo.target_id AND mo.target_type = 3 AND mo.is_active = 1
-                   WHERE p.post_type IN (1, 7)"; /* FIX: Walls off Storefront/Classifieds */
+                   WHERE p.post_type IN (1, 7)";
 
                 // Filter for unassigned images (not in a gallery)
                 if (onlyUnassigned)
@@ -63,10 +70,13 @@ namespace MoozicOrb.IO
                     {
                         while (rdr.Read())
                         {
+                            // Extract the proper storage provider flag
+                            int storageProvider = rdr["storage_provider"] != DBNull.Value ? Convert.ToInt32(rdr["storage_provider"]) : 0;
+
                             var dto = new PostDto
                             {
                                 Id = Convert.ToInt64(rdr["post_id"]),
-                                Type = rdr["post_type"] != DBNull.Value ? Convert.ToInt32(rdr["post_type"]) : 0, /* FIX: Mapped to DTO */
+                                Type = rdr["post_type"] != DBNull.Value ? Convert.ToInt32(rdr["post_type"]) : 0,
                                 Visibility = Convert.ToInt32(rdr["visibility"]),
                                 LikesCount = Convert.ToInt32(rdr["likes_count"]),
                                 CommentsCount = Convert.ToInt32(rdr["comments_count"]),
@@ -80,7 +90,7 @@ namespace MoozicOrb.IO
                                     {
                                         MediaId = Convert.ToInt64(rdr["media_id"]),
                                         MediaType = 3,
-                                        Url = resolver != null ? resolver.ResolveUrl(rdr["url"].ToString(), 3) : rdr["url"].ToString()
+                                        Url = resolver != null ? resolver.ResolveUrl(rdr["url"].ToString(), storageProvider) : rdr["url"].ToString()
                                     }
                                 }
                             };
