@@ -4,6 +4,7 @@
    ============================================ */
 
 window.currentVaultImages = [];
+window.currentImageCollections = []; // FIX: Global cache to resolve collection covers perfectly
 window.currentLightboxIndex = 0;
 
 // HELPER: Safely resolves relative image paths to the root domain to prevent 404s
@@ -62,6 +63,7 @@ window.loadImageHub = async function (userId, unassignedOnly = true) {
         });
         if (colRes.ok) {
             const collections = await colRes.json();
+            window.currentImageCollections = collections; // FIX: Cache collections globally for dock lookups
             renderImageCollections(collections, userId);
         }
 
@@ -158,7 +160,7 @@ function renderImageCarouselUI(items, isFallback) {
     `;
 
     items.forEach((item) => {
-        const title = item.title || item.Title || "Untitled Image";
+        const title = item.title || item.Title || "Untitled";
         let rawUrl = item.artUrl || item.ArtUrl || item.url || item.Url;
 
         if (!rawUrl && item.attachments) {
@@ -171,16 +173,38 @@ function renderImageCarouselUI(items, isFallback) {
 
         const imgUrl = resolveMediaUrl(rawUrl);
         const postId = item.postId || item.PostId || item.id || item.Id || item.targetId || item.TargetId;
+        const tType = item.targetType !== undefined ? item.targetType : (item.TargetType !== undefined ? item.TargetType : 3);
+
+        let finalImgUrl = imgUrl;
+
+        // Smart Routing Logic
+        let clickAction = `window.openLightboxByPostId(${postId})`;
+        let iconHtml = `<i class="fas fa-expand-arrows-alt" style="color: white; font-size: 3rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8);"></i>`;
+
+        // If it's a Collection (0) or Image Gallery (4)
+        if (tType === 0 || tType === 4 || tType === '0' || tType === '4') {
+            const safeTitleClick = encodeURIComponent(title).replace(/'/g, "%27");
+            clickAction = `window.viewImageCollection('${postId}', '${safeTitleClick}')`;
+            iconHtml = `<i class="fas fa-images" style="color: white; font-size: 3rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8);"></i>`;
+
+            // FIX: Bulletproof Collection Cover Lookup
+            if (window.currentImageCollections) {
+                const foundCol = window.currentImageCollections.find(c => String(c.id || c.Id) === String(postId));
+                if (foundCol && (foundCol.coverImageUrl || foundCol.CoverImageUrl)) {
+                    finalImgUrl = resolveMediaUrl(foundCol.coverImageUrl || foundCol.CoverImageUrl);
+                }
+            }
+        }
 
         html += `
             <div style="flex: 0 0 250px; background: #1a1a1a; border: 1px solid #333; border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; transition: transform 0.2s;" 
                  onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'"
-                 onclick="window.openLightboxByPostId(${postId})">
+                 onclick="${clickAction}">
                 
                 <div style="position: relative; width: 100%; aspect-ratio: 1/1;">
-                    <img src="${imgUrl}" style="width: 100%; height: 100%; object-fit: cover;">
+                    <img src="${finalImgUrl}" style="width: 100%; height: 100%; object-fit: cover;">
                     <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
-                        <i class="fas fa-expand-arrows-alt" style="color: white; font-size: 3rem; text-shadow: 0 2px 5px rgba(0,0,0,0.8);"></i>
+                        ${iconHtml}
                     </div>
                 </div>
                 <div style="padding: 10px; text-align: center; color: white; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.9rem;">
@@ -273,6 +297,8 @@ function renderImageCollections(collections, profileUserId) {
                     
                     ${isOwner ? `
                     <div class="vid-top-right-actions">
+                        <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToImageCarouselDock('${colId}', '${safeTitle}', '${art}', 0)" title="Feature Gallery"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                        
                         <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
@@ -334,6 +360,8 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
     if (isOwner) {
         actionsHtml = `
             <div class="vid-top-right-actions">
+                <div class="vid-action-circle" onclick="event.stopPropagation(); window.addToImageCarouselDock('${mId}', '${titleEnc}', '${imageUrl}', 3)" title="Feature Image"><i class="fas fa-star" style="font-size:0.8rem;"></i></div>
+                
                 <div class="vid-action-circle position-relative" onclick="event.stopPropagation(); this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
                     <i class="fas fa-ellipsis-v"></i>
                 </div>
@@ -670,17 +698,17 @@ const _internalOpenLightbox = function (index) {
 window.openImageLightbox = function (index) {
     if (window.isImageCarouselManagerActive) {
         const post = window.currentVaultImages[index];
-        const postId = post.id !== undefined ? post.id : post.Id;
-
-        if (window.imageCarouselDockItems.length >= 5) return alert("Maximum 5 images allowed.");
-        if (window.imageCarouselDockItems.find(x => x.postId === postId)) return alert("Image already in dock.");
 
         const attachments = post.attachments || post.Attachments || [];
         const imgAttach = attachments.find(a => (a.mediaType || a.MediaType) === 3);
+        const mId = imgAttach ? (imgAttach.mediaId || imgAttach.MediaId) : 0;
         const url = resolveMediaUrl(imgAttach ? (imgAttach.url || imgAttach.Url) : null);
+        const titleEnc = encodeURIComponent(post.title || post.Title || '').replace(/'/g, "%27");
 
-        window.imageCarouselDockItems.push({ postId, url });
-        window.renderImageCarouselDockSlots();
+        if (window.imageCarouselDockItems.length >= 10) return alert("Maximum allowed limit reached.");
+        if (window.imageCarouselDockItems.find(x => String(x.id) === String(mId))) return alert("Image already in dock.");
+
+        window.addToImageCarouselDock(mId, titleEnc, url, 3);
         return;
     }
     _internalOpenLightbox(index);
@@ -1189,16 +1217,17 @@ window.openImageCollectionBuilder = async function () {
                 vaultList.innerHTML = '<div class="text-muted small">No unassigned images available. Upload more to the vault!</div>';
             } else {
                 looseImages.forEach(img => {
-                    const pId = img.id || img.Id;
                     const attach = (img.attachments || img.Attachments || []).find(a => (a.mediaType || a.MediaType) === 3);
                     const url = resolveMediaUrl(attach ? (attach.url || attach.Url) : null);
+                    // FIX: Pass mId to the gallery builder so it tracks correct image records
+                    const mId = attach ? (attach.mediaId || attach.MediaId) : 0;
 
                     const el = document.createElement('div');
                     el.className = 'builder-vault-item';
                     el.style.cssText = 'position: relative; width: 100%; padding-top: 100%; cursor: pointer; border-radius: 6px; overflow: hidden; border: 2px solid transparent; transition: transform 0.2s, border-color 0.2s;';
                     el.innerHTML = `<img src="${url}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;">`;
 
-                    el.onclick = () => window.toggleImageBuilderSelection(pId, url, el);
+                    el.onclick = () => window.toggleImageBuilderSelection(mId, url, el);
                     vaultList.appendChild(el);
                 });
             }
@@ -1214,11 +1243,11 @@ window.closeImageCollectionBuilder = function () {
     document.body.classList.remove('no-scroll');
 };
 
-window.toggleImageBuilderSelection = function (postId, url, element) {
-    const index = window.imageBuilderSelectedItems.findIndex(x => x.postId === postId);
+window.toggleImageBuilderSelection = function (targetId, url, element) {
+    const index = window.imageBuilderSelectedItems.findIndex(x => x.targetId === targetId);
 
     if (index === -1) {
-        window.imageBuilderSelectedItems.push({ postId, url });
+        window.imageBuilderSelectedItems.push({ targetId, url });
         element.style.borderColor = '#0dcaf0';
         element.style.opacity = '0.5';
     } else {
@@ -1247,21 +1276,21 @@ window.renderImageBuilderSelectedList = function () {
                 <span style="color: #666; font-weight: bold; width: 20px;">${index + 1}.</span>
                 <img src="${item.url}" style="width:40px; height:40px; object-fit:cover; border-radius: 4px;">
             </div>
-            <button onclick="window.removeImageBuilderSelection(${item.postId})" style="background: #ff4d4d; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; flex-shrink:0; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-minus"></i></button>
+            <button onclick="window.removeImageBuilderSelection(${item.targetId})" style="background: #ff4d4d; border: none; color: white; border-radius: 50%; width: 24px; height: 24px; flex-shrink:0; display: flex; align-items: center; justify-content: center; cursor: pointer;"><i class="fas fa-minus"></i></button>
         `;
         container.appendChild(el);
     });
 };
 
-window.removeImageBuilderSelection = function (postId) {
-    window.imageBuilderSelectedItems = window.imageBuilderSelectedItems.filter(x => x.postId !== postId);
+window.removeImageBuilderSelection = function (targetId) {
+    window.imageBuilderSelectedItems = window.imageBuilderSelectedItems.filter(x => x.targetId !== targetId);
     window.renderImageBuilderSelectedList();
 
     const vaultList = document.getElementById('icBuilderVaultList');
     if (vaultList) {
         const items = vaultList.querySelectorAll('.builder-vault-item');
         items.forEach(el => {
-            if (el.onclick.toString().includes(postId)) {
+            if (el.onclick.toString().includes(targetId)) {
                 el.style.borderColor = 'transparent';
                 el.style.opacity = '1';
             }
@@ -1283,7 +1312,7 @@ window.saveImageCollection = async function () {
     }
 
     const itemsPayload = window.imageBuilderSelectedItems.map((item, index) => ({
-        TargetId: parseInt(item.postId),
+        TargetId: parseInt(item.targetId),
         TargetType: 3,
         SortOrder: index
     }));
@@ -1330,7 +1359,7 @@ window.saveImageCollection = async function () {
 window.isImageCarouselManagerActive = false;
 window.imageCarouselDockItems = [];
 
-window.toggleImageCarouselManager = function () {
+window.toggleImageCarouselManager = async function () {
     const dock = document.getElementById('imageCarouselManagerDock');
     window.isImageCarouselManagerActive = !window.isImageCarouselManagerActive;
 
@@ -1338,12 +1367,53 @@ window.toggleImageCarouselManager = function () {
 
     if (window.isImageCarouselManagerActive) {
         if (dock) dock.classList.remove('d-none');
-        window.imageCarouselDockItems = [];
-        window.renderImageCarouselDockSlots();
 
         if (btn) {
             btn.innerHTML = '<i class="fas fa-check"></i> <span>Close Manager</span>';
             btn.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
+        }
+
+        window.renderImageCarouselDockSlots();
+
+        // Auto-load existing carousel into the dock if empty
+        const userId = window.AuthState?.userId;
+        if (userId && window.imageCarouselDockItems.length === 0) {
+            try {
+                const existRes = await fetch(`/api/collections/user/${userId}/context/ProfileCarousel`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+                if (existRes.ok) {
+                    const collections = await existRes.json();
+                    if (collections && collections.length > 0) {
+                        const colId = collections[0].id || collections[0].Id;
+                        const detailRes = await fetch(`/api/collections/${colId}`, { headers: { "X-Session-Id": window.AuthState?.sessionId || "" } });
+                        if (detailRes.ok) {
+                            const details = await detailRes.json();
+                            const items = details.items || details.Items || [];
+
+                            window.imageCarouselDockItems = items.map(item => {
+                                const tType = item.targetType !== undefined ? item.targetType : (item.TargetType !== undefined ? item.TargetType : 3);
+                                const tId = String(item.targetId || item.TargetId);
+                                let cUrl = item.coverImageUrl || item.CoverImageUrl || item.artUrl || item.ArtUrl || '/img/default_cover.jpg';
+
+                                // FIX: Bulletproof Collection Cover Lookup for dock slots
+                                if ((tType === 0 || tType === 4 || tType === '0' || tType === '4') && window.currentImageCollections) {
+                                    const foundCol = window.currentImageCollections.find(c => String(c.id || c.Id) === tId);
+                                    if (foundCol && (foundCol.coverImageUrl || foundCol.CoverImageUrl)) {
+                                        cUrl = foundCol.coverImageUrl || foundCol.CoverImageUrl;
+                                    }
+                                }
+
+                                return {
+                                    id: tId,
+                                    title: item.title || item.Title,
+                                    imgUrl: resolveMediaUrl(cUrl),
+                                    targetType: tType
+                                };
+                            });
+                            window.renderImageCarouselDockSlots();
+                        }
+                    }
+                }
+            } catch (e) { }
         }
     } else {
         if (dock) dock.classList.add('d-none');
@@ -1362,37 +1432,68 @@ window.renderImageCarouselDockSlots = function () {
     window.imageCarouselDockItems.forEach((item) => {
         const el = document.createElement('div');
         el.style.cssText = 'width: 100px; height: 100px; position: relative; border-radius: 6px; overflow: hidden; flex-shrink: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.5);';
+
+        const typeBadge = (item.targetType === 0 || item.targetType === 4 || item.targetType === '0' || item.targetType === '4')
+            ? `<div style="position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,0.7); color:white; font-size:10px; text-align:center; padding:2px 0;"><i class="fas fa-images"></i> Gallery</div>`
+            : '';
+
         el.innerHTML = `
-            <img src="${item.url}" style="width:100%; height:100%; object-fit:cover;">
-            <div style="position:absolute; top:0; right:0; background:rgba(220,53,69,0.9); color:white; font-size:12px; padding:2px 6px; cursor:pointer;" onclick="window.removeImageCarouselDockItem(${item.postId})"><i class="fas fa-times"></i></div>
+            <img src="${item.imgUrl}" style="width:100%; height:100%; object-fit:cover;">
+            ${typeBadge}
+            <div style="position:absolute; top:0; right:0; background:rgba(220,53,69,0.9); color:white; font-size:12px; padding:2px 6px; cursor:pointer;" onclick="window.removeFromImageCarouselDock('${item.id}')"><i class="fas fa-times"></i></div>
         `;
         container.appendChild(el);
     });
 
     if (window.imageCarouselDockItems.length === 0) {
-        container.innerHTML = '<div class="text-muted w-100 text-center" style="line-height: 100px;">Click images below to add them to the dock.</div>';
+        container.innerHTML = '<div class="text-muted w-100 text-center" style="line-height: 100px;">Click the <i class="fas fa-star"></i> on an image or gallery to feature it here.</div>';
     }
 };
 
-window.removeImageCarouselDockItem = function (postId) {
-    window.imageCarouselDockItems = window.imageCarouselDockItems.filter(x => x.postId !== postId);
+// FIX: Awaiting the manager toggle stops the asynchronous loading from overwriting the first click
+window.addToImageCarouselDock = async function (targetId, titleEnc, imgUrl, targetType = 3) {
+    if (!window.isImageCarouselManagerActive) {
+        await window.toggleImageCarouselManager();
+    }
+
+    if (window.imageCarouselDockItems.find(x => String(x.id) === String(targetId))) return;
+    if (window.imageCarouselDockItems.length >= 10) { alert("Carousel limit reached."); return; }
+
+    window.imageCarouselDockItems.push({
+        id: String(targetId),
+        title: decodeURIComponent(titleEnc),
+        imgUrl: imgUrl,
+        targetType: targetType
+    });
+    window.renderImageCarouselDockSlots();
+};
+
+window.removeFromImageCarouselDock = function (targetId) {
+    window.imageCarouselDockItems = window.imageCarouselDockItems.filter(x => String(x.id) !== String(targetId));
     window.renderImageCarouselDockSlots();
 };
 
 window.saveImageCarouselDock = async function () {
-    if (window.imageCarouselDockItems.length === 0) return alert("Dock is empty.");
-
+    // Removed the empty dock blocker so user can reset their carousel
     const btn = document.getElementById('btnSaveCarouselDock');
     if (btn) {
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
     }
 
+    const itemsPayload = window.imageCarouselDockItems.map((item, index) => ({
+        TargetId: parseInt(item.id),
+        TargetType: item.targetType !== undefined ? item.targetType : 3,
+        SortOrder: index
+    }));
+
     const payload = {
         Title: "Featured Carousel",
+        Description: "Featured Images & Galleries",
         Type: 10,
         DisplayContext: 'ProfileCarousel',
-        TargetIds: window.imageCarouselDockItems.map(x => x.postId)
+        CoverImageId: 0,
+        Items: itemsPayload
     };
 
     try {

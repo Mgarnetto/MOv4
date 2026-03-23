@@ -43,10 +43,10 @@ namespace MoozicOrb.IO
                     LEFT JOIN marketplace_offers mo ON pm.media_id = mo.target_id AND mo.target_type = 3 AND mo.is_active = 1
                    WHERE p.post_type IN (1, 7)";
 
-                // Filter for unassigned images (not in a gallery)
+                // FIX: Properly compare media_id against media_id in collection_items
                 if (onlyUnassigned)
                 {
-                    sql += " AND p.post_id NOT IN (SELECT target_id FROM collection_items ci WHERE ci.target_type = 3) AND p.user_id = @TargetId";
+                    sql += " AND pm.media_id NOT IN (SELECT target_id FROM collection_items ci WHERE ci.target_type = 3) AND p.user_id = @TargetId";
                 }
                 else
                 {
