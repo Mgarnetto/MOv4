@@ -16,12 +16,14 @@ namespace MoozicOrb.IO
                 {
                     try
                     {
-                        // 1. UPDATE POST WRAPPER (Description & Feed Visibility)
+                        // 1. UPDATE POST WRAPPER (Description, TITLE & Feed Visibility)
                         if (req.PostId > 0)
                         {
-                            string postSql = "UPDATE posts SET content_text = @Text, visibility = @Visibility WHERE post_id = @PostId AND user_id = @UserId";
+                            // FIX: Added title = @Title so the Feed UI shows the updated title instantly
+                            string postSql = "UPDATE posts SET title = @Title, content_text = @Text, visibility = @Visibility WHERE post_id = @PostId AND user_id = @UserId";
                             using (MySqlCommand pCmd = new MySqlCommand(postSql, conn, transaction))
                             {
+                                pCmd.Parameters.AddWithValue("@Title", req.Title ?? (object)DBNull.Value);
                                 pCmd.Parameters.AddWithValue("@Text", req.Text ?? (object)DBNull.Value);
                                 pCmd.Parameters.AddWithValue("@Visibility", req.Visibility);
                                 pCmd.Parameters.AddWithValue("@PostId", req.PostId);

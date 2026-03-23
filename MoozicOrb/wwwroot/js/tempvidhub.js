@@ -56,6 +56,7 @@ function renderVaultGrid(posts, isOwner) {
         const title = post.title || post.Title || 'Untitled Video';
         const price = post.price !== undefined ? post.price : post.Price;
         const vis = post.visibility !== undefined ? post.visibility : (post.Visibility || 0);
+        const postType = post.type !== undefined ? post.type : (post.Type || 0);
 
         const attachments = post.attachments || post.Attachments || [];
         const vidAttach = attachments.find(a => (a.mediaType || a.MediaType) === 2);
@@ -98,7 +99,11 @@ function renderVaultGrid(posts, isOwner) {
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
                         <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 150px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
-                            ${!isOrphan ? `<button onclick="event.stopPropagation(); window.openVideoInspector('${mediaId}', '${pId}', '${safeTitle}', '${safeDesc}', ${price || 0}, ${vis}, '${thumbSrc}', 2)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Video</button>` : ''}
+                            ${!isOrphan ? (
+                    postType === 1
+                        ? `<button onclick="event.stopPropagation(); window.openStandardEditorFromHub('${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-warning"></i> Edit Post</button>`
+                        : `<button onclick="event.stopPropagation(); window.openVideoInspector('${mediaId}', '${pId}', '${safeTitle}', '${safeDesc}', ${price || 0}, ${vis}, '${thumbSrc}', 2)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Video</button>`
+                ) : ''}
                             <button class="text-danger" onclick="event.stopPropagation(); window.twoStepDeleteVideo(this, '${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete</button>
                         </div>
                     </div>
@@ -1082,8 +1087,6 @@ window.loadCinemaComments = async function (postId) {
             // Recursive Comment Renderer
             const renderComment = (c, isReply = false) => {
                 const pic = resolvePic(c.authorPic);
-                const safeAuthorName = encodeURIComponent(c.authorName).replace(/'/g, "%27");
-
                 let html = `
                     <div style="display: flex; gap: 12px; margin-bottom: ${isReply ? '12' : '20'}px; ${!isReply ? 'border-bottom: 1px solid #222; padding-bottom: 15px;' : ''}">
                         <img src="${pic}" style="width: ${isReply ? '28' : '40'}px; height: ${isReply ? '28' : '40'}px; border-radius: 50%; object-fit: cover; border: 1px solid #333; flex-shrink: 0;">
@@ -1095,7 +1098,7 @@ window.loadCinemaComments = async function (postId) {
                             <div style="color: #ccc; font-size: ${isReply ? '0.85' : '0.95'}rem; margin-top: 4px; line-height: 1.4; word-break: break-word;">${c.content}</div>
                             ${!isReply ? `
                             <div style="margin-top: 6px;">
-                                <button onclick="window.prepareCinemaReply(${c.commentId}, '${safeAuthorName}')" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 2px 10px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.2)'" onmouseout="this.style.background='rgba(13, 202, 240, 0.1)'">Reply</button>
+                                <button onclick="window.prepareCinemaReply(${c.commentId}, '${encodeURIComponent(c.authorName)}')" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 2px 10px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.2)'" onmouseout="this.style.background='rgba(13, 202, 240, 0.1)'">Reply</button>
                             </div>
                             ` : ''}
                         </div>

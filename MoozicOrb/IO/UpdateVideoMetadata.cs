@@ -64,9 +64,11 @@ namespace MoozicOrb.IO
                                 // VIDEO HUB ISOLATION: Update Post Wrapper
                                 if (req.PostId > 0)
                                 {
-                                    string postSql = "UPDATE posts SET content_text = @text, visibility = @vis WHERE post_id = @pid";
+                                    // FIX: Sync title to the posts table so the Feed shows the updated title
+                                    string postSql = "UPDATE posts SET title = @title, content_text = @text, visibility = @vis WHERE post_id = @pid";
                                     using (var pCmd = new MySqlCommand(postSql, conn, transaction))
                                     {
+                                        pCmd.Parameters.AddWithValue("@title", req.Title ?? "");
                                         pCmd.Parameters.AddWithValue("@text", req.Text ?? "");
                                         pCmd.Parameters.AddWithValue("@vis", req.Visibility);
                                         pCmd.Parameters.AddWithValue("@pid", req.PostId);

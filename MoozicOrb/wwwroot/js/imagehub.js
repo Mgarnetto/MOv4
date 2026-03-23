@@ -257,8 +257,9 @@ function renderImageCollections(collections, profileUserId) {
         const price = col.price || col.Price || 0;
         const vis = col.visibility || col.Visibility || 0;
 
-        const safeTitle = encodeURIComponent(title);
-        const safeDesc = encodeURIComponent(desc);
+        // FIX: Bulletproof apostrophe escaping
+        const safeTitle = encodeURIComponent(title).replace(/'/g, "%27");
+        const safeDesc = encodeURIComponent(desc).replace(/'/g, "%27");
 
         html += `
             <div class="vid-card">
@@ -295,8 +296,6 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
 
     const pId = post.id !== undefined ? post.id : post.Id;
     const pVis = post.visibility !== undefined ? post.visibility : post.Visibility;
-
-    // FIX: Bulletproof check for post type (PascalCase vs camelCase)
     const postType = post.type !== undefined ? post.type : (post.Type || 0);
 
     const attachments = post.attachments || post.Attachments || [];
@@ -306,8 +305,9 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
 
     const isOrphan = !pId || pId === 0 || pId === '0';
 
-    const titleEnc = encodeURIComponent(post.title || post.Title || '');
-    const descEnc = encodeURIComponent(post.text || post.Text || '');
+    // FIX: Bulletproof apostrophe escaping
+    const titleEnc = encodeURIComponent(post.title || post.Title || '').replace(/'/g, "%27");
+    const descEnc = encodeURIComponent(post.text || post.Text || '').replace(/'/g, "%27");
     const price = post.price !== undefined ? post.price : (post.Price || null);
     const isOwner = window.AuthState && String(window.AuthState.userId) === String(profileUserId);
 
@@ -332,7 +332,7 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
                 </div>
                 <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 160px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
                     ${!isOrphan ? (
-                postType === 1 /* FIX: Uses safe variable */
+                postType === 1
                     ? `<button onclick="event.stopPropagation(); window.openStandardEditorFromHub('${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-warning"></i> Edit Post</button>`
                     : `<button onclick="event.stopPropagation(); window.openImageInspector('${mId}', '${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>`
             ) : ''}
@@ -755,6 +755,9 @@ window.loadLightboxComments = async function (postId) {
 
             const renderComment = (c, isReply = false) => {
                 const pic = resolveMediaUrl(c.authorPic);
+                // FIX: Escape apostrophes in author name for reply button
+                const safeAuthorName = encodeURIComponent(c.authorName).replace(/'/g, "%27");
+
                 let html = `
                     <div style="display: flex; gap: 12px; margin-bottom: ${isReply ? '12' : '20'}px; ${!isReply ? 'border-bottom: 1px solid #222; padding-bottom: 15px;' : ''}">
                         <img src="${pic}" style="width: ${isReply ? '28' : '40'}px; height: ${isReply ? '28' : '40'}px; border-radius: 50%; object-fit: cover; border: 1px solid #333; flex-shrink: 0;">
@@ -766,7 +769,7 @@ window.loadLightboxComments = async function (postId) {
                             <div style="color: #ccc; font-size: ${isReply ? '0.85' : '0.95'}rem; margin-top: 4px; line-height: 1.4; word-break: break-word;">${c.content}</div>
                             ${!isReply ? `
                             <div style="margin-top: 6px;">
-                                <button onclick="window.prepareLightboxReply(${c.commentId}, '${encodeURIComponent(c.authorName)}')" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 2px 10px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.2)'" onmouseout="this.style.background='rgba(13, 202, 240, 0.1)'">Reply</button>
+                                <button onclick="window.prepareLightboxReply(${c.commentId}, '${safeAuthorName}')" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3); color: #0dcaf0; font-size: 0.75rem; font-weight: bold; cursor: pointer; padding: 2px 10px; border-radius: 12px; transition: 0.2s;" onmouseover="this.style.background='rgba(13, 202, 240, 0.2)'" onmouseout="this.style.background='rgba(13, 202, 240, 0.1)'">Reply</button>
                             </div>
                             ` : ''}
                         </div>
@@ -924,6 +927,7 @@ window.saveImageInspector = async function () {
     const priceInput = document.getElementById('img-edit-price').value;
     const isCollection = (type == 4 || type == 0 || type == '4' || type == '0');
 
+    // FIX: Properly formatting the Dual-ID Payload
     const payload = {
         MediaId: parseInt(mediaId) || 0,
         PostId: parseInt(postId) || 0,
@@ -1430,23 +1434,17 @@ window.deleteVaultImage = async function (postId, mediaId) {
 };
 
 // NEW: Bridge to the global feed.js editor
-window.openStandardEditorFromHub = async function (postId) {
+window.openStandardEditorFromHub = function (postId) {
     if (!postId || postId === '0') return;
+
+    // Close context menus
     document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
 
-    try {
-        const res = await fetch(`/api/posts/${postId}`, {
-            headers: { 'X-Session-Id': window.AuthState?.sessionId || '' }
-        });
-        if (res.ok) {
-            const post = await res.json();
-            if (typeof window.openEditPostModal === 'function') {
-                window.openEditPostModal(post.id);
-            } else {
-                console.warn("Global post editor not found.");
-            }
-        }
-    } catch (e) {
-        console.error("Failed to hydrate standard post.", e);
+    // Hand off directly to the existing FeedService (Removes the 404 fetch error)
+    if (window.FeedService && typeof window.FeedService.openEditModal === 'function') {
+        window.FeedService.openEditModal(postId);
+    } else {
+        console.warn("FeedService.openEditModal not found. Make sure feed.js is loaded.");
+        alert("Global post editor not available on this page.");
     }
 };

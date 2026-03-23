@@ -585,13 +585,14 @@ window.FeedService.submitEdit = async () => {
 
         if (btn) btn.innerText = "Saving Changes...";
 
-        // 4. SAFELY GRAB TEXT & TITLE
+        // 4. SAFELY GRAB TEXT & TITLE (Match the HTML IDs from _Layout.cshtml)
         const elTitle = document.getElementById('editPostTitle');
         const elText = document.getElementById('editPostText');
 
+        // FIX: Ensure properties are Capitalized to match the C# DTO (Title, Text, Price, etc.)
         const body = {
-            Title: elTitle ? elTitle.value : null,
-            Text: elText ? elText.value : null,
+            Title: elTitle ? elTitle.value.trim() : null,
+            Text: elText ? elText.value.trim() : null,
             Price: parsedPrice,
             Quantity: parsedQty,
             Visibility: visValue,
