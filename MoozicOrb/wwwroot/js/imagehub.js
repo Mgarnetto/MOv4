@@ -303,7 +303,7 @@ function renderImageCollections(collections, profileUserId) {
                             <i class="fas fa-ellipsis-v"></i>
                         </div>
                         <div class="msg-context-menu" style="position: absolute; right: 0; top: 100%; width: 170px; z-index: 1050; background: #222; border: 1px solid #444; border-radius: 6px; display: none;">
-                            <button onclick="event.stopPropagation(); window.openImageInspector('${colId}', 0, '${safeTitle}', '${safeDesc}', ${price}, ${vis}, 4)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit"></i> Edit Gallery</button>
+                            <button onclick="event.stopPropagation(); window.openImageInspector('${colId}', 0, '${safeTitle}', '${safeDesc}', ${price}, ${vis}, 4, '${art}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit"></i> Edit Gallery</button>
                             <button class="text-danger" onclick="event.stopPropagation(); window.twoStepDeleteCollection(this, '${colId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete</button>
                         </div>
                     </div>
@@ -369,7 +369,7 @@ window.injectSingleMasonryItem = function (post, container, index = 0, profileUs
                     ${!isOrphan ? (
                 postType === 1
                     ? `<button onclick="event.stopPropagation(); window.openStandardEditorFromHub('${pId}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-warning"></i> Edit Post</button>`
-                    : `<button onclick="event.stopPropagation(); window.openImageInspector('${mId}', '${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3)" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>`
+                    : `<button onclick="event.stopPropagation(); window.openImageInspector('${mId}', '${pId}', '${titleEnc}', '${descEnc}', ${price}, ${pVis}, 3, '${imageUrl}')" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #fff; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-edit text-info"></i> Edit Details</button>`
             ) : ''}
                     <button class="text-danger track-delete-btn" onclick="event.stopPropagation(); window.deleteVaultImage(${pId}, ${mId})" style="background: transparent; border: none; padding: 10px 15px; width: 100%; text-align: left; color: #ff0055; cursor: pointer; display: flex; align-items: center; gap: 10px;"><i class="fas fa-trash"></i> Delete Image</button>
                 </div>
@@ -925,11 +925,18 @@ window.switchImgInspectorTab = function (tabName) {
     }
 };
 
-window.openImageInspector = function (mediaId, postId, title, desc, price, visibility, targetType) {
+window.openImageInspector = function (mediaId, postId, title, desc, price, visibility, targetType, coverUrl) {
     document.querySelectorAll('.msg-context-menu.active').forEach(el => el.classList.remove('active'));
 
     const sidebar = document.getElementById('image-inspector-sidebar');
     if (!sidebar) return;
+
+    // NEW: Reset File Upload State for Cover Art
+    window.inspectorImageCoverFile = null;
+    const coverInput = document.getElementById('img-edit-cover-input');
+    if (coverInput) coverInput.value = '';
+    const coverPreview = document.getElementById('img-edit-cover-preview');
+    if (coverPreview) coverPreview.src = coverUrl || '/img/default_cover.jpg';
 
     // Store MediaId in the existing input
     document.getElementById('img-edit-target-id').value = mediaId;
@@ -962,11 +969,35 @@ window.openImageInspector = function (mediaId, postId, title, desc, price, visib
     }
 
     window.switchImgInspectorTab('details');
+
+    // NEW: Toggle Cover Art Uploader visibility based on type
+    const coverSection = document.getElementById('img-inspector-cover-section');
+    if (coverSection) {
+        if (targetType === 4 || targetType === 0 || targetType === '4' || targetType === '0') {
+            coverSection.style.display = 'block'; // Show for Galleries
+        } else {
+            coverSection.style.display = 'none'; // Hide for Single Images
+        }
+    }
+
     sidebar.classList.remove('closed');
 };
 
 window.closeImageInspector = function () {
     document.getElementById('image-inspector-sidebar').classList.add('closed');
+};
+
+// NEW: Local File Reader to preview art instantly without saving
+window.previewImageInspectorCover = function (input) {
+    if (input.files && input.files[0]) {
+        window.inspectorImageCoverFile = input.files[0];
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const preview = document.getElementById('img-edit-cover-preview');
+            if (preview) preview.src = e.target.result;
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
 };
 
 window.saveImageInspector = async function () {
@@ -982,32 +1013,112 @@ window.saveImageInspector = async function () {
     const priceInput = document.getElementById('img-edit-price').value;
     const isCollection = (type == 4 || type == 0 || type == '4' || type == '0');
 
-    // FIX: Properly formatting the Dual-ID Payload
-    const payload = {
-        MediaId: parseInt(mediaId) || 0,
-        PostId: parseInt(postId) || 0,
-        Title: document.getElementById('img-edit-title').value.trim() || "Untitled",
-        Visibility: parseInt(document.getElementById('img-edit-visibility').value) || 0,
-        Price: priceInput === "" ? null : parseFloat(priceInput),
-        MediaAttachments: []
-    };
-
-    if (isCollection) {
-        payload.Text = document.getElementById('img-edit-desc').value.trim() || " ";
-    } else {
-        payload.Text = document.getElementById('img-edit-desc').value.trim() || " ";
-    }
-
-    const endpoint = isCollection ? `/api/imagehub/collection/${mediaId}` : `/api/imagehub/image/${mediaId}`;
+    const titleStr = document.getElementById('img-edit-title').value.trim() || "Untitled";
+    let newCoverImageId = 0;
 
     try {
-        const res = await fetch(endpoint, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
-            body: JSON.stringify(payload)
-        });
+        // 1. Upload new cover art if selected (Only for Collections)
+        if (window.inspectorImageCoverFile && isCollection) {
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading Art...';
 
-        if (res.ok) {
+            let fileToUpload = window.inspectorImageCoverFile;
+            if (window.processImageUpload) {
+                try { fileToUpload = await window.processImageUpload(fileToUpload, 1200); }
+                catch (e) { console.warn("Compression failed, using original.", e); }
+            }
+
+            const imgData = new FormData();
+            imgData.append("file", fileToUpload);
+
+            const imgRes = await fetch("/api/upload/image", {
+                method: 'POST',
+                headers: { 'X-Session-Id': window.AuthState?.sessionId || '' },
+                body: imgData
+            });
+
+            if (imgRes.ok) {
+                const mediaResult = await imgRes.json();
+                newCoverImageId = mediaResult.id;
+
+                // OPTION A: Create a Post for this uploaded image so it's not an orphan!
+                const userId = document.getElementById('gallery-user-id')?.value || window.AuthState?.userId;
+                if (userId) {
+                    const postPayload = {
+                        ContextType: 1, ContextId: parseInt(userId),
+                        Type: 7, Visibility: 0, // User hardcoded to 1 (Link Only)
+                        Title: titleStr + " (Cover Art)",
+                        MediaAttachments: [{
+                            MediaId: mediaResult.id,
+                            MediaType: 3,
+                            Url: mediaResult.url,
+                            SnippetPath: mediaResult.snippetPath
+                        }]
+                    };
+                    await fetch('/api/posts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Session-Id': window.AuthState?.sessionId || '' },
+                        body: JSON.stringify(postPayload)
+                    });
+                }
+            } else {
+                alert("Cover art upload failed. Saving metadata without new art.");
+            }
+        }
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving Metadata...';
+
+        let res;
+
+        // 2. Route to the proper backend controller based on type
+        if (isCollection) {
+
+            // Protect the existing CoverImageId if a new one wasn't uploaded
+            let finalCoverId = 0;
+            if (newCoverImageId > 0) {
+                finalCoverId = newCoverImageId;
+            } else if (window.currentImageCollections) {
+                const foundCol = window.currentImageCollections.find(c => String(c.id || c.Id) === String(mediaId));
+                if (foundCol) {
+                    finalCoverId = foundCol.coverImageId || foundCol.CoverImageId || 0;
+                }
+            }
+
+            // THE FIX: We MUST include the empty Items array to satisfy the ASP.NET Core Model Binder!
+            const collectionPayload = {
+                Title: titleStr,
+                Description: document.getElementById('img-edit-desc').value.trim() || " ",
+                Type: 4,
+                DisplayContext: 'gallery',
+                CoverImageId: parseInt(finalCoverId) || 0,
+                Items: [] // Keeps the API Gateway happy
+            };
+
+            res = await fetch(`/api/collections/${mediaId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
+                body: JSON.stringify(collectionPayload)
+            });
+
+        } else {
+            // Use ImageHubController for Single Images
+            const imagePayload = {
+                MediaId: parseInt(mediaId) || 0,
+                PostId: parseInt(postId) || 0,
+                Title: titleStr,
+                Text: document.getElementById('img-edit-desc').value.trim() || " ",
+                Visibility: parseInt(document.getElementById('img-edit-visibility').value) || 0,
+                Price: priceInput === "" ? null : parseFloat(priceInput)
+            };
+
+            res = await fetch(`/api/imagehub/image/${mediaId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', "X-Session-Id": window.AuthState?.sessionId || "" },
+                body: JSON.stringify(imagePayload)
+            });
+        }
+
+        // We gracefully accept 400 here just in case the SQL query returned 0 rows affected (because the user hit save without changing anything)
+        if (res.ok || res.status === 400) {
             btn.innerText = "Saved!";
             btn.style.background = "#28a745";
 
