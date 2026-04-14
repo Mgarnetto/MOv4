@@ -46,7 +46,9 @@
     <h2 class="section-heading">BY MAP OR GENRE</h2>
     <div class="genre-container">
         <input type="text" class="genre-search" placeholder="Search genres...">
-        <div class="genre-pills scroller-thin">
+        @await Component.InvokeAsync("ListGenres")
+
+        @* <div class="genre-pills scroller-thin">
             <span class="pill">Acid-House</span><span class="pill">Afro-Beat</span><span class="pill">Alternative</span>
             <span class="pill">Bass</span><span class="pill">Blues</span><span class="pill">Christian</span>
             <span class="pill">Country</span><span class="pill">Dance</span>
@@ -56,9 +58,12 @@
             <span class="pill">Pop</span><span class="pill">R&B</span><span class="pill">Rap</span>
             <span class="pill">Rock</span><span class="pill">Spiritual</span>
             <span class="pill">Techno</span><span class="pill">Trance</span>
-        </div>
+        </div> *@
     </div>
     <div class="globe-box">
+        <button id="btn-back-to-globe" class="btn-map-back" style="display: none;" onclick="window.initGlobe()">
+            &larr; Back to Globe
+        </button>
         <div id="chartdiv"></div>
     </div>
 </section>

@@ -87,6 +87,19 @@ window.initGlobe = function () {
             stroke: am5.color(0xffffff)
         });
 
+        // Inside window.initGlobe after creating polygonSeries
+        polygonSeries.mapPolygons.template.events.on("click", function (ev) {
+            const data = ev.target.dataItem.dataContext;
+
+            if (data.id === "US") {
+                // Trigger the drill-down
+                loadUSAMap();
+            } else {
+                // Redirect all other countries to a generic page using your SPA router
+                window.AppRouter.navigate('/generic-info');
+            }
+        });
+
         var backgroundSeries = chart.series.push(am5map.MapPolygonSeries.new(root, {}));
         backgroundSeries.mapPolygons.template.setAll({
             fill: am5.color(0x000000),
@@ -1041,3 +1054,78 @@ window.toggleCollection = function (headerElement) {
 
 window.closeCollectionModal = window.OrbSavePanel.close;
 window.openSaveToCollectionModal = window.OrbSavePanel.open;
+
+function loadUSAMap() {
+    if (!globeRoot) return;
+
+    // 1. UI: Check if the button exists before trying to style it
+    const backBtn = document.getElementById("btn-back-to-globe");
+    if (backBtn) {
+        backBtn.style.display = "block";
+    }
+
+    // 2. Clear current series (removes globe, graticule, etc.)
+    globeRoot.container.children.clear();
+
+    // 3. Create US Chart with Albers USA projection
+    let chart = globeRoot.container.children.push(am5map.MapChart.new(globeRoot, {
+        panX: "translateX",
+        panY: "translateY",
+        projection: am5map.geoAlbersUsa()
+    }));
+
+    // 4. US State Series
+    let polySeries = chart.series.push(am5map.MapPolygonSeries.new(globeRoot, {
+        geoJSON: typeof am5geodata_usaLow !== 'undefined' ? am5geodata_usaLow : null,
+        valueField: "value",
+        calculateAggregates: true
+    }));
+
+    if (!polySeries.get("geoJSON")) {
+        console.error("USA Geodata (usaLow.js) not loaded.");
+    }
+
+    polySeries.mapPolygons.template.setAll({
+        tooltipText: "{name}: {value} entries",
+        fill: am5.color(0x1a1a1a),
+        templateField: "polygonSettings",
+        interactive: true
+    });
+
+    // 5. Custom Markers
+    let pointSeries = chart.series.push(am5map.MapPointSeries.new(globeRoot, {}));
+
+    pointSeries.bullets.push(function () {
+        let circle = am5.Circle.new(globeRoot, {
+            radius: 6,
+            fill: am5.color(0xff0055),
+            tooltipText: "{title}",
+            cursorOverStyle: "pointer"
+        });
+
+        circle.events.on("click", function (ev) {
+            const markerData = ev.target.dataItem.dataContext;
+            if (window.AppRouter) {
+                window.AppRouter.navigate(markerData.url);
+            }
+        });
+
+        return am5.Bullet.new(globeRoot, { sprite: circle });
+    });
+
+    polySeries.data.setAll([
+        { id: "US-TX", value: 45, polygonSettings: { fill: am5.color(0x00AEEF) } },
+        { id: "US-NY", value: 82, polygonSettings: { fill: am5.color(0xffcc00) } }
+    ]);
+
+    pointSeries.data.setAll([
+        {
+            geometry: { type: "Point", coordinates: [-86.7816, 36.1627] },
+            title: "Nashville Hub",
+            url: "/hub/nashville"
+        }
+    ]);
+}
+
+const backBtn = document.getElementById("btn-back-to-globe");
+if (backBtn) backBtn.style.display = "none";

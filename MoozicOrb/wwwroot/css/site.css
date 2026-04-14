@@ -5127,3 +5127,27 @@ button[title="Add to Carousel"],
     visibility: visible !important;
     display: flex !important;
 }
+
+.btn-map-back {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 10;
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--accent-secondary);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--font-body);
+    transition: 0.3s;
+}
+
+    .btn-map-back:hover {
+        background: var(--accent-secondary);
+        color: #000;
+    }
+
+.globe-box {
+    position: relative; /* Necessary for absolute positioning of the button */
+}

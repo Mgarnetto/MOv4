@@ -21,12 +21,12 @@ namespace MoozicOrb.Controllers
 
             //    var user = new MoozicOrb.Models.User()
             //    {
-            //        FirstName = "Stephanie",
+            //        FirstName = "Gerald",
             //        MiddleName = "",
-            //        LastName = "Thompson",
-            //        UserName = "Steph",
-            //        Email = "Steph@placeholder.com",
-            //        DisplayName = "Steph",
+            //        LastName = "",
+            //        UserName = "Gerald",
+            //        Email = "Gerald@placeholder.com",
+            //        DisplayName = "Gerald",
             //        ProfilePic = "",
             //        CoverImageUrl = "",
             //        Bio = "",

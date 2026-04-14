@@ -1,0 +1,22 @@
+﻿@using MoozicOrb.Models
+@model List<Genre>
+
+@* <select id="inputGenrePrimary" class="form-control" style="background: #000; color: white; border: 1px solid #333; height: 45px;">
+    <option value="">-- None --</option>    
+        foreach (var g in Model)
+        {
+            <option value="@g.Id">@g.Name</option>
+        }
+</select> *@
+
+    <div class="genre-container">
+        <div class="genre-pills scroller-thin">
+    @foreach (var g in Model){
+                <span class="pill">@g.Name</span>
+    }
+        </div>
+    </div>
+    
+        
+        
+        
