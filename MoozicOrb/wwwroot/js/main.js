@@ -1055,6 +1055,12 @@ window.toggleCollection = function (headerElement) {
 window.closeCollectionModal = window.OrbSavePanel.close;
 window.openSaveToCollectionModal = window.OrbSavePanel.open;
 
+
+// ============================================
+// US MAP VIEW (Globe Alternative for USA-specific Data)
+// ============================================
+
+
 function loadUSAMap() {
     if (!globeRoot) return;
 
@@ -1113,18 +1119,29 @@ function loadUSAMap() {
         return am5.Bullet.new(globeRoot, { sprite: circle });
     });
 
-    polySeries.data.setAll([
-        { id: "US-TX", value: 45, polygonSettings: { fill: am5.color(0x00AEEF) } },
-        { id: "US-NY", value: 82, polygonSettings: { fill: am5.color(0xffcc00) } }
-    ]);
+    // Assuming 'polygonSeries' is your US states map series
+    polySeries.mapPolygons.template.events.on("click", function (ev) {
+        // Access state information from the data context
+        let stateData = ev.target.dataItem.dataContext;
+        console.log("Clicked state name:", stateData.name);
+        console.log("Clicked state ID:", stateData.id);
 
-    pointSeries.data.setAll([
-        {
-            geometry: { type: "Point", coordinates: [-86.7816, 36.1627] },
-            title: "Nashville Hub",
-            url: "/hub/nashville"
-        }
-    ]);
+        // Optional: Zoom into the clicked state
+        //chart.zoomToGeoBounds(ev.target.geoBounds());
+    })
+
+    //polySeries.data.setAll([
+    //    { id: "US-TX", value: 45, polygonSettings: { fill: am5.color(0x00AEEF) } },
+    //    { id: "US-NY", value: 82, polygonSettings: { fill: am5.color(0xffcc00) } }
+    //]);
+
+    //pointSeries.data.setAll([
+    //    {
+    //        geometry: { type: "Point", coordinates: [-86.7816, 36.1627] },
+    //        title: "Nashville Hub",
+    //        url: "/hub/nashville"
+    //    }
+    //]);
 }
 
 const backBtn = document.getElementById("btn-back-to-globe");
