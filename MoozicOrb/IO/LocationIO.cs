@@ -52,6 +52,47 @@ namespace MoozicOrb.IO
             return list;
         }
 
+        /// <summary>
+        /// Retrieves a state location from the database by its code.
+        /// </summary>
+        /// <param name="stateCode">The code of the state to retrieve.</param>
+        /// <returns>The <see cref="Location"/> object if found; otherwise, null.</returns>
+        public Location GetState(string StateCode)
+        {
+
+            string stateCode;
+
+            string[] str = StateCode.Split('-');
+
+            if (str.Length > 0)
+                {
+                stateCode = str[1];
+            }
+            else
+            {
+                stateCode = StateCode;
+            }
+
+            Location location = null;
+            string sql = "SELECT id, parent_id, name, code FROM locations WHERE code = @code LIMIT 1";
+            using (var conn = new MySqlConnection(DBConn1.ConnectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@code", stateCode);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            location = MapLocation(reader);
+                        }
+                    }
+                }
+            }
+            return location;
+        }
+
         // Helper: Maps database row to C# Object
         private Location MapLocation(MySqlDataReader reader)
         {
