@@ -10,8 +10,10 @@ namespace MoozicOrb.Controllers
         //    return View();
         //}
 
-        public IActionResult StatePage(string state)
+        public IActionResult StatePage()
         {
+
+            int a = 1;
             if(Request.IsSpaRequest())
             {
                 return PartialView("_LocationPartial");

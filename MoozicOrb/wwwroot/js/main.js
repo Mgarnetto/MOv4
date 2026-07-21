@@ -1125,8 +1125,12 @@ function loadUSAMap() {
         let stateData = ev.target.dataItem.dataContext;
         console.log("Clicked state name:", stateData.name);
         console.log("Clicked state ID:", stateData.id);
-        url = `Location/GetState/${stateData.id}`; // Example URL structure
+        
+        // Just construct a standard ASP.NET route URL with query string
+        var targetUrl = '/Location/StatePage'; //
 
+        // Pass the URL string straight to your router:
+        window.AppRouter.navigate(targetUrl); //
 
         // Optional: Zoom into the clicked state
         //chart.zoomToGeoBounds(ev.target.geoBounds());
