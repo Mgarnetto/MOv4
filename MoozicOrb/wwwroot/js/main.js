@@ -1125,6 +1125,8 @@ function loadUSAMap() {
         let stateData = ev.target.dataItem.dataContext;
         console.log("Clicked state name:", stateData.name);
         console.log("Clicked state ID:", stateData.id);
+        url = `Location/GetState/${stateData.id}`; // Example URL structure
+
 
         // Optional: Zoom into the clicked state
         //chart.zoomToGeoBounds(ev.target.geoBounds());

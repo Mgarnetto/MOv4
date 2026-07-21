@@ -1,25 +1,25 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using MoozicOrb.IO;
-using System.Collections.Generic;
+using MoozicOrb.Extensions;
 
 namespace MoozicOrb.Controllers
 {
-    // We add specific routes so JS can find it easily
     public class LocationController : Controller
     {
-        private readonly LocationIO _locationIo;
+        //public IActionResult Index()
+        //{
+        //    return View();
+        //}
 
-        public LocationController()
+        public IActionResult StatePage(string state)
         {
-            _locationIo = new LocationIO();
+            if(Request.IsSpaRequest())
+            {
+                return PartialView("_LocationPartial");
+            }
+            else
+            {
+                return RedirectToAction("Index", "Home");
+            }
         }
-
-        // API Endpoint: /api/locations/states/1 (where 1 is US)
-        [HttpGet("api/locations/states/{countryId}")]
-        public IActionResult GetStates(int countryId)
-        {
-            var states = _locationIo.GetStates(countryId);
-            return Ok(states);
-        }
-    }
+    }    
 }
