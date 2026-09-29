@@ -28,7 +28,30 @@ namespace MoozicOrb.IO
             return list;
         }
 
-        // 2. Get States (Items belonging to a specific Country ID)
+        // 2. Get Country by Code
+        public Location GetCountryByCode(int countryId)
+        {
+            Location location = null;
+            string sql = "SELECT id, parent_id, name, code FROM locations WHERE id = @id and parent_id is null LIMIT 1";
+            using (var conn = new MySqlConnection(DBConn1.ConnectionString))
+            {
+                conn.Open();
+                using (var cmd = new MySqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@id", countryId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            location = MapLocation(reader);
+                        }
+                    }
+                }
+            }
+            return location;
+        }
+
+        // 3. Get States (Items belonging to a specific Country ID)
         public List<Location> GetStates(int countryId)
         {
             var list = new List<Location>();
@@ -64,9 +87,9 @@ namespace MoozicOrb.IO
 
             string[] str = StateCode.Split('-');
 
-            if (str.Length > 0)
+            if (str.Length > 1)
                 {
-                stateCode = str[1];
+                stateCode = str[^1];
             }
             else
             {

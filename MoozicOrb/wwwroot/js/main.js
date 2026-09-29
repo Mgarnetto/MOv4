@@ -327,6 +327,8 @@ window.triggerGlobalSearch = function () {
     const input = document.getElementById('globalSearchInput');
     const term = input.value.trim();
 
+    document.querySelector('.ClearSearch').placeholder = 'Search...';
+
     if (term) {
         // 1. Navigate
         if (window.AppRouter) {
@@ -1127,7 +1129,7 @@ function loadUSAMap() {
         console.log("Clicked state ID:", stateData.id);
         
         // Just construct a standard ASP.NET route URL with query string
-        var targetUrl = '/Location/StatePage'; //
+        var targetUrl = '/Location/StatePage?id=' + stateData.id; //
 
         // Pass the URL string straight to your router:
         window.AppRouter.navigate(targetUrl); //
