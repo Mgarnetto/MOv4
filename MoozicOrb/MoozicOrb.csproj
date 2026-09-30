@@ -9,9 +9,13 @@
 
   <ItemGroup>
     <Compile Remove="wwwroot\media\**" />
+    <Compile Remove="wwwroot\music\**" />
     <Content Remove="wwwroot\media\**" />
+    <Content Remove="wwwroot\music\**" />
     <EmbeddedResource Remove="wwwroot\media\**" />
+    <EmbeddedResource Remove="wwwroot\music\**" />
     <None Remove="wwwroot\media\**" />
+    <None Remove="wwwroot\music\**" />
   </ItemGroup>
 
   <ItemGroup>
